@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "MacCanDo",
+  "project_id": "26d8e9fa-6786-4e76-a322-a16e99a25220"
+}
