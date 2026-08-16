@@ -149,13 +149,23 @@ struct SeriesView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Text("순서 = 편 번호 (1편, 2편...) — 행을 드래그해서 정렬하세요")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 14)
-                .padding(.top, 10)
-                .padding(.bottom, 8)
+                .padding(.top, 12)
+                .padding(.bottom, 10)
+
+                // 시리즈 글 섹션
+                HStack(spacing: 6) {
+                    Text("시리즈 글")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    Text("(\(s.posts.count)편 · 드래그로 순서 변경)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 4)
 
                 // 시리즈 글 목록 — 최대 5편 높이 (넘으면 스크롤)
                 if s.posts.isEmpty {
@@ -193,13 +203,26 @@ struct SeriesView: View {
                 }
 
                 Divider()
+                    .padding(.top, 8)
 
-                // 시리즈 없는 글 → 검색 + 추가 (남은 공간 전체)
+                // 시리즈 없는 글 섹션 (남은 공간 전체)
                 VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Text("시리즈에 없는 글")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                        Text("(\(data.loosePosts.count)개 — 체크 후 추가)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.top, 8)
+
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(.secondary)
-                        TextField("시리즈에 없는 글 검색 (제목)", text: $searchText)
+                        TextField("제목 검색", text: $searchText)
                             .textFieldStyle(.roundedBorder)
                             .onSubmit { searchTask?.cancel(); Task { await searchLoose(searchText) } }
                         if isLoading {
@@ -211,7 +234,6 @@ struct SeriesView: View {
                         }
                     }
                     .padding(.horizontal, 14)
-                    .padding(.top, 8)
 
                     if data.loosePosts.isEmpty {
                         Text(searchText.isEmpty ? "시리즈 없는 글이 없습니다." : "검색 결과가 없습니다.")

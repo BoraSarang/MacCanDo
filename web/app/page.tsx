@@ -27,7 +27,7 @@ export default async function HomePage() {
       <section className="mb-10">
         <h2 className="text-xl font-bold mb-4">카테고리</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {categories.map((c) => (
+          {categories.filter((c) => c.postCount > 0).map((c) => (
             <Link
               key={c.slug}
               href={`/category/${c.slug}`}

@@ -42,3 +42,6 @@ next-env.d.ts
 
 /app/generated/prisma
 lib/error_message_ko.json
+test-results/
+playwright-report/
+playwright/.cache/
