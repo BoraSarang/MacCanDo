@@ -5,14 +5,15 @@ test.describe("시리즈", () => {
   test("모아보기: 1~N편 순서 노출", async ({ page }) => {
     await page.goto("/series");
     await expect(page.getByRole("heading", { name: /📚 시리즈/ })).toBeVisible();
-    const series = page.getByRole("heading", { name: "맥 필수 유틸리티 가이드" });
+    const series = page.getByRole("heading", { name: "맥을 처음 접할 때 필요한 필수 앱" });
     await series.click();
     await expect(page).toHaveURL(/\/series\//);
     const links = page.locator("ol a[href^='/post/']");
-    await expect(links).toHaveCount(3);
-    await expect(links.nth(0)).toContainText("Homebrew");
-    await expect(links.nth(1)).toContainText("TetherLens");
+    await expect(links).toHaveCount(4);
+    await expect(links.nth(0)).toContainText("맥 첫 시작");
+    await expect(links.nth(1)).toContainText("Homebrew");
     await expect(links.nth(2)).toContainText("CleanMyMac X");
+    await expect(links.nth(3)).toContainText("TetherLens");
   });
 });
 

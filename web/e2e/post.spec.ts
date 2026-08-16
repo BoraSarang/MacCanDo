@@ -11,9 +11,9 @@ test.describe("글 상세", () => {
 
   test("시리즈 목록: 현재 글 강조 + 다른 편 링크", async ({ page }) => {
     await page.goto("/post/sample-homebrew-guide");
-    await expect(page.getByRole("heading", { name: /📚 맥 필수 유틸리티 가이드/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /📚 맥을 처음 접할 때 필요한 필수 앱/ })).toBeVisible();
     await expect(page.getByText("보고 있는 글")).toBeVisible();
-    const tether = page.getByRole("link", { name: /2편/ });
+    const tether = page.getByRole("link", { name: /4편/ });
     await expect(tether).toHaveAttribute("href", "/post/tetherlens");
     await tether.click();
     await expect(page).toHaveURL(/\/post\/tetherlens/);

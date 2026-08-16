@@ -241,7 +241,7 @@ export async function updatePost(id: string, input: PostInput) {
         status: input.status,
         storeInfo: input.storeInfo ?? undefined,
         seoMeta: input.seoMeta ?? undefined,
-        seriesId: input.seriesId || null,
+        ...(input.seriesId !== undefined ? { seriesId: input.seriesId } : {}), // 미전달 시 기존 유지
         publishedAt:
           input.status === "PUBLISHED" && !existing.publishedAt
             ? new Date()

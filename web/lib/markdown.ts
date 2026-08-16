@@ -111,12 +111,38 @@ function inline(text: string): string {
 
 // ---------- 메인 렌더러 ----------
 
+function parseTableRow(line: string): string {
+  const cells = line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => inline(c.trim()));
+  return `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
+}
+
+function parseTableHeader(line: string): string {
+  const cells = line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => inline(c.trim()));
+  return `<tr>${cells.map((c) => `<th>${c}</th>`).join("")}</tr>`;
+}
+
+function isTableSeparator(line: string): boolean {
+  return /^\|?[\s:|-]+\|?$/.test(line) && line.includes("-");
+}
+
 export function renderMarkdown(md: string): string {
   let html = "";
   let inCodeBlock = false;
   let codeBuf: string[] = [];
   let listBuf: string[] = [];
   let listType: "ul" | "ol" = "ul";
+  let tableBuf: string[] = [];
+  let tableHasHeader = false;
 
   const flushList = () => {
     if (listBuf.length === 0) return;
@@ -124,6 +150,33 @@ export function renderMarkdown(md: string): string {
     for (const item of listBuf) html += `<li>${inline(item)}</li>`;
     html += `</${listType}>`;
     listBuf = [];
+  };
+
+  const flushTable = () => {
+    if (tableBuf.length === 0) return;
+    if (tableBuf.length < 2) {
+      for (const t of tableBuf) html += `<p>${inline(t)}</p>`;
+      tableBuf = [];
+      return;
+    }
+    if (isTableSeparator(tableBuf[1])) {
+      const head = parseTableHeader(tableBuf[0]);
+      const body = tableBuf
+        .slice(2)
+        .filter((t) => !isTableSeparator(t))
+        .map(parseTableRow)
+        .join("");
+      html += `<div class="overflow-x-auto"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+      tableHasHeader = true;
+    } else {
+      for (const t of tableBuf) html += `<p>${inline(t)}</p>`;
+    }
+    tableBuf = [];
+  };
+
+  const flushAll = () => {
+    flushList();
+    flushTable();
   };
 
   for (const rawLine of md.split("\n")) {
@@ -135,7 +188,7 @@ export function renderMarkdown(md: string): string {
         codeBuf = [];
         inCodeBlock = false;
       } else {
-        flushList();
+        flushAll();
         inCodeBlock = true;
       }
       continue;
@@ -145,9 +198,20 @@ export function renderMarkdown(md: string): string {
       continue;
     }
     if (line === "") {
-      flushList();
+      flushAll();
       continue;
     }
+
+    if (line.startsWith("|") && line.endsWith("|")) {
+      flushList();
+      if (tableBuf.length === 1 && !tableHasHeader && isTableSeparator(line)) {
+        tableBuf.push(line);
+        continue;
+      }
+      tableBuf.push(line);
+      continue;
+    }
+    flushTable();
 
     if (line.startsWith("- ") || line.startsWith("* ")) {
       if (listBuf.length > 0 && listType !== "ul") flushList();
@@ -179,7 +243,7 @@ export function renderMarkdown(md: string): string {
 
     html += `<p>${inline(line)}</p>`;
   }
-  flushList();
+  flushAll();
   if (inCodeBlock) html += `<pre><code>${codeBuf.join("\n")}</code></pre>`;
   return html;
 }
