@@ -1,0 +1,27 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#007AFF"/>
+      <stop offset="100%" stop-color="#AF52DE"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+
+  <!-- macOS 앱 아이콘 베이스 (슈퍼엘립스) -->
+  <rect x="16" y="16" width="992" height="992" rx="222" fill="url(#bg)"/>
+  <!-- 유리질감 하이라이트 -->
+  <rect x="16" y="16" width="992" height="520" rx="222" fill="url(#shine)"/>
+  <!-- 얇은 테두리 -->
+  <rect x="16" y="16" width="992" height="992" rx="222" fill="none" stroke="#000000" stroke-opacity="0.12" stroke-width="6"/>
+
+  <!-- ⌘ 심볼: 바깥 사각형 루프 -->
+  <rect x="192" y="192" width="640" height="640" rx="150" fill="none" stroke="#FFFFFF" stroke-width="88" stroke-opacity="0.95"/>
+  <!-- ⌘ 심볼: 안쪽 사각형 루프 -->
+  <rect x="382" y="382" width="260" height="260" rx="62" fill="none" stroke="#FFFFFF" stroke-width="70" stroke-opacity="0.95"/>
+
+  <!-- 체크마크 (브랜드 모티브) -->
+  <path d="M442 515 L502 575 L612 455" fill="none" stroke="#FFFFFF" stroke-width="78" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

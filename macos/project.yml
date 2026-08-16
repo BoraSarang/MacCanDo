@@ -1,0 +1,38 @@
+name: MacCanDo
+options:
+  bundleIdPrefix: kr.maccando
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGNING_ALLOWED: "NO"
+    CODE_SIGN_IDENTITY: "-"
+targets:
+  MacCanDo:
+    type: application
+    platform: macOS
+    sources:
+      - MacCanDo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: kr.maccando.app
+        PRODUCT_NAME: MacCanDo
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        INFOPLIST_KEY_NSHumanReadableCopyright: "© 2026 MacCanDo"
+    info:
+      path: MacCanDo/Info.plist
+      properties:
+        LSMinimumSystemVersion: "14.0"
+        CFBundleDevelopmentRegion: "ko"
+        CFBundleDisplayName: "MacCanDo"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleIconFile: "AppIcon"
+        LSHasLocalizedDisplayName: true
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true

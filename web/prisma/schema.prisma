@@ -1,0 +1,256 @@
+// MacCanDo 스키마 — docs/DESIGN.md 2.1 기준
+// 플랫폼: web (Next.js + Neon Postgres)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+
+}
+
+// ===== 사용자 (Google OAuth) =====
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  comments        Comment[]
+  downloadEvents  DownloadEvent[]
+  accounts        Account[]
+  sessions        Session[]
+}
+
+// ===== Auth.js 표준 모델 (PrismaAdapter 필수) =====
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+// ===== 카테고리 (계층형) =====
+model Category {
+  id        String     @id @default(cuid())
+  parentId  String?
+  slug      String     @unique
+  name      String
+  sort      Int        @default(0)
+  createdAt DateTime   @default(now())
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  posts    Post[]
+}
+
+// ===== 게시글 =====
+model Post {
+  id           String       @id @default(cuid())
+  categoryId   String?
+  title        String
+  slug         String       @unique
+  bodyFormat   BodyFormat   @default(MD)
+  body         String
+  excerpt      String?
+  thumbnailUrl String?
+  status       PostStatus   @default(DRAFT)
+  storeInfo    Json?        // { appId, appUrl, appName, price, rating }
+  seoMeta      Json?        // { title, description, tags[] }
+  seriesId     String?
+  seriesOrder  Int?         // 시리즈 내 순서 (1=1편, 2=2편...)
+  viewCount    Int          @default(0)
+  publishedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  category       Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  series         Series?        @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  comments       Comment[]
+  downloadLinks  DownloadLink[]
+  downloadEvents DownloadEvent[]
+  dailyStats     DailyStat[]
+  images         Image[]
+
+  @@index([categoryId, status])
+  @@index([publishedAt])
+  @@index([seriesId, seriesOrder])
+}
+
+// ===== 시리즈 =====
+model Series {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  posts Post[]
+}
+
+enum BodyFormat {
+  MD
+  HTML
+}
+
+enum PostStatus {
+  DRAFT    // 임시 저장 (배포 전)
+  PUBLISHED // 배포됨 (공개)
+}
+
+// ===== 댓글 =====
+model Comment {
+  id        String        @id @default(cuid())
+  postId    String
+  userId    String?
+  parentId  String?
+  content   String
+  status    CommentStatus @default(PENDING)
+  ipAddress String?
+  createdAt DateTime      @default(now())
+
+  post       Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent     Comment?  @relation("CommentReply", fields: [parentId], references: [id])
+  replies    Comment[] @relation("CommentReply")
+
+  @@index([postId, status])
+}
+
+enum CommentStatus {
+  PENDING // 관리자 승인 대기
+  APPROVED
+  SPAM
+}
+
+// ===== 다운로드 링크 (외부) =====
+model DownloadLink {
+  id         String       @id @default(cuid())
+  postId     String
+  label      String
+  url        String
+  type       DownloadType @default(FREE)
+  clickCount Int          @default(0)
+  sort       Int          @default(0)
+  createdAt  DateTime     @default(now())
+
+  post   Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  events DownloadEvent[]
+
+  @@index([postId])
+}
+
+enum DownloadType {
+  OFFICIAL // 공식 사이트
+  FREE     // 무료 링크 사이트
+  TORRENT  // 토렌트 사이트
+}
+
+// ===== 다운로드 클릭 이벤트 (통계) =====
+model DownloadEvent {
+  id             String   @id @default(cuid())
+  postId         String?
+  linkId         String?
+  userId         String?
+  ipHash         String?
+  createdAt      DateTime @default(now())
+
+  post Post?  @relation(fields: [postId], references: [id], onDelete: SetNull)
+  link DownloadLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  user User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([postId, createdAt])
+}
+
+// ===== 일별 통계 (관리자 전용) =====
+model DailyStat {
+  id           String   @id @default(cuid())
+  date         DateTime @db.Date
+  postId       String?
+  views        Int      @default(0)
+  clicks       Int      @default(0)
+  comments     Int      @default(0)
+  newUsers     Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  post Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@unique([date, postId])
+}
+
+// ===== 이미지 (업로드 메타데이터 + 캡션 + 사용처, T-08) =====
+model Image {
+  id        String   @id @default(cuid())
+  url       String   @unique // /uploads/YYYYMMDD/uuid.ext
+  name      String
+  size      Int
+  mimeType  String
+  caption   String? // 캡션 (선택)
+  postId    String? // 최근 사용 글 (본문 [img:URL] 참조 추적)
+  createdAt DateTime @default(now())
+
+  post Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+}
+
+// ===== 백업/복구 이력 =====
+model Backup {
+  id         String       @id @default(cuid())
+  type       BackupType
+  status     BackupStatus @default(RUNNING)
+  fileKey    String?      // R2 객체 키 (온라인→로컬이면 로컬 경로)
+  meta       Json?        // { rowCounts, sizeBytes }
+  createdAt  DateTime     @default(now())
+  finishedAt DateTime?
+}
+
+enum BackupType {
+  ONLINE_TO_LOCAL // 온라인 DB → 로컬 백업
+  LOCAL_TO_ONLINE // 로컬 복구 → 온라인 DB
+}
+
+enum BackupStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  TESTED // 복구 전 테스트 통과
+}

@@ -1,0 +1,244 @@
+// [FEATURE] 로컬 초안 저장소 — SQLite 자동저장 (T-07)
+// 편집 중인 게시글을 Application Support/MacCanDo/drafts.sqlite에 저장
+// 앱 종료/오프라인에도 초안 유지 → 재실행 시 복구
+import Foundation
+import SQLite3
+
+// C 매크로 SQLITE_TRANSIENT — Swift에서 직접 정의
+private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
+struct DraftRecord {
+    var postId: String?   // nil = 새 글
+    var title: String
+    var bodyFormat: String
+    var body: String
+    var status: String
+    var slug: String?
+    var seoMeta: SeoMeta?
+    var savedAt: Date
+}
+
+enum DraftStore {
+    private static var db: OpaquePointer?
+
+    private static var dbPath: String {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("MacCanDo", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("drafts.sqlite").path
+    }
+
+    static func open() {
+        guard db == nil else { return }
+        guard sqlite3_open(dbPath, &db) == SQLITE_OK else {
+            DebugLogger.error("Draft", "SQLite 열기 실패 (\(dbPath))")
+            return
+        }
+        let sql = """
+        CREATE TABLE IF NOT EXISTS drafts (
+          post_id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          body_format TEXT NOT NULL DEFAULT 'MD',
+          body TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'DRAFT',
+          slug TEXT,
+          saved_at REAL NOT NULL
+        );
+        """
+        var err: UnsafeMutablePointer<CChar>?
+        sqlite3_exec(db, sql, nil, nil, &err)
+        if err != nil {
+            DebugLogger.error("Draft", "테이블 생성 실패: \(String(cString: err!))")
+            sqlite3_free(err)
+        }
+        // v1→v2 마이그레이션: slug 컬럼 추가 (T-08)
+        if sqlite3_exec(db, "ALTER TABLE drafts ADD COLUMN slug TEXT;", nil, nil, nil) != SQLITE_OK {
+            // 이미 존재하면 무시
+        }
+        // v2→v3 마이그레이션: seo_meta 컬럼 추가 (T-08 보강)
+        if sqlite3_exec(db, "ALTER TABLE drafts ADD COLUMN seo_meta TEXT;", nil, nil, nil) != SQLITE_OK {
+            // 이미 존재하면 무시
+        }
+        // AI SEO 캐시 테이블 (LRU — 최대 100건, T-08)
+        let cacheSQL = """
+        CREATE TABLE IF NOT EXISTS seo_cache (
+          cache_key TEXT PRIMARY KEY,
+          suggestion TEXT NOT NULL,
+          saved_at REAL NOT NULL
+        );
+        """
+        if sqlite3_exec(db, cacheSQL, nil, nil, &err) != SQLITE_OK {
+            DebugLogger.error("Draft", "seo_cache 생성 실패: \(String(cString: err!))")
+            sqlite3_free(err)
+        }
+        DebugLogger.info("Draft", "SQLite 초기화 완료 (\(dbPath))")
+    }
+
+    // 자동저장 (3초 디바운스 호출)
+    static func save(postId: String?, title: String, bodyFormat: String, body: String, status: String, slug: String? = nil, seoMeta: SeoMeta? = nil) {
+        open()
+        guard let db else { return }
+        let key = postId ?? "__new__"
+        let stmt = "INSERT INTO drafts (post_id, title, body_format, body, status, slug, seo_meta, saved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(post_id) DO UPDATE SET title=excluded.title, body_format=excluded.body_format, body=excluded.body, status=excluded.status, slug=excluded.slug, seo_meta=excluded.seo_meta, saved_at=excluded.saved_at;"
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else {
+            DebugLogger.error("Draft", "prepare 실패")
+            return
+        }
+        sqlite3_bind_text(p, 1, key, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(p, 2, title, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(p, 3, bodyFormat, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(p, 4, body, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(p, 5, status, -1, SQLITE_TRANSIENT)
+        if let slug {
+            sqlite3_bind_text(p, 6, slug, -1, SQLITE_TRANSIENT)
+        } else {
+            sqlite3_bind_null(p, 6)
+        }
+        if let seoMeta, let data = try? JSONEncoder().encode(seoMeta) {
+            sqlite3_bind_text(p, 7, String(data: data, encoding: .utf8) ?? "", -1, SQLITE_TRANSIENT)
+        } else {
+            sqlite3_bind_null(p, 7)
+        }
+        sqlite3_bind_double(p, 8, Date().timeIntervalSince1970)
+        if sqlite3_step(p) == SQLITE_DONE {
+            DebugLogger.debug("Draft", "자동저장 완료 (\(key))")
+        } else {
+            DebugLogger.error("Draft", "자동저장 실패 (\(key))")
+        }
+        sqlite3_finalize(p)
+    }
+
+    static func load(postId: String?) -> DraftRecord? {
+        open()
+        guard let db else { return nil }
+        let key = postId ?? "__new__"
+        let stmt = "SELECT title, body_format, body, status, slug, seo_meta, saved_at FROM drafts WHERE post_id = ?;"
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return nil }
+        sqlite3_bind_text(p, 1, key, -1, SQLITE_TRANSIENT)
+        defer { sqlite3_finalize(p) }
+        guard sqlite3_step(p) == SQLITE_ROW else { return nil }
+        let title = String(cString: sqlite3_column_text(p, 0))
+        let format = String(cString: sqlite3_column_text(p, 1))
+        let body = String(cString: sqlite3_column_text(p, 2))
+        let status = String(cString: sqlite3_column_text(p, 3))
+        let slug = sqlite3_column_type(p, 4) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(p, 4))
+        let seoMeta = decodeSeoMeta(p, 5)
+        let savedAt = Date(timeIntervalSince1970: sqlite3_column_double(p, 6))
+        return DraftRecord(postId: postId, title: title, bodyFormat: format, body: body, status: status, slug: slug, seoMeta: seoMeta, savedAt: savedAt)
+    }
+
+    static func clear(postId: String?) {
+        open()
+        guard let db else { return }
+        let key = postId ?? "__new__"
+        let stmt = "DELETE FROM drafts WHERE post_id = ?;"
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return }
+        sqlite3_bind_text(p, 1, key, -1, SQLITE_TRANSIENT)
+        sqlite3_step(p)
+        sqlite3_finalize(p)
+        DebugLogger.debug("Draft", "초안 삭제 (\(key))")
+    }
+
+    // 전체 초안 목록 (동기화용, T-08)
+    static func all() -> [DraftRecord] {
+        open()
+        guard let db else { return [] }
+        let stmt = "SELECT post_id, title, body_format, body, status, slug, seo_meta, saved_at FROM drafts;"
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(p) }
+        var records: [DraftRecord] = []
+        while sqlite3_step(p) == SQLITE_ROW {
+            let postId = String(cString: sqlite3_column_text(p, 0))
+            let title = String(cString: sqlite3_column_text(p, 1))
+            let format = String(cString: sqlite3_column_text(p, 2))
+            let body = String(cString: sqlite3_column_text(p, 3))
+            let status = String(cString: sqlite3_column_text(p, 4))
+            let slug = sqlite3_column_type(p, 5) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(p, 5))
+            let seoMeta = decodeSeoMeta(p, 6)
+            let savedAt = Date(timeIntervalSince1970: sqlite3_column_double(p, 7))
+            records.append(DraftRecord(
+                postId: postId == "__new__" ? nil : postId,
+                title: title, bodyFormat: format, body: body, status: status, slug: slug, seoMeta: seoMeta, savedAt: savedAt
+            ))
+        }
+        return records
+    }
+
+    // seo_meta TEXT (JSON) → SeoMeta?
+    private static func decodeSeoMeta(_ p: OpaquePointer?, _ col: Int32) -> SeoMeta? {
+        guard sqlite3_column_type(p, col) != SQLITE_NULL,
+              let raw = sqlite3_column_text(p, col) else { return nil }
+        let json = String(cString: raw)
+        return try? JSONDecoder().decode(SeoMeta.self, from: Data(json.utf8))
+    }
+
+    // ---------- AI SEO 캐시 (LRU) ----------
+
+    static func saveSEOCache(key: String, suggestionJSON: String) {
+        open()
+        guard let db else { return }
+        let stmt = "INSERT INTO seo_cache (cache_key, suggestion, saved_at) VALUES (?, ?, ?) ON CONFLICT(cache_key) DO UPDATE SET suggestion=excluded.suggestion, saved_at=excluded.saved_at;"
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return }
+        sqlite3_bind_text(p, 1, key, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(p, 2, suggestionJSON, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_double(p, 3, Date().timeIntervalSince1970)
+        sqlite3_step(p)
+        sqlite3_finalize(p)
+        pruneSEOCache()
+    }
+
+    static func loadSEOCache(key: String) -> String? {
+        open()
+        guard let db else { return nil }
+        let stmt = "SELECT suggestion, saved_at FROM seo_cache WHERE cache_key = ?;"
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return nil }
+        sqlite3_bind_text(p, 1, key, -1, SQLITE_TRANSIENT)
+        defer { sqlite3_finalize(p) }
+        guard sqlite3_step(p) == SQLITE_ROW else { return nil }
+        // hit 시 saved_at 갱신 (LRU)
+        let json = String(cString: sqlite3_column_text(p, 0))
+        _ = p
+        let touch = "UPDATE seo_cache SET saved_at = ? WHERE cache_key = ?;"
+        var tp: OpaquePointer?
+        if sqlite3_prepare_v2(db, touch, -1, &tp, nil) == SQLITE_OK {
+            sqlite3_bind_double(tp, 1, Date().timeIntervalSince1970)
+            sqlite3_bind_text(tp, 2, key, -1, SQLITE_TRANSIENT)
+            sqlite3_step(tp)
+            sqlite3_finalize(tp)
+        }
+        return json
+    }
+
+    // 최대 100건 유지 — 초과 시 가장 오래된 것부터 삭제
+    private static func pruneSEOCache(limit: Int = 100) {
+        open()
+        guard let db else { return }
+        let stmt = """
+        DELETE FROM seo_cache WHERE cache_key IN (
+          SELECT cache_key FROM seo_cache ORDER BY saved_at DESC LIMIT -1 OFFSET ?
+        );
+        """
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return }
+        sqlite3_bind_int(p, 1, Int32(limit))
+        sqlite3_step(p)
+        sqlite3_finalize(p)
+    }
+
+    static func seoCacheCount() -> Int {
+        open()
+        guard let db else { return 0 }
+        let stmt = "SELECT COUNT(*) FROM seo_cache;"
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return 0 }
+        defer { sqlite3_finalize(p) }
+        guard sqlite3_step(p) == SQLITE_ROW else { return 0 }
+        return Int(sqlite3_column_int(p, 0))
+    }
+}

@@ -1,0 +1,235 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   MacCanDo Design Tokens — T-05b
+   Primitive → Semantic → Component (3계층)
+   브랜드: ⌘+체크마크 · 시스템 블루 #007AFF → 퍼플 #AF52DE
+   ============================================================ */
+
+/* ---------- 1. Primitive (원시값) ---------- */
+:root {
+  /* 색상 팔레트 */
+  --ds-blue-600: #007aff;
+  --ds-blue-700: #0062cc;
+  --ds-blue-50: #eff5ff;
+  --ds-purple-500: #af52de;
+  --ds-purple-50: #f7f0fb;
+
+  --ds-gray-50: #f5f5f7;
+  --ds-gray-100: #e8e8ed;
+  --ds-gray-200: #d2d2d7;
+  --ds-gray-300: #aeaeb2;
+  --ds-gray-400: #8e8e93;
+  --ds-gray-500: #636366;
+  --ds-gray-600: #48484a;
+  --ds-gray-700: #333336;
+  --ds-gray-800: #242426;
+  --ds-gray-900: #161618;
+
+  --ds-green-600: #1d8a4e;
+  --ds-green-100: #d3f0df;
+  --ds-red-600: #d70015;
+  --ds-red-100: #fbd8dc;
+  --ds-amber-600: #b25000;
+  --ds-amber-100: #fbe8d0;
+
+  /* 타이포 (Apple 시스템 폰트 스택) */
+  --ds-font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Helvetica Neue", Pretendard, sans-serif;
+  --ds-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+
+  /* 스페이싱 (4px 그리드) */
+  --ds-space-1: 0.25rem;
+  --ds-space-2: 0.5rem;
+  --ds-space-3: 0.75rem;
+  --ds-space-4: 1rem;
+  --ds-space-6: 1.5rem;
+  --ds-space-8: 2rem;
+  --ds-space-12: 3rem;
+  --ds-space-16: 4rem;
+
+  /* 라디우스 */
+  --ds-radius-sm: 0.5rem;
+  --ds-radius-md: 0.75rem;
+  --ds-radius-lg: 1rem;
+  --ds-radius-full: 9999px;
+
+  /* 섀도우 */
+  --ds-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --ds-shadow-md: 0 4px 12px rgb(0 0 0 / 0.08);
+  --ds-shadow-lg: 0 8px 24px rgb(0 0 0 / 0.12);
+
+  /* 모션 */
+  --ds-duration-fast: 150ms;
+  --ds-duration-normal: 200ms;
+}
+
+/* ---------- 2. Semantic (의미 토큰) — 라이트 ---------- */
+:root {
+  --ds-primary: var(--ds-blue-600);
+  --ds-primary-hover: var(--ds-blue-700);
+  --ds-primary-soft: var(--ds-blue-50);
+  --ds-accent: var(--ds-purple-500);
+  --ds-accent-soft: var(--ds-purple-50);
+
+  --ds-bg: #ffffff;
+  --ds-surface: var(--ds-gray-50);
+  --ds-surface-hover: var(--ds-gray-100);
+  --ds-border: var(--ds-gray-200);
+  --ds-border-strong: var(--ds-gray-300);
+
+  --ds-text: var(--ds-gray-900);
+  --ds-text-secondary: var(--ds-gray-600);
+  --ds-text-muted: var(--ds-gray-400);
+
+  --ds-input-bg: #ffffff;
+  --ds-input-border: var(--ds-gray-300);
+
+  --ds-success: var(--ds-green-600);
+  --ds-success-soft: var(--ds-green-100);
+  --ds-danger: var(--ds-red-600);
+  --ds-danger-soft: var(--ds-red-100);
+  --ds-warning: var(--ds-amber-600);
+  --ds-warning-soft: var(--ds-amber-100);
+
+  --ds-header-bg: rgb(255 255 255 / 0.8);
+}
+
+/* ---------- 2. Semantic — 다크 ---------- */
+.dark {
+  --ds-primary: #0a84ff;
+  --ds-primary-hover: #409cff;
+  --ds-primary-soft: rgb(10 132 255 / 0.15);
+  --ds-accent: #bf5af2;
+  --ds-accent-soft: rgb(191 90 242 / 0.15);
+
+  --ds-bg: #151517;
+  --ds-surface: #1f1f23;
+  --ds-surface-hover: #2a2a2f;
+  --ds-border: #333338;
+  --ds-border-strong: #44444a;
+
+  --ds-text: #f5f5f7;
+  --ds-text-secondary: #b0b0b8;
+  --ds-text-muted: #6e6e76;
+
+  --ds-input-bg: #1f1f23;
+  --ds-input-border: #3a3a40;
+
+  --ds-success: #30d158;
+  --ds-success-soft: rgb(48 209 88 / 0.15);
+  --ds-danger: #ff453a;
+  --ds-danger-soft: rgb(255 69 58 / 0.15);
+  --ds-warning: #ffd60a;
+  --ds-warning-soft: rgb(255 214 10 / 0.15);
+
+  --ds-header-bg: rgb(21 21 23 / 0.8);
+}
+
+/* ---------- 3. Tailwind 테마 연결 ---------- */
+@theme inline {
+  --color-primary: var(--ds-primary);
+  --color-primary-hover: var(--ds-primary-hover);
+  --color-primary-soft: var(--ds-primary-soft);
+  --color-accent: var(--ds-accent);
+  --color-accent-soft: var(--ds-accent-soft);
+
+  --color-bg: var(--ds-bg);
+  --color-surface: var(--ds-surface);
+  --color-surface-hover: var(--ds-surface-hover);
+  --color-border: var(--ds-border);
+  --color-border-strong: var(--ds-border-strong);
+
+  --color-text: var(--ds-text);
+  --color-text-secondary: var(--ds-text-secondary);
+  --color-text-muted: var(--ds-text-muted);
+
+  --color-input-bg: var(--ds-input-bg);
+  --color-input-border: var(--ds-input-border);
+
+  --color-success: var(--ds-success);
+  --color-success-soft: var(--ds-success-soft);
+  --color-danger: var(--ds-danger);
+  --color-danger-soft: var(--ds-danger-soft);
+  --color-warning: var(--ds-warning);
+  --color-warning-soft: var(--ds-warning-soft);
+
+  --color-header-bg: var(--ds-header-bg);
+
+  --font-sans: var(--ds-font-sans);
+  --font-mono: var(--ds-font-mono);
+
+  --radius-sm: var(--ds-radius-sm);
+  --radius-md: var(--ds-radius-md);
+  --radius-lg: var(--ds-radius-lg);
+
+  --shadow-sm: var(--ds-shadow-sm);
+  --shadow-md: var(--ds-shadow-md);
+  --shadow-lg: var(--ds-shadow-lg);
+}
+
+/* ---------- 3. Component 토큰 (컴포넌트 클래스) ---------- */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer bg-primary text-white hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer border border-primary text-primary hover:bg-primary-soft;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer text-text-secondary hover:bg-surface-hover hover:text-text;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer bg-danger text-white hover:opacity-90;
+  }
+
+  .card {
+    @apply rounded-md border border-border bg-bg shadow-sm;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  .badge-warning {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-warning-soft text-warning;
+  }
+  .badge-success {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-success-soft text-success;
+  }
+  .badge-danger {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-danger-soft text-danger;
+  }
+
+  .input {
+    @apply rounded-md border border-input-border bg-input-bg px-3 py-1.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors;
+  }
+
+  .table-base {
+    @apply w-full text-sm;
+  }
+  .table-th {
+    @apply p-2 text-left font-medium text-text-secondary;
+  }
+  .table-td {
+    @apply p-2;
+  }
+}
+
+body {
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--ds-font-sans);
+  transition:
+    background-color var(--ds-duration-normal),
+    color var(--ds-duration-normal);
+}
+
+::selection {
+  background: var(--ds-primary);
+  color: #fff;
+}

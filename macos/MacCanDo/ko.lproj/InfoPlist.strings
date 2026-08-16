@@ -1,0 +1,3 @@
+/* 한국어 — 앱 이름 (시스템 언어가 한국어일 때 적용) */
+"CFBundleDisplayName" = "맥캔두 관리자";
+"CFBundleName" = "맥캔두 관리자";
