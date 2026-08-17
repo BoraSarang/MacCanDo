@@ -17,7 +17,7 @@
 | T-06 | macos 앱 골격 + DebugPanel | macos | 대기 |
 | T-07 | macos 에디터 (MD/HTML + 자동저장 + 미리보기) | macos | 대기 |
 | T-08 | macos 동기화/배포/백업/복구/AI SEO | macos | 대기 |
-| T-09 | 디자인 적용 + E2E + 배포 | 공통 | 대기 |
+| T-09 | 디자인 적용 + E2E + 배포 | 공통 | 완료 |
 
 ## 2. 세부 작업 (T-번호)
 
@@ -69,10 +69,13 @@
 - [ ] 백업/복구 (테스트 후 적용)
 - [ ] AI SEO (Gemini Free)
 
-### T-09 디자인/배포
-- [ ] 로고/아이콘 (design 스킬) + 웹 테마 적용 (ui-ux-pro-max)
-- [ ] Playwright E2E + 성능 검증 (PERF/CACHE)
-- [ ] Vercel 배포 + 도메인 + R2 연동
+### T-09 디자인/배포 — 완료 (bd-MacCanDo-paf)
+- [x] 웹 테마 적용 (디자인 토큰/부분 개선, ui-ux-pro-max)
+- [x] Playwright E2E 7개 → 21개 통과 (T-10/T-11에서 확장)
+- [x] Vercel 배포 성공 (db connected)
+- [x] 로고/아이콘 → 별도 이슈 분리: **MacCanDo-cyf** (design 스킬)
+- [x] PERF/CACHE 검증 + E2E CI → 별도 이슈: **MacCanDo-hx2**
+- [x] 도메인 + R2 연동 → 별도 이슈: **MacCanDo-0q1** (계획: docs/plans/PLAN_v2.3_deploy.md)
 
 ## 3. 테스트 계획
 
