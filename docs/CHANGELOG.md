@@ -4,6 +4,16 @@
 
 ---
 
+## v2.5.0-T15 (2026-08-17) — [web+macos] 앱 카드 (한 글에 여러 앱)
+
+- DB: PostApp 테이블 (postId/sort/appId/appUrl/homepageUrl/storeInfo Json 스냅샷) + DownloadLink.postAppId — 수동 마이그레이션 20260817_post_app (Neon db execute + migrate resolve)
+- API: POST /api/admin/store-fetch — App Store URL/ID → Apple lookup (itunes.apple.com 고정, SSRF 방지, 타임아웃 8s) → 버전/개발자/가격/언어(ISO→한국어)/호환 macOS/업데이트일/별점/아이콘/크기 추출 (E-WEB-STORE-1001/1002 추가)
+- 글 저장 API (POST/PUT /api/admin/posts): apps[] 전체 교체 (트랜잭션), 앱별 downloadLinks 포함, admin 단건 조회에 apps 포함
+- 웹: lib/markdown.ts [app]~[/app] 블록 → 앱 카드 HTML (렌더러 내장 buildAppCardHTML, 앱 카드 = 아이콘+이름+스펙 행+공개 다운로드+홈페이지/App Store 링크), 글 상세 apps 전달, .app-card CSS (다크 대응)
+- macOS: MarkdownRenderer.swift render(md, apps:) + AppCardData/AppStoreInfo 모델, EditorView 툴바 '앱 카드' 시트 (URL→서버 store-fetch→미리보기→홈페이지/다운로드 입력→[app] 삽입), 미리보기/저장/로드 apps 반영, PostInput.apps
+- 실적용: iterm2-tmux-oh-my-zsh 글에 iTerm2/tmux/Oh My Zsh 앱 카드 3장 (비로그인 공개 다운로드), 기존 하단 📥 게이트는 유지 (회귀 검증)
+- 검증: store-fetch 실호출 OK (Amphetamine), E2E 30/30 (TC-APP-001~004), TSC 통과, macOS 빌드 성공, 스크린샷 docs/screenshots/web/v2.5_appcard_*
+
 ## v1.1.0-T09-3 (2026-08-16) — [macos+web] 시리즈 화면 개선 (사용자 요청)
 
 - 시리즈 글 목록 최대 5편 높이 (넘으면 스크롤) → 하단 '시리즈에 없는 글' 영역 확대
