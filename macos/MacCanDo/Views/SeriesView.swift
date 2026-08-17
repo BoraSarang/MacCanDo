@@ -16,6 +16,11 @@ struct SeriesView: View {
     @State private var newDescription = ""
     @State private var newImageUrl = ""
     @State private var newIntro = ""
+    @State private var generatingImage = false
+    @State private var generatedImagePreview: URL?
+    @State private var showPromptEditor = false
+    @State private var promptText = ""
+    @State private var showCoverPicker = false // T-30: 업로드 이미지에서 커버 수동 지정
     @State private var picked: Set<String> = []
     @State private var searchText = ""
     @State private var searchTask: Task<Void, Never>?
@@ -85,8 +90,89 @@ struct SeriesView: View {
                 .textFieldStyle(.roundedBorder)
             TextField("설명 (선택)", text: $newDescription)
                 .textFieldStyle(.roundedBorder)
-            TextField("커버 이미지 URL (선택, /uploads/… 또는 https://…)", text: $newImageUrl)
-                .textFieldStyle(.roundedBorder)
+            HStack(spacing: 8) {
+                TextField("커버 이미지 URL (선택, /uploads/… 또는 https://…)", text: $newImageUrl)
+                    .textFieldStyle(.roundedBorder)
+                // T-30: 업로드된 이미지 목록에서 커버 수동 지정
+                Button("업로드에서 선택") { showCoverPicker = true }
+                    .disabled(generatingImage)
+            }
+            // T-19: AI 이미지 생성 — 제목+설명 기반 16:9 커버 (프롬프트 확인/편집 → 생성 → 업로드 → URL 자동 입력)
+            HStack(spacing: 8) {
+                Button {
+                    promptText = coverPrompt()
+                    showPromptEditor = true
+                } label: {
+                    if generatingImage {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small)
+                            Text("생성 중…")
+                        }
+                    } else {
+                        Label("AI 커버 생성", systemImage: "sparkles")
+                    }
+                }
+                .disabled(generatingImage)
+                if let preview = generatedImagePreview, !newImageUrl.isEmpty {
+                    AsyncImage(url: preview) { img in
+                        img.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        ProgressView()
+                    }
+                    .frame(width: 160, height: 90)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        Button {
+                            newImageUrl = ""
+                            generatedImagePreview = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(4),
+                        alignment: .topTrailing
+                    )
+                } else if !generatingImage && !newImageUrl.isEmpty, let u = absoluteImageURL(newImageUrl) {
+                    AsyncImage(url: u) { img in
+                        img.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        ProgressView()
+                    }
+                    .frame(width: 160, height: 90)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                Spacer()
+            }
+            Text("AI 커버: 시리즈 제목·설명 기반으로 16:9 이미지를 만들어 자동 업로드합니다. 공급자는 설정에서 변경 가능 (무료 티어 종료 시 폴백).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            // 프롬프트 확인/편집 (T-19: 요청 내용을 사용자가 미리 보고 수정)
+            if showPromptEditor {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("AI 요청 프롬프트 (수정 가능)").font(.caption.bold()).foregroundStyle(.secondary)
+                        Text(GeminiService.imageGenProvider.label).font(.caption2).foregroundStyle(.tertiary)
+                        Spacer()
+                        Button("초기화") { promptText = coverPrompt() }.buttonStyle(.link).controlSize(.small)
+                    }
+                    TextEditor(text: $promptText)
+                        .font(.body)
+                        .frame(minHeight: 70)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.3)))
+                    HStack {
+                        Spacer()
+                        Button("취소") { showPromptEditor = false }.keyboardShortcut(.cancelAction)
+                        // T-21: 시트 닫지 않음 — 생성 결과 미리보기를 본 뒤 재생성/완료 결정
+                        Button("이 프롬프트로 생성") {
+                            Task { await generateCoverImage(prompt: promptText) }
+                        }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(generatingImage || promptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }
             Text("취지 소개 (선택, 마크다운 — 상세 페이지 상단에 표시)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -111,6 +197,20 @@ struct SeriesView: View {
         }
         .padding(20)
         .frame(width: 460)
+        // T-30: 업로드 이미지에서 커버 수동 지정 (폼 시트 위에 표시)
+        .sheet(isPresented: $showCoverPicker) {
+            ImagePickerSheet(
+                token: auth.token,
+                mode: .cover,
+                onInsert: { _ in },
+                onUploaded: { _ in },
+                onSelect: { url in
+                    newImageUrl = url
+                    showCoverPicker = false
+                    DebugLogger.info("Series", "[FEATURE] 시리즈 커버 수동 지정 (\(url))")
+                }
+            )
+        }
     }
 
     private func seriesList(_ data: AdminSeriesData) -> some View {
@@ -133,6 +233,7 @@ struct SeriesView: View {
                     newDescription = ""
                     newImageUrl = ""
                     newIntro = ""
+                    generatedImagePreview = nil
                     showCreate = true
                 } label: {
                     Image(systemName: "plus")
@@ -145,6 +246,7 @@ struct SeriesView: View {
                     newDescription = s.description ?? ""
                     newImageUrl = s.imageUrl ?? ""
                     newIntro = s.intro ?? ""
+                    generatedImagePreview = nil
                     showEdit = true
                 } label: {
                     Image(systemName: "pencil")
@@ -176,8 +278,8 @@ struct SeriesView: View {
             if let s = selectedSeries {
                 // 헤더 (상단 정렬)
                 VStack(alignment: .leading, spacing: 3) {
-                    if let url = s.imageUrl, let u = URL(string: url) {
-                        AsyncImage(url: u) { img in
+                    if let url = absoluteImageURL(s.imageUrl) {
+                        AsyncImage(url: url) { img in
                             img.resizable().aspectRatio(contentMode: .fill)
                         } placeholder: {
                             ProgressView()
@@ -355,6 +457,49 @@ struct SeriesView: View {
             DebugLogger.error("Series", "검색 실패: \(e?.code ?? "unknown")")
         }
         isLoading = false
+    }
+
+    // T-19: 상대 경로(/uploads/...) → baseURL 기준 절대 URL (AsyncImage 로딩 실패 방지)
+    private func absoluteImageURL(_ path: String?) -> URL? {
+        guard let path, !path.isEmpty else { return nil }
+        if let u = URL(string: path), u.scheme != nil { return u }
+        return URL(string: path, relativeTo: APIClient.baseURL)?.absoluteURL
+    }
+
+    // T-19: 커버 프롬프트 자동 구성 (제목+설명 기반)
+    private func coverPrompt() -> String {
+        let title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return """
+        \(title.isEmpty ? "macOS 앱" : title)\(newDescription.isEmpty ? "" : " — \(newDescription)") 시리즈의 커버 이미지를 만들어 주세요.
+        macOS 앱 큐레이션 블로그 시리즈 표지, 깔끔하고 미니멀한 스타일, 부드러운 그라데이션, 한국어 또는 영어 텍스트 없이, 16:9 와이드 비율.
+        """
+    }
+
+    // T-19: AI 커버 이미지 생성 → 임시 파일 → 업로드 → URL 자동 입력
+    private func generateCoverImage(prompt: String) async {
+        generatingImage = true
+        errorMessage = nil
+        do {
+            DebugLogger.info("Series", "[FEATURE] AI 커버 생성 시작 provider=\(GeminiService.imageGenProvider.rawValue) prompt=\(String(prompt.prefix(60)))…")
+            let (imageData, _) = try await GeminiService.generateImage(prompt: prompt)
+
+            // 임시 파일 저장 후 기존 업로드 파이프라인 재사용 (확장자는 실제 포맷 기준)
+            let dir = FileManager.default.temporaryDirectory
+            let fileURL = dir.appendingPathComponent("series-cover-\(UUID().uuidString.prefix(8)).\(GeminiService.imageExtension(for: imageData))")
+            try imageData.write(to: fileURL)
+
+            let url = try await APIClient.uploadImage(token: auth.token, fileURL: fileURL)
+            try? FileManager.default.removeItem(at: fileURL)
+
+            newImageUrl = url
+            generatedImagePreview = absoluteImageURL(url) // 상대 경로 → 절대 URL (AsyncImage 무한 로딩 방지)
+            DebugLogger.info("Series", "[FEATURE] AI 커버 업로드 완료 (\(url))")
+        } catch {
+            let e = error as? APIError
+            errorMessage = e?.message ?? error.localizedDescription
+            DebugLogger.error("Series", "AI 커버 생성 실패: \(e?.code ?? "unknown") status=\(e?.status ?? -1) msg=\(e?.message ?? error.localizedDescription)")
+        }
+        generatingImage = false
     }
 
     private func create() async {

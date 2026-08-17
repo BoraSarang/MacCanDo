@@ -104,10 +104,7 @@ export default async function PostPage({ params }: Props) {
         {post.excerpt && <p className="text-text-secondary mt-3">{post.excerpt}</p>}
       </header>
 
-      {!isPage && post.thumbnailUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={post.thumbnailUrl} alt={post.title} className="w-full rounded-xl mb-8" />
-      )}
+      {/* T-26: 커버 이미지는 목록 카드용 — 본문에서는 표시하지 않음 */}
 
       {/* 본문: MD 또는 HTML (관리자 작성이므로 HTML 직접 렌더링 허용) */}
       <div className="prose prose-lg max-w-none dark:prose-invert">

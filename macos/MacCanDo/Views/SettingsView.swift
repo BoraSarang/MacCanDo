@@ -110,6 +110,58 @@ struct SettingsView: View {
                     Text("에디터의 'AI SEO' 버튼이 제목·설명·키워드·슬러그를 자동 생성합니다. 키는 https://aistudio.google.com/apikey 에서 발급 (무료).")
                         .font(.dsCaption)
                         .foregroundStyle(.secondary)
+                    // T-19: 이미지 생성 공급자 선택
+                    Divider()
+                    Picker("이미지 생성 공급자", selection: Binding(
+                        get: { GeminiService.imageGenProvider },
+                        set: { newValue in
+                            UserDefaults.standard.set(newValue.rawValue, forKey: "imageGenProvider")
+                            imageGenMessage = "이미지 생성 공급자: \(newValue.label)"
+                            DebugLogger.info("Settings", "이미지 생성 공급자 변경: \(newValue.rawValue)")
+                        }
+                    )) {
+                        ForEach(GeminiService.ImageGenProvider.allCases) { p in
+                            Text(p.label).tag(p)
+                        }
+                    }
+                    if !imageGenMessage.isEmpty {
+                        Text(imageGenMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
+                    }
+                    Text("시리즈 커버/글 썸네일의 AI 이미지 생성 공급자입니다. '자동'이면 Gemini 실패 시 무료 Pollinations로 폴백됩니다 (무료 티어 쿼터 종료 대비).")
+                        .font(.dsCaption)
+                        .foregroundStyle(.secondary)
+                    // T-22: OpenRouter (Flux) 키 — 이미지 생성 공급자 선택과 연결
+                    if GeminiService.imageGenProvider == .openrouter {
+                        Divider()
+                        TextField("OpenRouter API 키 (이미지 생성)", text: $inputOpenRouterKey)
+                            .font(.dsMono)
+                            .textFieldStyle(.roundedBorder)
+                        HStack {
+                            Button("저장") {
+                                let k = inputOpenRouterKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard !k.isEmpty else {
+                                    openRouterMessage = "OpenRouter API 키를 입력해 주세요."
+                                    return
+                                }
+                                UserDefaults.standard.set(k, forKey: "openrouterKey")
+                                inputOpenRouterKey = ""
+                                openRouterMessage = "키가 저장되었습니다."
+                                DebugLogger.info("Settings", "OpenRouter 키 저장됨")
+                            }
+                            .keyboardShortcut(.defaultAction)
+                            if !(UserDefaults.standard.string(forKey: "openrouterKey") ?? "").isEmpty {
+                                Label("저장됨", systemImage: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.dsSuccess)
+                            }
+                        }
+                        if !openRouterMessage.isEmpty {
+                            Text(openRouterMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
+                        }
+                        Text("OpenRouter 이미지 생성(Gemini 3.1 Image)에 사용합니다. 키는 https://openrouter.ai/keys 에서 발급 후 크레딧 충전 필요 (402 시 충전 안내).")
+                            .font(.dsCaption)
+                            .foregroundStyle(.secondary)
+                    }
                     let stats = GeminiService.cacheStats
                     let total = stats.hits + stats.misses
                     if total > 0 {
@@ -175,6 +227,9 @@ struct SettingsView: View {
 
     @State private var inputGeminiKey = ""
     @State private var geminiMessage = ""
+    @State private var inputOpenRouterKey = "" // T-22: Flux (OpenRouter) 키
+    @State private var openRouterMessage = ""
+    @State private var imageGenMessage = ""
     @State private var inputWebURL = ""
     @State private var webMessage = ""
     @State private var backupBusy = false

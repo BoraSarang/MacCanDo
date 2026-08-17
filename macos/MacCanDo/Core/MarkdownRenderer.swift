@@ -23,11 +23,13 @@ struct AppStoreInfo: Codable {
     var artworkUrl100: String?
     var fileSizeBytes: Int?
     var sellerUrl: String?
+    var description: String? // T-31: og:description (일반 웹사이트 앱 카드)
 }
 
 struct AppCardLink: Codable {
     var id: String
     var label: String
+    var url: String?
 }
 
 struct AppCardData: Codable {
@@ -43,20 +45,70 @@ enum MarkdownRenderer {
         var html = ""
         var inCodeBlock = false
         var codeBuf: [String] = []
-        var listBuf: [String] = []
-        var listType = "ul"
+        var listItems: [(level: Int, type: String, text: String)] = []
         var tableBuf: [String] = []
         var galleryBuf: [String] = []
         var inGallery = false
         var inApp = false
         var appIndex = 0
 
+        // T-28: 중첩 목록 노드 (들여쓰기 2칸 = 1레벨)
+        class ListItemNode {
+            var type: String
+            var text: String
+            var children: [ListItemNode] = []
+            init(type: String, text: String) { self.type = type; self.text = text }
+        }
+
+        // 항목 배열 → 트리 (부모는 바로 위 레벨의 마지막 항목)
+        func buildTree(_ items: [(level: Int, type: String, text: String)]) -> [ListItemNode] {
+            var roots: [ListItemNode] = []
+            var lastByLevel: [Int: ListItemNode] = [:]
+            for item in items {
+                let level = max(0, min(item.level, 4))
+                let node = ListItemNode(type: item.type, text: item.text)
+                if level == 0 {
+                    roots.append(node)
+                } else {
+                    var parent: ListItemNode?
+                    for l in stride(from: level - 1, through: 0, by: -1) where lastByLevel[l] != nil {
+                        parent = lastByLevel[l]
+                        break
+                    }
+                    if let parent {
+                        parent.children.append(node)
+                    } else {
+                        roots.append(node)
+                    }
+                }
+                lastByLevel[level] = node
+            }
+            return roots
+        }
+
+        // 트리 → 중첩 <ul>/<ol> (같은 레벨 type 변경 시 새 목록 분리)
+        func renderTree(_ nodes: [ListItemNode]) -> String {
+            var out = ""
+            var idx = 0
+            while idx < nodes.count {
+                let tag = nodes[idx].type
+                out += "<\(tag)>"
+                while idx < nodes.count && nodes[idx].type == tag {
+                    let n = nodes[idx]
+                    out += "<li>\(inline(n.text))"
+                    if !n.children.isEmpty { out += renderTree(n.children) }
+                    out += "</li>"
+                    idx += 1
+                }
+                out += "</\(tag)>"
+            }
+            return out
+        }
+
         func flushList() {
-            guard !listBuf.isEmpty else { return }
-            html += "<\(listType)>"
-            for item in listBuf { html += "<li>\(inline(item))</li>" }
-            html += "</\(listType)>"
-            listBuf = []
+            guard !listItems.isEmpty else { return }
+            html += renderTree(buildTree(listItems))
+            listItems = []
         }
 
         // GFM 테이블 — 웹 lib/markdown.ts와 동일 규격 (T-10)
@@ -105,14 +157,37 @@ enum MarkdownRenderer {
         }
 
         // [app] 블록 → 앱 카드 (T-15, 웹 markdown.ts와 동일 규격)
-        func flushApp() {
-            let app = appIndex < apps.count ? apps[appIndex] : nil
-            appIndex += 1
-            html += buildAppCardHTML(app, index: appIndex - 1)
+        // T-20: [app:URL] — URL 직접 지정 (apps 배열에서 appUrl/homepageUrl 매칭, 없으면 URL만 카드)
+        func flushApp(_ url: String? = nil) {
+            var app: AppCardData? = nil
+            var index = 0
+            if let url {
+                if let i = apps.firstIndex(where: { $0.appUrl == url || $0.homepageUrl == url }) {
+                    app = apps[i]
+                    index = i
+                } else {
+                    let isStore = url.hasPrefix("https://apps.apple.com/")
+                    app = AppCardData(
+                        appName: hostOf(url),
+                        storeInfo: nil,
+                        homepageUrl: isStore ? nil : url,
+                        appUrl: isStore ? url : nil,
+                        downloadLinks: []
+                    )
+                    index = apps.count
+                }
+            } else {
+                if appIndex < apps.count { app = apps[appIndex] }
+                index = appIndex
+                appIndex += 1
+            }
+            html += buildAppCardHTML(app, index: index)
         }
 
         for rawLine in md.components(separatedBy: "\n") {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
+            // T-28: 들여쓰기 공백 수 (목록 중첩 레벨 — 2칸 = 1레벨)
+            let indent = rawLine.count - rawLine.drop(while: { $0.isWhitespace }).count
 
             // 코드블록 토글
             if line.hasPrefix("```") {
@@ -145,6 +220,28 @@ enum MarkdownRenderer {
             }
             flushTable()
 
+            // T-26: 가운데 정렬 블록 태그 — 단독 라인 허용 (<center> / <div align="center"> / 닫는 태그)
+            if (line.hasPrefix("<center") && line.hasSuffix(">"))
+                || (line.hasPrefix("</center") && line.hasSuffix(">"))
+                || (line.hasPrefix("<div") && line.contains("align") && line.contains("center") && line.hasSuffix(">"))
+                || line == "</div>" {
+                flushAll()
+                html += line
+                continue
+            }
+
+            // T-26: [center] 블록 → 가운데 정렬 div (텍스트·이미지·리스트 등 모두 포함)
+            if line == "[center]" {
+                flushAll()
+                html += "<div style=\"text-align:center\">"
+                continue
+            }
+            if line == "[/center]" {
+                flushAll()
+                html += "</div>"
+                continue
+            }
+
             // [gallery] 확장 블록 (T-13)
             if line == "[gallery]" {
                 flushAll()
@@ -162,7 +259,15 @@ enum MarkdownRenderer {
                 continue
             }
 
-            // [app] 확장 블록 (T-15)
+            // [app] 확장 블록 (T-15) / [app:URL] (T-20)
+            if line.hasPrefix("[app:") && line.hasSuffix("]") {
+                flushAll()
+                let u = String(line.dropFirst(5).dropLast()).trimmingCharacters(in: .whitespaces)
+                if u.hasPrefix("http") {
+                    flushApp(u)
+                    continue
+                }
+            }
             if line == "[app]" {
                 flushAll()
                 inApp = true
@@ -175,17 +280,13 @@ enum MarkdownRenderer {
             }
             if inApp { continue }
 
-            // 목록
+            // 목록 (T-28: 공백 2칸 들여쓰기 = 1레벨 중첩, 최대 4레벨)
             if line.hasPrefix("- ") || line.hasPrefix("* ") {
-                if !listBuf.isEmpty && listType != "ul" { flushList() }
-                listType = "ul"
-                listBuf.append(String(line.dropFirst(2)))
+                listItems.append((indent / 2, "ul", String(line.dropFirst(2))))
                 continue
             }
             if line.range(of: #"^\d+\. "#, options: .regularExpression) != nil {
-                if !listBuf.isEmpty && listType != "ol" { flushList() }
-                listType = "ol"
-                listBuf.append(String(line.split(separator: " ", maxSplits: 1)[1]))
+                listItems.append((indent / 2, "ol", String(line.split(separator: " ", maxSplits: 1)[1])))
                 continue
             }
             flushList()
@@ -228,7 +329,8 @@ enum MarkdownRenderer {
 
     static func buildAppCardHTML(_ app: AppCardData?, index: Int) -> String {
         let info = app?.storeInfo
-        let name = app?.appName ?? info?.appName ?? "앱"
+        // T-29: 이름 없으면 App Store/홈페이지 URL의 호스트명 표시 ("앱" 기본값 방지)
+        let name = app?.appName ?? info?.appName ?? hostOf(app?.appUrl ?? app?.homepageUrl ?? "")
         var rows: [(String, String?)] = [
             ("버전", info?.version),
             ("개발자", info?.sellerName),
@@ -272,7 +374,15 @@ enum MarkdownRenderer {
             store = ""
         }
         let seller = info?.sellerName.map { "<div class=\"app-seller\">\(escape($0))</div>" } ?? ""
-        return "<div class=\"app-card\" data-app-index=\"\(index)\"><div class=\"app-card-top\">\(icon)<div class=\"app-card-title\"><div class=\"app-name\">\(escape(name))</div>\(seller)</div></div><div class=\"app-specs\">\(specRows)</div><div class=\"app-actions\">\(dlButtons)\(home)\(store)</div></div>"
+        // T-31: og:description (App Store 카드에는 없음 → 미표시)
+        let desc = info?.description.map { "<div class=\"app-desc\">\(escape($0))</div>" } ?? ""
+        return "<div class=\"app-card\" data-app-index=\"\(index)\"><div class=\"app-card-top\">\(icon)<div class=\"app-card-title\"><div class=\"app-name\">\(escape(name))</div>\(seller)</div></div>\(desc)<div class=\"app-specs\">\(specRows)</div><div class=\"app-actions\">\(dlButtons)\(home)\(store)</div></div>"
+    }
+
+    // [app:URL] 마커에서 URL이 매칭 실패 시 카드 이름에 쓰는 호스트명
+    static func hostOf(_ url: String) -> String {
+        if let u = URL(string: url), let h = u.host { return h }
+        return url
     }
 
     private static func fmtDate(_ iso: String?) -> String? {
@@ -374,15 +484,19 @@ enum MarkdownRenderer {
         s = protect(s, #"<font\s+([^>]*)>[^<]*</font>"#) { attrs in
             attrs?.range(of: #"(color|size|face)="[^"]*""#, options: .regularExpression) != nil
         }
+        // T-26: 가운데 정렬 — <center>...</center> (텍스트·이미지 모두 중앙 정렬, 티스토리 등에서 흔히 사용)
+        s = protect(s, #"<center[^>]*>.*?</center>"#) { _ in true }
+        s = protect(s, #"<div\s+align=["']center["'][^>]*>.*?</div>"#) { _ in true }
         // 1) 이스케이프
         s = escape(s)
-        // 2) [img:URL width=600 caption=캡션] — 커스텀 이미지
+        // 2) [img:URL width=600 caption=캡션] — 커스텀 이미지 (T-26: align=center 가운데 정렬)
         s = replaceMatches(in: s, pattern: #"\[img:([^\]\s]+)([^\]]*)\]"#) { _, caps in
             guard let url = caps[0] else { return "" }
             let params = parseParams(caps[1] ?? "")
             let width = params["width"].map { " width=\"\($0)\"" } ?? ""
             let caption = params["caption"].map { "<figcaption>\(escape($0))</figcaption>" } ?? ""
-            return "<figure><img src=\"\(escape(url))\"\(width) loading=\"lazy\"/>\(caption)</figure>"
+            let align = params["align"] == "center" ? " style=\"text-align:center\"" : ""
+            return "<figure\(align)><img src=\"\(escape(url))\"\(width) loading=\"lazy\"/>\(caption)</figure>"
         }
         // 표준 이미지 ![alt](url)
         s = s.replacingOccurrences(

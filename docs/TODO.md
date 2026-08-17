@@ -28,6 +28,19 @@
 | T-15 | 앱 카드 — 글당 여러 앱 (PostApp + store-fetch + [app] 마커 + macOS 에디터 시트) | web+macos | ✅ 2026-08-17 |
 | T-17 | 정적 페이지 6종 — About/Privacy/Disclaimer/Terms/FAQ/Contact (contentType=PAGE + 푸터 + 모바일 하단 바 ⋯) | web+macos | ✅ 2026-08-17 |
 | T-18 | iosgods 패턴 — 목록 카드 태그 배지 + 상대시간 + 비로그인 환영 배너 | web | ✅ 2026-08-17 |
+| T-19 | 시리즈 커버 AI 생성 (프롬프트 확인/편집 → 생성 → 업로드) | macos | ✅ 2026-08-17 |
+| T-20 | [app] 위치 마커 → [app:URL] 자동 변환 (저장 시 1회) | web | ✅ 2026-08-17 |
+| T-21 | 커버 이미지 UX — thumbnailUrl + AI 커버 시트 (16:9 생성 → 미리보기 → 적용) | macos | ✅ 2026-08-17 |
+| T-22 | 이미지 생성 공급자 선택 (OpenRouter Flux 키 + 무료 폴백) | macos | ✅ 2026-08-17 |
+| T-23 | 맥 소식 리포트 (수집/AI 요약/글 작성 시드) + AI 도우미 | macos | ✅ 2026-08-17 |
+| T-24 | 로컬 임시 저장 초안 (DraftStore, draft_new 단일 슬롯) | macos | ✅ 2026-08-17 |
+| T-25 | 창 중복 방지 (단일 인스턴스 + 키당 창 1개) | macos | ✅ 2026-08-17 |
+| T-26 | [center]/[img: align=center] 가운데 정렬 + 앱 카드 homepageUrl 분기 + slug 유지 + 목록 즉시 갱신 | web+macos | ✅ 2026-08-17 |
+| T-27 | 한글 맞춤법 검사 (NSSpellChecker + Gemini 개별 적용) | macos | ✅ 2026-08-17 |
+| T-28 | 마크다운 2단 중첩 목록 (들여쓰기 2칸 = 1레벨, macOS+웹) | web+macos | ✅ 2026-08-17 |
+| T-29 | 앱 카드 "App Store ↗" 오표시 수정 (DB 정리 + 로드 정규화 + 이름 호스트명) | web+macos | ✅ 2026-08-17 |
+| T-30 | 커버 이미지 수동 지정 (업로드 목록에서 선택 — 글/시리즈 커버, 1600×900 권장) | macos | ✅ 2026-08-17 |
+| T-31 | 일반 웹사이트 앱 카드 og 메타 스크래핑 (og:title/image/description + fallback, "설명" 줄) | web+macos | ✅ 2026-08-17 |
 
 ## 완료
 

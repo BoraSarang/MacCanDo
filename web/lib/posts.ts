@@ -5,6 +5,8 @@ import { Prisma, PostStatus, PostContentType } from "@/app/generated/prisma/clie
 import { db } from "./db";
 import { trackImageUsage } from "./image";
 import { logger } from "./logger";
+import { lookupAppStore } from "./store-fetch";
+import { fetchOgMetadata } from "./og-fetch"; // T-31: 일반 웹사이트 앱 카드 og 메타 채우기
 
 // ---------- 공개 (T-03) ----------
 
@@ -335,6 +337,95 @@ export interface PostInput {
   apps?: PostAppInput[]; // T-15: 앱 카드 목록 (미전달 시 유지, [] 전달 시 전체 삭제)
 }
 
+// T-20: 기존 [app] 위치 마커 → [app:URL] 자동 변환 (저장 시 1회)
+// 시트 삽입 패턴 "[app]␣␣[/app]" 블록을 apps 배열 순서대로 URL 마커로 치환
+function migrateAppMarkers(body: string, apps: PostAppInput[]): string {
+  let idx = 0;
+  return body.replace(/\[app\]\s*\[\/app\]/g, () => {
+    const a = apps[idx++];
+    const url = a?.appUrl ?? a?.homepageUrl;
+    return url ? `[app:${url}]` : "[app]\n\n[/app]";
+  });
+}
+
+// T-20: 본문 [app:URL] 마커에서 URL 추출 → 앱 데이터에 없는 URL이면 store-fetch로 자동 보강
+// 렌더링 시점이 아닌 저장 시점 1회만 조회 (웹 페이지 열람 시 외부 요청 없음)
+function extractAppMarkerUrls(body: string): string[] {
+  const urls: string[] = [];
+  for (const m of body.matchAll(/\[app:([^\]]+)\]/g)) {
+    const u = m[1].trim();
+    if (u.startsWith("http")) urls.push(u);
+  }
+  return urls;
+}
+
+async function enrichAppsFromMarkers(body: string, apps: PostAppInput[]): Promise<PostAppInput[]> {
+  const urls = extractAppMarkerUrls(body);
+  if (urls.length === 0) return apps;
+  const out = [...apps];
+  for (const url of urls) {
+    const existing = out.find((a) => a.appUrl === url || a.homepageUrl === url);
+    if (existing) {
+      // T-31: 기존 카드가 URL만 있고(storeInfo 없음) App Store가 아니면 og 메타로 채우기
+      if (!existing.storeInfo && !url.startsWith("https://apps.apple.com/")) {
+        const og = await fetchOgMetadata(url);
+        if (og) {
+          existing.homepageUrl = url;
+          existing.storeInfo = {
+            appName: og.title,
+            artworkUrl100: og.image,
+            sellerName: og.siteName,
+            description: og.description,
+            sellerUrl: og.url,
+          } as unknown as Prisma.InputJsonValue;
+          logger.info("Post", `[app:URL] 기존 카드 og 메타 채움 (${url}) → ${og.title}`);
+        }
+      }
+      continue;
+    }
+    const meta = await lookupAppStore(url);
+    if (meta) {
+      out.push({
+        appUrl: url,
+        storeInfo: meta as unknown as Prisma.InputJsonValue,
+        downloadLinks: [],
+      });
+    } else {
+      // 조회 실패 → URL만 있는 카드 (렌더 시 호스트명 표시)
+      // T-26: App Store URL이 아니면 appUrl(→"App Store ↗")가 아니라 homepageUrl로 저장
+      const isStore = url.startsWith("https://apps.apple.com/");
+      if (!isStore) {
+        // T-31: 일반 웹사이트 — og 메타 스크래핑으로 이름/이미지/설명 채우기 (실패 시 URL만)
+        const og = await fetchOgMetadata(url);
+        if (og) {
+          out.push({
+            homepageUrl: url,
+            storeInfo: {
+              appName: og.title,
+              artworkUrl100: og.image,
+              sellerName: og.siteName,
+              description: og.description,
+              sellerUrl: og.url,
+            } as unknown as Prisma.InputJsonValue,
+            downloadLinks: [],
+          });
+          logger.info("Post", `[app:URL] og 메타 채움 (${url}) → ${og.title}${og.image ? " +이미지" : ""}`);
+          continue;
+        }
+      }
+      out.push(
+        isStore
+          ? { appUrl: url, storeInfo: null, downloadLinks: [] }
+          : { homepageUrl: url, storeInfo: null, downloadLinks: [] }
+      );
+    }
+  }
+  if (out.length > apps.length) {
+    logger.info("Post", `[app:URL] 마커 앱 자동 보강 +${out.length - apps.length}개 (body 마커 ${urls.length}개)`);
+  }
+  return out;
+}
+
 // 앱 카드 전체 교체 (기존 앱 + 앱별 다운로드 삭제 후 재생성)
 async function resolveApps(postId: string, apps: PostAppInput[] | undefined) {
   if (apps === undefined) return;
@@ -355,6 +446,7 @@ async function resolveApps(postId: string, apps: PostAppInput[] | undefined) {
       });
       for (let j = 0; j < (a.downloadLinks?.length ?? 0); j++) {
         const dl = a.downloadLinks![j];
+        if (!dl.url) continue; // URL 없는 다운로드 링크는 저장 생략 (T-21, macOS AppCardLink.url 없던 구버전 호환)
         await tx.downloadLink.create({
           data: {
             postId,
@@ -453,13 +545,14 @@ export async function createPost(input: PostInput) {
 
   const slug = await uniqueSlug(makeSlug(input.title, input.slug));
   try {
+    const body = migrateAppMarkers(input.body, input.apps ?? []);
     const post = await db.post.create({
       data: {
         title: input.title.trim(),
         slug,
         contentType: input.contentType ?? "ARTICLE",
         bodyFormat: input.bodyFormat,
-        body: input.body,
+        body,
         excerpt: input.excerpt?.trim() || null,
         thumbnailUrl: input.thumbnailUrl || null,
         status: input.status,
@@ -474,7 +567,8 @@ export async function createPost(input: PostInput) {
     });
     logger.info("Post", `생성 slug=${slug} status=${input.status} categories=${input.categoryIds?.length ?? 0} tags=${input.tags?.length ?? 0}`);
     await trackImageUsage(post.id, post.body);
-    await resolveApps(post.id, input.apps);
+    const apps = input.apps === undefined ? undefined : await enrichAppsFromMarkers(post.body, input.apps);
+    await resolveApps(post.id, apps);
     return { ok: true as const, post };
   } catch (e) {
     logger.error("Post", `생성 실패: ${e}`);
@@ -486,11 +580,15 @@ export async function updatePost(id: string, input: PostInput) {
   const invalid = validatePostInput(input);
   if (invalid) return { ok: false as const, error: invalid };
 
-  const existing = await db.post.findUnique({ where: { id }, select: { id: true, publishedAt: true } });
+  const existing = await db.post.findUnique({ where: { id }, select: { id: true, slug: true, publishedAt: true } });
   if (!existing) return { ok: false as const, error: "E-WEB-POST-1003" };
 
-  const slug = await uniqueSlug(makeSlug(input.title, input.slug), id);
+  // T-26: slug 미지정(빈 값)이면 기존 slug 유지 — 제목 기반 재생성으로 URL이 바뀌는 문제 수정
+  const slug = input.slug?.trim()
+    ? await uniqueSlug(makeSlug(input.title, input.slug), id)
+    : existing.slug;
   try {
+    const body = migrateAppMarkers(input.body, input.apps ?? []);
     const post = await db.post.update({
       where: { id },
       data: {
@@ -498,7 +596,7 @@ export async function updatePost(id: string, input: PostInput) {
         slug,
         ...(input.contentType !== undefined ? { contentType: input.contentType } : {}),
         bodyFormat: input.bodyFormat,
-        body: input.body,
+        body,
         excerpt: input.excerpt?.trim() || null,
         thumbnailUrl: input.thumbnailUrl || null,
         status: input.status,
@@ -520,7 +618,8 @@ export async function updatePost(id: string, input: PostInput) {
     });
     logger.info("Post", `수정 id=${id} slug=${slug} status=${input.status}`);
     await trackImageUsage(id, post.body);
-    await resolveApps(id, input.apps);
+    const apps = input.apps === undefined ? undefined : await enrichAppsFromMarkers(post.body, input.apps);
+    await resolveApps(id, apps);
     return { ok: true as const, post };
   } catch (e) {
     logger.error("Post", `수정 실패: ${e}`);

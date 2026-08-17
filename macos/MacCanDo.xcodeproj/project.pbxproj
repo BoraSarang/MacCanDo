@@ -10,6 +10,11 @@
 		11FF21B90768ED62AA75B731 /* MarkdownRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45480C8F1BE47080B3F46F9B /* MarkdownRenderer.swift */; };
 		173DB08D92F60239CC5A1F20 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F0832757645D9B13D012DB /* APIClient.swift */; };
 		1A1836B6E6788B5E0B5A3A48 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 449BF5A67E60F260EAB660B7 /* AppIcon.icns */; };
+		D5E6F7A8B9C00112233A4B5D /* AppStoreLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* AppStoreLookup.swift */; };
+		F1A2B3C4D5E6F708192A3B4C /* MacNewsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F9A2B7C4D5E6F7A1B2C3D4 /* MacNewsStore.swift */; };
+		B6C7D8E9F0A1B2C3D4E5F6A7 /* MacNewsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F901234A5B6C7 /* MacNewsView.swift */; };
+		D8E9F0A1B2C3D4E5F6A7B8C9 /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D8E9F0A1B2C3D4E5F6A7B8 /* WindowManager.swift */; };
+		F2A3B4C5D6E7F8091A2B3C4D /* ReferenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2A3B4C5D6E7F8091A2B3C /* ReferenceStore.swift */; };
 		2811498303528C759EF51BE0 /* GeminiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E584E5806A3725E311690D /* GeminiService.swift */; };
 		514AFDA4D128DF28E63EC379 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE6313F95F40001D531E92C /* EditorView.swift */; };
 		5FBC05736583DC5E9167E294 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = A430B85286C4980A1CFD6FE0 /* DesignTokens.swift */; };
@@ -42,6 +47,7 @@
 		5A4AEB15CE47BA28D95EDF1F /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		5D2F82541CEDA1F9DB7B5627 /* MacCanDo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacCanDo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D631EAAAE7479E6F98D57CC /* PostModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostModels.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5C /* AppStoreLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreLookup.swift; sourceTree = "<group>"; };
 		71E584E5806A3725E311690D /* GeminiService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiService.swift; sourceTree = "<group>"; };
 		7FFB1F24D3E6F6922C52C36F /* AuthStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthStore.swift; sourceTree = "<group>"; };
 		82F0832757645D9B13D012DB /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
@@ -55,6 +61,10 @@
 		AEC9B1F7795545A79E70E4ED /* PostsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostsView.swift; sourceTree = "<group>"; };
 		D0EAD957CC4EB8AAE854D1C8 /* MacCanDoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacCanDoApp.swift; sourceTree = "<group>"; };
 		DBB95D936939BD275541A157 /* DraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftStore.swift; sourceTree = "<group>"; };
+		E3F9A2B7C4D5E6F7A1B2C3D4 /* MacNewsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacNewsStore.swift; sourceTree = "<group>"; };
+		A4B5C6D7E8F901234A5B6C7 /* MacNewsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacNewsView.swift; sourceTree = "<group>"; };
+		C7D8E9F0A1B2C3D4E5F6A7B8 /* WindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManager.swift; sourceTree = "<group>"; };
+		E1F2A3B4C5D6E7F8091A2B3C /* ReferenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceStore.swift; sourceTree = "<group>"; };
 		DF7ADB3DAE45B4B945C4A2C3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -99,6 +109,7 @@
 				B81BE59A4D76E9CF0D71EA0C /* PostsView.swift */,
 				59975CCD9634CB6FA4377C6A /* SeriesView.swift */,
 				9AB9FC8C54E212615517ADCA /* SettingsView.swift */,
+				A4B5C6D7E8F901234A5B6C7 /* MacNewsView.swift */,
 				5A4AEB15CE47BA28D95EDF1F /* StatsView.swift */,
 			);
 			path = Views;
@@ -121,6 +132,10 @@
 				B81AAE9D7D3BEB5151D7F9A6 /* DebugPanel.swift */,
 				A430B85286C4980A1CFD6FE0 /* DesignTokens.swift */,
 				DBB95D936939BD275541A157 /* DraftStore.swift */,
+				E3F9A2B7C4D5E6F7A1B2C3D4 /* MacNewsStore.swift */,
+				C7D8E9F0A1B2C3D4E5F6A7B8 /* WindowManager.swift */,
+				E1F2A3B4C5D6E7F8091A2B3C /* ReferenceStore.swift */,
+				A1B2C3D4E5F60718293A4B5C /* AppStoreLookup.swift */,
 				71E584E5806A3725E311690D /* GeminiService.swift */,
 				20672A02C9DE8CC5933780F7 /* HTMLToMarkdown.swift */,
 				45480C8F1BE47080B3F46F9B /* MarkdownRenderer.swift */,
@@ -207,8 +222,13 @@
 				B70CAF7C2849134B520FFEFD /* DebugPanel.swift in Sources */,
 				5FBC05736583DC5E9167E294 /* DesignTokens.swift in Sources */,
 				B2A24906B494B51B8C529439 /* DraftStore.swift in Sources */,
+				F1A2B3C4D5E6F708192A3B4C /* MacNewsStore.swift in Sources */,
+				D8E9F0A1B2C3D4E5F6A7B8C9 /* WindowManager.swift in Sources */,
+				F2A3B4C5D6E7F8091A2B3C4D /* ReferenceStore.swift in Sources */,
+				B6C7D8E9F0A1B2C3D4E5F6A7 /* MacNewsView.swift in Sources */,
 				514AFDA4D128DF28E63EC379 /* EditorView.swift in Sources */,
-				2811498303528C759EF51BE0 /* GeminiService.swift in Sources */,
+				D5E6F7A8B9C00112233A4B5D /* AppStoreLookup.swift in Sources */,
+		2811498303528C759EF51BE0 /* GeminiService.swift in Sources */,
 				F6D7B481FAB41D245EE36D76 /* HTMLToMarkdown.swift in Sources */,
 				BDE6F6746E3AAB9E8E0D13BD /* MacCanDoApp.swift in Sources */,
 				11FF21B90768ED62AA75B731 /* MarkdownRenderer.swift in Sources */,

@@ -74,8 +74,9 @@ struct PostInput: Encodable {
     var seoMeta: SeoMeta?
     var seriesId: String?
     var apps: [AppCardData]? // T-15: 앱 카드
+    var thumbnailUrl: String? // T-21: 커버 이미지 (og:image) — 별도 저장
 
-    init(title: String, slug: String?, categoryIds: [String]?, tags: [String]?, contentType: String?, bodyFormat: String, body: String, excerpt: String?, status: String, seoMeta: SeoMeta? = nil, seriesId: String? = nil, apps: [AppCardData]? = nil) {
+    init(title: String, slug: String?, categoryIds: [String]?, tags: [String]?, contentType: String?, bodyFormat: String, body: String, excerpt: String?, status: String, seoMeta: SeoMeta? = nil, seriesId: String? = nil, apps: [AppCardData]? = nil, thumbnailUrl: String? = nil) {
         self.title = title
         self.slug = slug
         self.categoryIds = categoryIds
@@ -88,6 +89,7 @@ struct PostInput: Encodable {
         self.seoMeta = seoMeta
         self.seriesId = seriesId
         self.apps = apps
+        self.thumbnailUrl = thumbnailUrl
     }
 
     init(post: Post) {
@@ -103,6 +105,7 @@ struct PostInput: Encodable {
         seoMeta = post.seoMeta
         seriesId = post.seriesId
         apps = post.apps
+        thumbnailUrl = post.thumbnailUrl
     }
 
     init(draft: DraftRecord) {

@@ -15,13 +15,21 @@ export const GET = withApi(async (req) => {
   const url = new URL(req.url);
   if (url.searchParams.get("all") === "1") {
     const posts = await db.post.findMany({
-      orderBy: { updatedAt: "desc" },
+      // T-26: 사이트 표시 순(publishedAt desc)과 동일 — 초안(발행일 null)은 맨 아래, 초안끼리는 수정 순
+      orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
       include: {
         categories: { include: { category: { select: { name: true, slug: true } } } },
         tags: { include: { tag: { select: { name: true, slug: true } } } },
       },
     });
-    return apiOk(posts);
+    // macOS 앱 모델 호환: 중첩 { category: {...} } → flat { name, slug }
+    return apiOk(
+      posts.map((p) => ({
+        ...p,
+        categories: p.categories.map((pc) => pc.category),
+        tags: p.tags.map((pt) => pt.tag),
+      }))
+    );
   }
   return apiOk(await getAdminPostStats());
 }, "AdminPostStats");

@@ -21,6 +21,9 @@ struct DraftRecord {
 enum DraftStore {
     private static var db: OpaquePointer?
 
+    // T-26: 새 글 초안은 단일 슬롯 — 자동저장할 때마다 항상 같은 행 갱신 (초안 = 하나의 글)
+    static let newPostKey = "draft_new"
+
     private static var dbPath: String {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("MacCanDo", isDirectory: true)
@@ -58,6 +61,25 @@ enum DraftStore {
         // v2→v3 마이그레이션: seo_meta 컬럼 추가 (T-08 보강)
         if sqlite3_exec(db, "ALTER TABLE drafts ADD COLUMN seo_meta TEXT;", nil, nil, nil) != SQLITE_OK {
             // 이미 존재하면 무시
+        }
+        // v3→v4 마이그레이션 (T-26): "__new__" + 기존 "draft_<uuid>" 초안들 → 단일 "draft_new" 슬롯으로 병합
+        // (가장 최근 초안 1건만 draft_new로 승격, 나머지 삭제 — 이후 새 키 생성 없음이라 1회로 충분)
+        if sqlite3_exec(db, "SELECT COUNT(*) FROM drafts WHERE post_id = '__new__' OR (post_id LIKE 'draft_%' AND post_id != 'draft_new');", nil, nil, nil) == SQLITE_OK {
+            let mergeSQL = """
+            INSERT INTO drafts (post_id, title, body_format, body, status, slug, seo_meta, saved_at)
+            SELECT 'draft_new', title, body_format, body, status, slug, seo_meta, saved_at
+            FROM drafts
+            WHERE post_id = '__new__' OR (post_id LIKE 'draft_%' AND post_id != 'draft_new')
+            ORDER BY saved_at DESC LIMIT 1
+            ON CONFLICT(post_id) DO UPDATE SET
+              title=excluded.title, body_format=excluded.body_format, body=excluded.body,
+              status=excluded.status, slug=excluded.slug, seo_meta=excluded.seo_meta, saved_at=excluded.saved_at;
+            DELETE FROM drafts WHERE post_id = '__new__' OR (post_id LIKE 'draft_%' AND post_id != 'draft_new');
+            """
+            if sqlite3_exec(db, mergeSQL, nil, nil, &err) != SQLITE_OK {
+                DebugLogger.error("Draft", "draft_new 병합 실패: \(String(cString: err!))")
+                sqlite3_free(err)
+            }
         }
         // AI SEO 캐시 테이블 (LRU — 최대 100건, T-08)
         let cacheSQL = """
@@ -113,20 +135,54 @@ enum DraftStore {
         open()
         guard let db else { return nil }
         let key = postId ?? "__new__"
-        let stmt = "SELECT title, body_format, body, status, slug, seo_meta, saved_at FROM drafts WHERE post_id = ?;"
+        // T-26: loadDrafts와 동일하게 post_id 포함 8컬럼 SELECT — 컬럼 인덱스 불일치로
+        // 초안이 [MD]/[DRAFT]로 오독·재저장되던 버그 수정 (2026-08-17)
+        let stmt = "SELECT post_id, title, body_format, body, status, slug, seo_meta, saved_at FROM drafts WHERE post_id = ?;"
         var p: OpaquePointer?
         guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return nil }
         sqlite3_bind_text(p, 1, key, -1, SQLITE_TRANSIENT)
         defer { sqlite3_finalize(p) }
         guard sqlite3_step(p) == SQLITE_ROW else { return nil }
-        let title = String(cString: sqlite3_column_text(p, 0))
-        let format = String(cString: sqlite3_column_text(p, 1))
-        let body = String(cString: sqlite3_column_text(p, 2))
-        let status = String(cString: sqlite3_column_text(p, 3))
-        let slug = sqlite3_column_type(p, 4) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(p, 4))
-        let seoMeta = decodeSeoMeta(p, 5)
-        let savedAt = Date(timeIntervalSince1970: sqlite3_column_double(p, 6))
-        return DraftRecord(postId: postId, title: title, bodyFormat: format, body: body, status: status, slug: slug, seoMeta: seoMeta, savedAt: savedAt)
+        return draftRecord(from: p, key: key)
+    }
+
+    // T-24: 로컬 초안 전체 목록 (새 글 초안: "__new__" 레거시 + "draft_*") — 글 관리 화면 표시용
+    static func loadDrafts() -> [DraftRecord] {
+        open()
+        guard let db else { return [] }
+        var result: [DraftRecord] = []
+        let stmt = "SELECT post_id, title, body_format, body, status, slug, seo_meta, saved_at FROM drafts WHERE post_id = '__new__' OR post_id LIKE 'draft_%' ORDER BY saved_at DESC;"
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(p) }
+        while sqlite3_step(p) == SQLITE_ROW {
+            let key = String(cString: sqlite3_column_text(p, 0))
+            var record = draftRecord(from: p, key: key)
+            record.title = record.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? "제목 없음" : record.title
+            result.append(record)
+        }
+        return result
+    }
+
+    // T-26: NULL 안전 — title/body/status도 NULL이면 기본값 (크래시 방지, 2026-08-17 크래시 리포트)
+    private static func draftRecord(from p: OpaquePointer?, key: String) -> DraftRecord {
+        func col(_ i: Int32) -> String? {
+            guard sqlite3_column_type(p, i) != SQLITE_NULL,
+                  let t = sqlite3_column_text(p, i) else { return nil }
+            return String(cString: t)
+        }
+        let title = col(1) ?? ""
+        let format = col(2) ?? "MD"
+        let body = col(3) ?? ""
+        let status = col(4) ?? "DRAFT"
+        let slug = col(5)
+        let seoMeta = decodeSeoMeta(p, 6)
+        let savedAt = Date(timeIntervalSince1970: sqlite3_column_double(p, 7))
+        if col(1) == nil || col(2) == nil || col(3) == nil || col(4) == nil {
+            DebugLogger.warn("Draft", "초안 NULL 컬럼 발견 (key=\(key)) — 기본값 처리")
+        }
+        return DraftRecord(postId: key, title: title, bodyFormat: format, body: body, status: status, slug: slug, seoMeta: seoMeta, savedAt: savedAt)
     }
 
     static func clear(postId: String?) {

@@ -23,7 +23,12 @@ export const GET = withApi(async (_req, ctx: { params: Promise<{ id: string }> }
   if (!post) {
     return apiError("E-WEB-POST-1003", 404, { method: "GET", path: `/api/admin/posts/${id}` });
   }
-  return apiOk(post);
+  // macOS 앱 모델 호환: 중첩 { category: {...} } → flat { name, slug }
+  return apiOk({
+    ...post,
+    categories: post.categories.map((pc) => pc.category),
+    tags: post.tags.map((pt) => pt.tag),
+  });
 }, "AdminPostGet");
 
 export const PUT = withApi(async (req, ctx: { params: Promise<{ id: string }> }) => {

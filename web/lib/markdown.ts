@@ -74,6 +74,9 @@ function inline(text: string): string {
   s = protect(s, /<font\s+([^>]*)>[^<]*<\/font>/, (attrs) =>
     /(color|size|face)="[^"]*"/.test(attrs ?? "")
   );
+  // T-26: 가운데 정렬 — <center>...</center> / <div align="center">...</div> (텍스트·이미지)
+  s = protect(s, /<center[^>]*>.*?<\/center>/, () => true);
+  s = protect(s, /<div\s+align=["']center["'][^>]*>.*?<\/div>/, () => true);
 
   // 1) 이스케이프
   s = escapeHtml(s);
@@ -85,7 +88,9 @@ function inline(text: string): string {
     const params = parseParams(caps[1] ?? "");
     const width = params.width ? ` width="${params.width}"` : "";
     const caption = params.caption ? `<figcaption>${escapeHtml(params.caption)}</figcaption>` : "";
-    return `<figure><img src="${escapeHtml(url)}"${width} loading="lazy"/>${caption}</figure>`;
+    // T-26: align=center → 가운데 정렬 (prose에서 img/figure가 block이라 class + CSS로 처리)
+    const align = params.align === "center" ? ' class="mac-center"' : "";
+    return `<figure${align}><img src="${escapeHtml(url)}"${width} loading="lazy"/>${caption}</figure>`;
   });
 
   // 표준 이미지 ![alt](url)
@@ -139,8 +144,7 @@ export function renderMarkdown(md: string, opts: RenderOptions = {}): string {
   let html = "";
   let inCodeBlock = false;
   let codeBuf: string[] = [];
-  let listBuf: string[] = [];
-  let listType: "ul" | "ol" = "ul";
+  let listItems: { level: number; type: "ul" | "ol"; text: string }[] = [];
   let tableBuf: string[] = [];
   let tableHasHeader = false;
   let galleryBuf: string[] = [];
@@ -148,12 +152,52 @@ export function renderMarkdown(md: string, opts: RenderOptions = {}): string {
   let inApp = false;
   let appIndex = 0;
 
+  // T-28: 중첩 목록 (들여쓰기 2칸 = 1레벨, 최대 4레벨) — macOS MarkdownRenderer와 동일 규격
+  type ListItemNode = { type: "ul" | "ol"; text: string; children: ListItemNode[] };
+
+  const buildTree = (items: { level: number; type: "ul" | "ol"; text: string }[]): ListItemNode[] => {
+    const roots: ListItemNode[] = [];
+    const lastByLevel: Record<number, ListItemNode> = {};
+    for (const item of items) {
+      const level = Math.max(0, Math.min(item.level, 4));
+      const node: ListItemNode = { type: item.type, text: item.text, children: [] };
+      if (level === 0) {
+        roots.push(node);
+      } else {
+        let parent: ListItemNode | undefined;
+        for (let l = level - 1; l >= 0; l--) {
+          if (lastByLevel[l]) { parent = lastByLevel[l]; break; }
+        }
+        if (parent) parent.children.push(node);
+        else roots.push(node);
+      }
+      lastByLevel[level] = node;
+    }
+    return roots;
+  };
+
+  const renderTree = (nodes: ListItemNode[]): string => {
+    let out = "";
+    let idx = 0;
+    while (idx < nodes.length) {
+      const tag = nodes[idx].type;
+      out += `<${tag}>`;
+      while (idx < nodes.length && nodes[idx].type === tag) {
+        const n = nodes[idx];
+        out += `<li>${inline(n.text)}`;
+        if (n.children.length > 0) out += renderTree(n.children);
+        out += `</li>`;
+        idx++;
+      }
+      out += `</${tag}>`;
+    }
+    return out;
+  };
+
   const flushList = () => {
-    if (listBuf.length === 0) return;
-    html += `<${listType}>`;
-    for (const item of listBuf) html += `<li>${inline(item)}</li>`;
-    html += `</${listType}>`;
-    listBuf = [];
+    if (listItems.length === 0) return;
+    html += renderTree(buildTree(listItems));
+    listItems = [];
   };
 
   const flushTable = () => {
@@ -211,14 +255,38 @@ export function renderMarkdown(md: string, opts: RenderOptions = {}): string {
   };
 
   // [app] 블록 → 앱 카드 (T-15, macOS 렌더러와 동일 규격)
-  const flushApp = (): string => {
-    const app = opts.apps?.[appIndex] ?? null;
-    appIndex++;
-    return buildAppCardHTML(app, appIndex - 1, opts.postSlug);
+  // T-20: [app:URL] — URL 직접 지정 (apps 배열에서 appUrl/homepageUrl 매칭, 없으면 URL만 카드)
+  const flushApp = (url?: string): string => {
+    let app: AppCardData | null = null;
+    let index = 0;
+    if (url) {
+      const i = (opts.apps ?? []).findIndex((a) => a.appUrl === url || a.homepageUrl === url);
+      if (i >= 0) {
+        app = opts.apps![i];
+        index = i;
+      } else {
+        const isStore = url.startsWith("https://apps.apple.com/");
+        app = {
+          appName: hostOf(url),
+          storeInfo: null,
+          homepageUrl: isStore ? null : url,
+          appUrl: isStore ? url : null,
+          downloadLinks: [],
+        };
+        index = opts.apps?.length ?? 0;
+      }
+    } else {
+      app = opts.apps?.[appIndex] ?? null;
+      index = appIndex;
+      appIndex++;
+    }
+    return buildAppCardHTML(app, index, opts.postSlug);
   };
 
   for (const rawLine of md.split("\n")) {
     const line = rawLine.trim();
+    // T-28: 들여쓰기 공백 수 (목록 중첩 레벨 — 2칸 = 1레벨)
+    const indent = rawLine.length - rawLine.trimStart().length;
 
     if (line.startsWith("```")) {
       if (inCodeBlock) {
@@ -251,6 +319,30 @@ export function renderMarkdown(md: string, opts: RenderOptions = {}): string {
     }
     flushTable();
 
+    // T-26: [center] 블록 → 가운데 정렬 div (prose 대응 위해 class + CSS)
+    if (line === "[center]") {
+      flushAll();
+      html += '<div class="mac-center">';
+      continue;
+    }
+    if (line === "[/center]") {
+      flushAll();
+      html += "</div>";
+      continue;
+    }
+
+    // T-26: 가운데 정렬 블록 태그 — 단독 라인 허용 (<center> / <div align="center"> / 닫는 태그)
+    if (
+      (line.startsWith("<center") && line.endsWith(">")) ||
+      (line.startsWith("</center") && line.endsWith(">")) ||
+      (line.startsWith("<div") && line.includes("align") && line.includes("center") && line.endsWith(">")) ||
+      line === "</div>"
+    ) {
+      flushAll();
+      html += line;
+      continue;
+    }
+
     // [gallery] 확장 블록 (T-13)
     if (line === "[gallery]") {
       flushAll();
@@ -268,7 +360,16 @@ export function renderMarkdown(md: string, opts: RenderOptions = {}): string {
       continue;
     }
 
-    // [app] 확장 블록 (T-15)
+    // [app] 확장 블록 (T-15) / [app:URL] (T-20)
+    const appMarker = line.match(/^\[app:([^\]]+)\]$/);
+    if (appMarker) {
+      flushAll();
+      const u = appMarker[1].trim();
+      if (u.startsWith("http")) {
+        html += flushApp(u);
+        continue;
+      }
+    }
     if (line === "[app]") {
       flushAll();
       inApp = true;
@@ -282,15 +383,11 @@ export function renderMarkdown(md: string, opts: RenderOptions = {}): string {
     if (inApp) continue;
 
     if (line.startsWith("- ") || line.startsWith("* ")) {
-      if (listBuf.length > 0 && listType !== "ul") flushList();
-      listType = "ul";
-      listBuf.push(line.slice(2));
+      listItems.push({ level: Math.floor(indent / 2), type: "ul", text: line.slice(2) });
       continue;
     }
     if (/^\d+\. /.test(line)) {
-      if (listBuf.length > 0 && listType !== "ol") flushList();
-      listType = "ol";
-      listBuf.push(line.split(" ").slice(1).join(" "));
+      listItems.push({ level: Math.floor(indent / 2), type: "ol", text: line.split(" ").slice(1).join(" ") });
       continue;
     }
     flushList();
@@ -339,6 +436,7 @@ export interface AppCardData {
     artworkUrl100?: string | null;
     fileSizeBytes?: number | null;
     sellerUrl?: string | null;
+    description?: string | null; // T-31: og:description (일반 웹사이트 앱 카드)
   } | null;
   homepageUrl?: string | null;
   appUrl?: string | null;
@@ -362,10 +460,20 @@ function fmtBytes(n?: number | null): string {
   return n >= 1048576 ? `${(n / 1048576).toFixed(0)} MB` : `${(n / 1024).toFixed(0)} KB`;
 }
 
+// [app:URL] 마커에서 URL이 매칭 실패 시 카드 이름에 쓰는 호스트명
+export function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
+
 // [app] 블록 위치에 삽입되는 앱 카드 HTML (macOS MarkdownRenderer.swift와 동일 규격)
 export function buildAppCardHTML(app: AppCardData | null, index: number, postSlug?: string): string {
   const info = app?.storeInfo ?? {};
-  const name = app?.appName || info.appName || "앱";
+  // T-29: 이름 없으면 App Store/홈페이지 URL의 호스트명 표시 ("앱" 기본값 방지)
+  const name = app?.appName || info.appName || hostOf(app?.appUrl || app?.homepageUrl || "") || "앱";
   const rows: Array<[string, string | null | undefined]> = [
     ["버전", info.version],
     ["개발자", info.sellerName],
@@ -396,5 +504,7 @@ export function buildAppCardHTML(app: AppCardData | null, index: number, postSlu
   const store = app?.appUrl
     ? `<a class="app-home" href="${escapeHtml(app.appUrl)}" target="_blank" rel="noopener noreferrer">App Store ↗</a>`
     : "";
-  return `<div class="app-card" data-app-index="${index}"><div class="app-card-top">${icon}<div class="app-card-title"><div class="app-name">${escapeHtml(name)}</div>${info.sellerName ? `<div class="app-seller">${escapeHtml(info.sellerName)}</div>` : ""}</div></div><div class="app-specs">${specRows}</div><div class="app-actions">${dlButtons}${home}${store}</div></div>`;
+  // T-31: og:description (App Store 카드에는 없음 → 미표시)
+  const desc = info.description ? `<div class="app-desc">${escapeHtml(info.description)}</div>` : "";
+  return `<div class="app-card" data-app-index="${index}"><div class="app-card-top">${icon}<div class="app-card-title"><div class="app-name">${escapeHtml(name)}</div>${info.sellerName ? `<div class="app-seller">${escapeHtml(info.sellerName)}</div>` : ""}</div></div>${desc}<div class="app-specs">${specRows}</div><div class="app-actions">${dlButtons}${home}${store}</div></div>`;
 }

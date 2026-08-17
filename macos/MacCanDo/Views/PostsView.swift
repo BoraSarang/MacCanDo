@@ -9,7 +9,21 @@ struct PostsView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var deletingPost: Post?
-    @State private var editorWindows: [NSWindow] = []
+    @State private var searchText = "" // T-21: 검색 (제목/슬러그/태그/카테고리/설명)
+    @State private var drafts: [DraftRecord] = [] // T-24: 로컬 임시 저장 초안
+
+    // 검색 필터 — 제목/슬러그/태그/카테고리/설명 기준 부분 일치
+    private var filteredPosts: [Post] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return posts }
+        return posts.filter { p in
+            p.title.localizedCaseInsensitiveContains(q)
+                || p.slug.localizedCaseInsensitiveContains(q)
+                || (p.excerpt ?? "").localizedCaseInsensitiveContains(q)
+                || (p.tags ?? []).contains { $0.name.localizedCaseInsensitiveContains(q) }
+                || (p.categories ?? []).contains { $0.name.localizedCaseInsensitiveContains(q) }
+        }
+    }
 
     // 목록에 쓰이는 공통 함수
 
@@ -24,30 +38,16 @@ struct PostsView: View {
     }
 
     // 에디터를 새 창(NSWindow)으로 열기 — sheet(팝업) 대신 드래그/리사이즈 가능
-    private func openEditor(postId: String?) {
-        if postId == nil {
-            DraftStore.clear(postId: nil)  // 새 글: 이전 "__new__" 초안 오염 제거
-        }
-        let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 680),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
-            backing: .buffered,
-            defer: false
-        )
-        win.title = postId == nil ? "새 글 작성" : "글 편집"
-        win.isReleasedWhenClosed = false
-        win.contentView = NSHostingView(
-            rootView: EditorView(postId: postId) {
-                Task { await load() }
-            } onClose: { [weak win] in
-                win?.close()
-            }
+    // T-24: initialDraftKey — 로컬 초안 이어쓰기 / nil이면 새 draft 키 생성
+    // T-25: 키(postId/draftKey)당 창 1개만 — 중복 열기 시 앞으로 가져오기
+    private func openEditor(postId: String?, draftKey: String? = nil) {
+        let key = postId ?? draftKey ?? "new"
+        let editor = EditorView(postId: postId, initialDraftKey: draftKey) {
+            Task { await load() }
+        } onClose: {}
             .environmentObject(auth)
-        )
-        win.center()
-        win.makeKeyAndOrderFront(nil)
-        editorWindows.append(win)
-        DebugLogger.info("Posts", "에디터 새 창 열림 (\(postId ?? "새 글"))")
+        WindowManager.openEditor(key: key, title: postId == nil ? "새 글 작성" : "글 편집", rootView: editor)
+        DebugLogger.info("Posts", "에디터 창 요청 (\(key))")
     }
 
     var body: some View {
@@ -77,9 +77,87 @@ struct PostsView: View {
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if filteredPosts.isEmpty {
+                    VStack(spacing: Spacing.md) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 36))
+                            .foregroundStyle(.secondary)
+                        Text("'\(searchText)' 검색 결과가 없습니다")
+                            .font(.dsTitle)
+                        Text("제목, 슬러그, 태그, 카테고리, 설명으로 검색됩니다")
+                            .font(.dsBody)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List(posts) { post in
+                    List {
+                        // T-24: 로컬 임시 저장 초안 (제목 입력 시 자동저장 — 이어서 작성 가능)
+                        if !drafts.isEmpty {
+                            Section("임시 저장 (\(drafts.count))") {
+                                ForEach(drafts, id: \.postId) { draft in
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "clock.arrow.circlepath")
+                                            .foregroundStyle(Color.orange)
+                                            .font(.title3)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(draft.title)
+                                                .font(.dsBody.weight(.semibold))
+                                                .lineLimit(1)
+                                            Text("수정 \(draft.savedAt.formatted(date: .abbreviated, time: .shortened)) · \(draft.body.count)자")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        Button {
+                                            openEditor(postId: nil, draftKey: draft.postId)
+                                        } label: {
+                                            Label("이어서 작성", systemImage: "pencil")
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                        Button(role: .destructive) {
+                                            if let key = draft.postId {
+                                                DraftStore.clear(postId: key)
+                                                drafts = DraftStore.loadDrafts()
+                                                DebugLogger.info("Posts", "임시 저장 삭제 (\(key))")
+                                            }
+                                        } label: {
+                                            Image(systemName: "trash")
+                                        }
+                                        .buttonStyle(.borderless)
+                                        .help("임시 저장 삭제")
+                                    }
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        openEditor(postId: nil, draftKey: draft.postId)
+                                    }
+                                }
+                            }
+                        }
+                        ForEach(filteredPosts) { post in
                         HStack(spacing: 10) {
+                            // 본문 대표 이미지 썸네일 (없으면 이미지 없음 표시) — T-21
+                            Group {
+                                if let url = absoluteImageURL(post.thumbnailUrl) {
+                                    AsyncImage(url: url) { img in
+                                        img.resizable().aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        Color.gray.opacity(0.15)
+                                    }
+                                    .frame(width: 48, height: 27)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                } else {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.gray.opacity(0.1))
+                                        .frame(width: 48, height: 27)
+                                        .overlay(
+                                            Image(systemName: "photo")
+                                                .font(.caption2)
+                                                .foregroundStyle(.tertiary)
+                                        )
+                                        .help("대표 이미지 없음")
+                                }
+                            }
                             VStack(alignment: .leading, spacing: 3) {
                                 HStack(spacing: 6) {
                                     Text(post.title)
@@ -134,6 +212,17 @@ struct PostsView: View {
                                 }
                             }
                             Spacer()
+                            // T-26: 웹 사이트에서 보기 — 설정의 웹 주소 + 슬러그
+                            if let url = webURL(for: post.slug) {
+                                Button {
+                                    NSWorkspace.shared.open(url)
+                                    DebugLogger.info("Posts", "웹에서 글 열기 (\(post.slug))")
+                                } label: {
+                                    Image(systemName: "safari")
+                                }
+                                .buttonStyle(.borderless)
+                                .help("웹 사이트에서 보기 (\(url.absoluteString))")
+                            }
                             Button(role: .destructive) {
                                 deletingPost = post
                             } label: {
@@ -148,7 +237,13 @@ struct PostsView: View {
                     }
                 }
             }
+        }
             .navigationTitle("글 관리")
+            .searchable(text: $searchText, placement: .toolbar, prompt: "제목 / 슬러그 / 태그 검색") // T-21
+            .onReceive(NotificationCenter.default.publisher(for: .postSaved)) { _ in
+                // T-26: 시드 에디터 등 외부 경로에서 저장 성공 → 목록 즉시 갱신
+                Task { await load() }
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -178,7 +273,17 @@ struct PostsView: View {
             }
         }
         .task { await load() }
-        .onAppear { DebugLogger.info("Posts", "글 관리 화면 표시됨") }
+        .onAppear {
+            drafts = DraftStore.loadDrafts() // T-24: 로컬 초안 목록
+            DebugLogger.info("Posts", "글 관리 화면 표시됨 (임시 저장 \(drafts.count)개)")
+        }
+    }
+
+    // 상대 경로(/uploads/...) → 절대 URL (SeriesView와 동일 규칙)
+    private func absoluteImageURL(_ path: String?) -> URL? {
+        guard let path, !path.isEmpty else { return nil }
+        if let u = URL(string: path), u.scheme != nil { return u }
+        return URL(string: path, relativeTo: APIClient.baseURL)?.absoluteURL
     }
 
     private func load() async {
@@ -193,13 +298,18 @@ struct PostsView: View {
             errorMessage = e?.code == "E-MAC-AUTH-1001" || e?.status == 401
                 ? "관리자 인증이 필요합니다. 설정에서 API 토큰을 입력하세요."
                 : "게시글을 불러오지 못했습니다: \(e?.message ?? error.localizedDescription)"
-            DebugLogger.error("Posts", "목록 로드 실패: \(e?.code ?? "unknown")")
+            DebugLogger.error("Posts", "목록 로드 실패: \(e?.code ?? "unknown") — \(error.localizedDescription)")
         }
         isLoading = false
     }
 
-    private func delete(_ id: String) async {
-        do {
+    // 설정의 웹 주소(webURL) + 슬러그 → 사이트 글 URL
+    private func webURL(for slug: String) -> URL? {
+        guard !slug.isEmpty else { return nil }
+        return URL(string: "post/\(slug)", relativeTo: APIClient.webURL)
+    }
+
+    private func delete(_ id: String) async {        do {
             // DELETE 응답 data는 { id } — Post 디코딩 실패 방지 (삭제 후 목록 갱신 안 되던 버그)
             let _: [String: String] = try await APIClient.request("api/admin/posts/\(id)", method: "DELETE", token: auth.token, body: EmptyBody())
             posts.removeAll { $0.id == id }

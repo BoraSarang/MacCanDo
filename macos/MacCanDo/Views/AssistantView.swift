@@ -13,6 +13,9 @@ struct AssistantView: View {
     @State private var errorMessage: String?
     @State private var cacheHit = false
     @State private var viewMode = "원문"
+    @State private var section = "참고 자료" // T-23: 참고 자료 | 맥 소식
+    @State private var savedEntries: [ReferenceEntry] = [] // T-26: 로컬 저장 리스트
+    @State private var selectedID: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -20,10 +23,46 @@ struct AssistantView: View {
                 Label("AI 도우미", systemImage: "wand.and.stars")
                     .font(.title3.bold())
                 Spacer()
-                Text("참고용 자료 — 복사해서 글에 활용하세요")
+                Text(section == "맥 소식" ? "RSS 수집 + AI 요약 리포트 — 참고용" : "참고용 자료 — 복사해서 글에 활용하세요")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Picker("", selection: $section) {
+                Text("참고 자료").tag("참고 자료")
+                Text("맥 소식").tag("맥 소식")
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 240)
+            .onChange(of: section) { _ in
+                DebugLogger.info("Feature", "AI 도우미 탭 전환: \(section)")
+            }
+            if section == "맥 소식" {
+                MacNewsView()
+            } else {
+                referenceView
+            }
+            Spacer()
+        }
+        .padding(20)
+        .frame(minWidth: 700, minHeight: 520)
+        .onAppear {
+            ReferenceStore.open()
+            savedEntries = ReferenceStore.loadAll()
+            DebugLogger.info("Feature", "AI 도우미 창 표시됨 (저장된 참고 자료 \(savedEntries.count)건)")
+        }
+    }
+
+    // ---------- 참고 자료 (기존 기능) ----------
+    // T-26: 좌측 저장 리스트 + 우측 검색/결과
+    private var referenceView: some View {
+        HStack(alignment: .top, spacing: 12) {
+            savedListView
+            rightPanel
+        }
+    }
+
+    private var rightPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 TextField("프로그램 이름 또는 웹사이트 URL", text: $query)
                     .textFieldStyle(.roundedBorder)
@@ -93,18 +132,102 @@ struct AssistantView: View {
                     Image(systemName: "wand.and.stars")
                         .font(.system(size: 36))
                         .foregroundStyle(.secondary)
-                    Text("프로그램 이름이나 웹사이트 주소를 입력하면\n소개·비교·장점·특이사항·추천 이유를 생성합니다.")
+                    Text("프로그램 이름이나 웹사이트 주소를 입력하면\n소개·비교·장점·특이사항·추천 이유를 생성합니다.\n조회 결과는 자동 저장되어 왼쪽 목록에서 다시 볼 수 있습니다.")
                         .font(.dsBody)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity, minHeight: 220)
             }
-            Spacer()
         }
-        .padding(20)
-        .frame(minWidth: 700, minHeight: 520)
-        .onAppear { DebugLogger.info("Feature", "AI 도우미 창 표시됨") }
+    }
+
+    // ---------- 저장된 참고 자료 리스트 (T-26) ----------
+    private var savedListView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Text("저장된 자료")
+                    .font(.caption.bold())
+                Text("\(savedEntries.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            if savedEntries.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.secondary)
+                    Text("조회 결과가\n자동 저장됩니다.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(savedEntries) { entry in
+                            savedRow(entry)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(width: 200)
+        .frame(maxHeight: .infinity)
+        .padding(6)
+        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color(nsColor: .controlBackgroundColor)))
+    }
+
+    private func savedRow(_ entry: ReferenceEntry) -> some View {
+        HStack(spacing: 4) {
+            Button {
+                selectSaved(entry)
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.query)
+                        .font(.dsBody)
+                        .lineLimit(1)
+                    Text("\(entry.createdAt.formatted(date: .abbreviated, time: .shortened))\(entry.compareWith.isEmpty ? "" : " vs \(entry.compareWith)")")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("이 결과 불러오기 (AI 재호출 없음)")
+            Button {
+                ReferenceStore.delete(id: entry.id)
+                savedEntries.removeAll { $0.id == entry.id }
+                if selectedID == entry.id {
+                    selectedID = nil
+                    result = ""
+                    viewMode = "원문"
+                }
+                DebugLogger.info("Reference", "리스트에서 삭제 (\(entry.query))")
+            } label: {
+                Image(systemName: "trash")
+                    .font(.caption)
+            }
+            .buttonStyle(.borderless)
+            .help("삭제")
+        }
+        .padding(4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(selectedID == entry.id ? Color.accentColor.opacity(0.15) : Color.clear))
+    }
+
+    // 저장된 항목 선택 → AI 재호출 없이 DB 결과 표시
+    private func selectSaved(_ entry: ReferenceEntry) {
+        selectedID = entry.id
+        query = entry.query
+        compareWith = entry.compareWith
+        result = entry.result
+        errorMessage = nil
+        cacheHit = false
+        DebugLogger.info("Reference", "저장 자료 불러옴 (\(entry.query))")
     }
 
     private func assistantHTML(_ md: String) -> String {
@@ -137,7 +260,12 @@ struct AssistantView: View {
             )
             result = text
             cacheHit = hit
-            DebugLogger.info("Assistant", "도우미 생성 완료 (캐시: \(hit ? "hit" : "miss"))")
+            // T-26: 결과 자동 저장 (같은 쿼리면 갱신) — 리스트에서 재사용 가능
+            if let saved = ReferenceStore.save(query: q, compareWith: compare, result: text) {
+                savedEntries = ReferenceStore.loadAll()
+                selectedID = saved.id
+            }
+            DebugLogger.info("Assistant", "도우미 생성 완료 (캐시: \(hit ? "hit" : "miss"), 저장됨)")
         } catch {
             let e = error as? APIError
             errorMessage = e?.message ?? error.localizedDescription

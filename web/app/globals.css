@@ -248,6 +248,22 @@ body {
   @apply text-xs text-text-muted mt-1 text-center;
 }
 
+/* ===== T-26: [center] / [img: align=center] 가운데 정렬 =====
+   prose(Tailwind Typography)는 img/figure를 display:block으로 만들기 때문에
+   text-align만으로는 이미지가 중앙 정렬되지 않음 → block 대응 규칙 필수 */
+.mac-center {
+  text-align: center;
+}
+.mac-center figure {
+  margin-left: auto;
+  margin-right: auto;
+}
+.mac-center img {
+  display: inline-block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* ===== T-15: [app] 앱 카드 ===== */
 .app-card {
   @apply my-6 rounded-xl border border-border bg-surface p-4 md:p-5;
@@ -260,6 +276,9 @@ body {
 }
 .app-icon-placeholder {
   @apply w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white bg-primary;
+}
+.app-desc {
+  @apply text-sm text-text-muted mb-3 leading-relaxed;
 }
 .app-card-title {
   @apply min-w-0;

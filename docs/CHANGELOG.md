@@ -4,6 +4,23 @@
 
 ---
 
+## v2.5.0-T19~T31 (2026-08-17) — [macos+web] 시리즈 커버·초안·맞춤법·중첩 목록·앱 카드 개선
+
+- T-19: 시리즈 커버 AI 생성 (제목·설명 기반 프롬프트 확인/편집 → 생성 → 업로드 → URL 자동 입력)
+- T-20: [app] 위치 마커 → [app:URL] 자동 변환 (저장 시 1회, migrateAppMarkers)
+- T-21: 커버 이미지 UX 전환 — thumbnailUrl 기반 (AI 커버 시트: 프롬프트 → 16:9 생성 → 미리보기 → "커버 이미지로 사용")
+- T-22: 이미지 생성 공급자 선택 (OpenRouter Flux 키 설정, 무료 티어 폴백)
+- T-23: 맥 소식 리포트 (수집/AI 요약/글 작성 시드) + 사이드바 AI 도우미(참고 자료)
+- T-24: 로컬 임시 저장 초안 (DraftStore, draft_new 단일 슬롯 — 새 글 중복 초안 방지, 시드 경로는 초안 로드 안 함)
+- T-25: 창 중복 방지 — 단일 인스턴스(AppDelegate) + 키(postId/draftKey)당 창 1개 + AI 도우미 별도 창
+- T-26: [center] / [img: align=center] 가운데 정렬 (macOS+웹 렌더러) + 앱 카드 homepageUrl 분기(App Store URL만 appUrl) + slug 미지정 시 기존 유지 + 저장 성공 시 글 관리 목록 즉시 갱신 + AI 도우미 결과 자동 저장
+- T-27: 한글 맞춤법 검사 (NSSpellChecker 물결 밑줄 + Gemini 검사 — 코드블록/URL/[app:]/[img:] 보호, 개별 적용 버튼)
+- T-28: 마크다운 2단 중첩 목록 (들여쓰기 2칸 = 1레벨, 최대 4단 — macOS+웹 렌더러 동일 규격)
+- T-29: 앱 카드 "App Store ↗" 오표시 수정 (DB PostApp 정리 + macOS 로드 정규화 + isStore 판별 + 이름 호스트명 표시)
+- T-30: 커버 이미지 수동 지정 — 업로드 목록에서 선택 (ImagePickerSheet cover 모드, 글 커버 + 시리즈 커버, 권장 1600×900)
+- T-31: 일반 웹사이트 앱 카드 og 메타 스크래핑 (og:title/image/description/site_name + <title>/favicon fallback + 상대경로 절대화, 저장 시 1회 — 기존 URL-만 카드도 재저장 시 채움, "설명" 줄 표시)
+- 검증: macOS BUILD SUCCEEDED, 웹 TSC 통과, og 스크래핑 3사이트(iterm2/tmux/ohmyz) 실전 검증, 웹 페이지 렌더 확인
+
 ## v2.5.0-T18 (2026-08-17) — [web] iosgods 패턴: 목록 카드 태그 배지 + 상대시간 + 환영 배너
 
 - lib/format.ts 신규: fmtRelativeTime (방금 전/N분 전/N시간 전/N일 전, 7일 초과 시 절대 날짜) + fmtFullDate (호버 툴팁)
