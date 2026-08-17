@@ -11,6 +11,7 @@ import { BodyFormat } from "@/app/generated/prisma/client";
 import CommentsSection from "@/components/CommentsSection";
 import SeriesList from "@/components/SeriesList";
 import PostBody from "@/components/PostBody";
+import WelcomeBanner from "@/components/WelcomeBanner";
 import { getSeriesForPost } from "@/lib/series";
 
 export const revalidate = 60;
@@ -81,6 +82,8 @@ export default async function PostPage({ params }: Props) {
 
   return (
     <article className="max-w-3xl mx-auto">
+      {/* T-18: 비로그인 환영 배너 — 댓글 게이트 참여 유도 (정적 페이지 제외) */}
+      {!isPage && <WelcomeBanner />}
       <header className="mb-8">
         {!isPage && (
           <div className="flex items-center gap-2 text-sm text-text-muted mb-3 flex-wrap">

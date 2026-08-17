@@ -27,6 +27,7 @@
 | T-14 | 홈 섹션 정리 (최근/최신 분리, 역할별 탐색 10개) + 다크모드 수정 + 정렬 셀렉트 화살표 + 시리즈 이미지 16:9 + 모바일 검색 폼 + 코드 복사 버튼 | web | ✅ 2026-08-17 |
 | T-15 | 앱 카드 — 글당 여러 앱 (PostApp + store-fetch + [app] 마커 + macOS 에디터 시트) | web+macos | ✅ 2026-08-17 |
 | T-17 | 정적 페이지 6종 — About/Privacy/Disclaimer/Terms/FAQ/Contact (contentType=PAGE + 푸터 + 모바일 하단 바 ⋯) | web+macos | ✅ 2026-08-17 |
+| T-18 | iosgods 패턴 — 목록 카드 태그 배지 + 상대시간 + 비로그인 환영 배너 | web | ✅ 2026-08-17 |
 
 ## 완료
 

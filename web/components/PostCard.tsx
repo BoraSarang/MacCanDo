@@ -1,11 +1,7 @@
-// [FEATURE] 게시글 카드 (목록용)
+// [FEATURE] 게시글 카드 (목록용) — T-18: 태그 배지 + 상대시간 (iosgods 패턴)
 import Link from "next/link";
 import type { PostListItem } from "@/lib/posts";
-
-function formatDate(d: Date | null) {
-  if (!d) return "";
-  return new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium" }).format(d);
-}
+import { fmtRelativeTime, fmtFullDate } from "@/lib/format";
 
 export default function PostCard({ post }: { post: PostListItem }) {
   return (
@@ -20,13 +16,20 @@ export default function PostCard({ post }: { post: PostListItem }) {
         </div>
       )}
       <div className="p-4">
-        <div className="flex items-center gap-2 text-xs text-text-muted mb-2">
+        <div className="flex items-center gap-2 text-xs text-text-muted mb-2 flex-wrap">
           {post.categories.slice(0, 2).map((c) => (
             <Link key={c.slug} href={`/category/${c.slug}`} className="badge bg-primary-soft text-primary">
               {c.name}
             </Link>
           ))}
-          <span>{formatDate(post.publishedAt)}</span>
+          {post.tags.slice(0, 2).map((t) => (
+            <Link key={t.slug} href={`/tag/${t.slug}`} className="badge bg-surface-hover text-text-secondary hover:text-primary">
+              #{t.name}
+            </Link>
+          ))}
+          <span className="ml-auto shrink-0" title={fmtFullDate(post.publishedAt)}>
+            {fmtRelativeTime(post.publishedAt)}
+          </span>
         </div>
         <h3 className="font-semibold text-lg leading-snug mb-1 line-clamp-2">{post.title}</h3>
         {post.excerpt && <p className="text-sm text-text-secondary line-clamp-2">{post.excerpt}</p>}

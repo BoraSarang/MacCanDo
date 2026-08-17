@@ -4,6 +4,15 @@
 
 ---
 
+## v2.5.0-T18 (2026-08-17) — [web] iosgods 패턴: 목록 카드 태그 배지 + 상대시간 + 환영 배너
+
+- lib/format.ts 신규: fmtRelativeTime (방금 전/N분 전/N시간 전/N일 전, 7일 초과 시 절대 날짜) + fmtFullDate (호버 툴팁)
+- getPosts SQL에 태그 string_agg 추가 → PostListItem.tags, PostCard에 태그 배지 2개 (#태그, 카테고리 옆) + 날짜를 상대시간으로 (호버 시 전체 날짜)
+- WelcomeBanner.tsx 신규 (글 상세 상단, 비로그인만): "안녕하세요! 👋 — 댓글을 남기면 다운로드 링크 공개" + 로그인 버튼 (useEffect로 표시, 정적 PAGE 글 제외, [FEATURE] 로그)
+- 배너 버튼은 댓글 영역의 "Google 로그인"과 중복돼 strict mode flaky → "로그인하고 시작하기"로 분리
+- 참고: 댓글 수(💬) 표시는 T-14에 이미 구현돼 있어 추가 작업 없음
+- 검증: E2E 39/39 (TC-T18-001~003 신규), TSC 통과, 스크린샷 docs/screenshots/web/v2.5_t18_*
+
 ## v2.5.0-T17 (2026-08-17) — [web+macos] 정적 페이지 6종 + 모바일 하단 바
 
 - DB: PostContentType enum에 PAGE 추가 (수동 마이그레이션 20260817_add_page_content_type, Neon db execute + migrate resolve)

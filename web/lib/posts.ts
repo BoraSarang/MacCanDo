@@ -19,6 +19,7 @@ export interface PostListItem {
   commentCount: number;
   contentType: string;
   categories: { name: string; slug: string }[];
+  tags: { name: string; slug: string }[]; // T-18: 목록 카드 태그 배지
 }
 
 export interface PostListResult {
@@ -93,11 +94,15 @@ export async function getPosts(params: PostListParams = {}): Promise<PostListRes
     contentType: string;
     categoryNames: string | null;
     categorySlugs: string | null;
+    tagNames: string | null;
+    tagSlugs: string | null;
     commentCount: number;
   }[]>(Prisma.sql`
     SELECT p.id, p.slug, p.title, p.excerpt, p."thumbnailUrl", p."publishedAt", p."viewCount", p."contentType"::text,
            (SELECT string_agg(c2."name", ', ' ORDER BY c2."sort", c2."name") FROM "PostCategory" pc2 JOIN "Category" c2 ON c2.id = pc2."categoryId" WHERE pc2."postId" = p.id) AS "categoryNames",
            (SELECT string_agg(c3."slug", ',' ORDER BY c3."sort", c3."name") FROM "PostCategory" pc3 JOIN "Category" c3 ON c3.id = pc3."categoryId" WHERE pc3."postId" = p.id) AS "categorySlugs",
+           (SELECT string_agg(t2."name", ', ' ORDER BY t2."name") FROM "PostTag" pt2 JOIN "Tag" t2 ON t2.id = pt2."tagId" WHERE pt2."postId" = p.id) AS "tagNames",
+           (SELECT string_agg(t3."slug", ',' ORDER BY t3."name") FROM "PostTag" pt3 JOIN "Tag" t3 ON t3.id = pt3."tagId" WHERE pt3."postId" = p.id) AS "tagSlugs",
            (SELECT COUNT(*)::int FROM "Comment" cm WHERE cm."postId" = p.id AND cm.status = 'APPROVED') AS "commentCount"
     FROM "Post" p
     WHERE ${Prisma.join(conds, " AND ")}
@@ -122,6 +127,9 @@ export async function getPosts(params: PostListParams = {}): Promise<PostListRes
     contentType: p.contentType,
     categories: p.categoryNames && p.categorySlugs
       ? p.categoryNames.split(", ").map((name, i) => ({ name, slug: (p.categorySlugs?.split(",")[i] ?? "").trim() }))
+      : [],
+    tags: p.tagNames && p.tagSlugs
+      ? p.tagNames.split(", ").map((name, i) => ({ name, slug: (p.tagSlugs?.split(",")[i] ?? "").trim() }))
       : [],
   }));
 
