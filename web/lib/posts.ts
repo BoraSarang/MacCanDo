@@ -271,6 +271,7 @@ export async function getPostBySlug(slug: string, incrementView = true) {
       categories: { include: { category: { select: { name: true, slug: true } } } },
       tags: { include: { tag: { select: { name: true, slug: true } } } },
       downloadLinks: { orderBy: { sort: "asc" } },
+      apps: { orderBy: { sort: "asc" }, include: { downloadLinks: { orderBy: { sort: "asc" } } } }, // T-15
       _count: { select: { comments: { where: { status: "APPROVED" } } } },
     },
   });
@@ -288,6 +289,15 @@ export async function getPostBySlug(slug: string, incrementView = true) {
 
 export type BodyFormat = "MD" | "HTML";
 
+// T-15: 앱 카드 입력 (macOS 에디터 → 글 저장 시 함께 전송)
+export interface PostAppInput {
+  appId?: string | null;
+  appUrl?: string | null;
+  homepageUrl?: string | null;
+  storeInfo?: Prisma.InputJsonValue | null; // 추출 스냅샷 (store-fetch 결과)
+  downloadLinks?: { label: string; url: string; type?: "OFFICIAL" | "FREE" | "TORRENT" }[]; // 앱별 공개 다운로드
+}
+
 export interface PostInput {
   title: string;
   slug?: string;
@@ -303,6 +313,43 @@ export interface PostInput {
   seoMeta?: Prisma.InputJsonValue | null;
   seriesId?: string | null; // 시리즈 소속 (1편, 2편... 순서는 시리즈 관리에서 결정)
   featuredOrder?: number | null; // 홈 추천 순서 (T-11)
+  apps?: PostAppInput[]; // T-15: 앱 카드 목록 (미전달 시 유지, [] 전달 시 전체 삭제)
+}
+
+// 앱 카드 전체 교체 (기존 앱 + 앱별 다운로드 삭제 후 재생성)
+async function resolveApps(postId: string, apps: PostAppInput[] | undefined) {
+  if (apps === undefined) return;
+  await db.$transaction(async (tx) => {
+    await tx.downloadLink.deleteMany({ where: { postId, postAppId: { not: null } } });
+    await tx.postApp.deleteMany({ where: { postId } });
+    for (let i = 0; i < apps.length; i++) {
+      const a = apps[i];
+      const created = await tx.postApp.create({
+        data: {
+          postId,
+          sort: i,
+          appId: a.appId || null,
+          appUrl: a.appUrl || null,
+          homepageUrl: a.homepageUrl || null,
+          storeInfo: a.storeInfo ?? undefined,
+        },
+      });
+      for (let j = 0; j < (a.downloadLinks?.length ?? 0); j++) {
+        const dl = a.downloadLinks![j];
+        await tx.downloadLink.create({
+          data: {
+            postId,
+            postAppId: created.id,
+            label: dl.label,
+            url: dl.url,
+            type: dl.type ?? "FREE",
+            sort: j,
+          },
+        });
+      }
+    }
+  });
+  logger.info("Post", `앱 카드 ${apps.length}개 저장 (post=${postId})`);
 }
 
 // 카테고리 참조(id 또는 slug) → id 배열 (다대다)
@@ -408,6 +455,7 @@ export async function createPost(input: PostInput) {
     });
     logger.info("Post", `생성 slug=${slug} status=${input.status} categories=${input.categoryIds?.length ?? 0} tags=${input.tags?.length ?? 0}`);
     await trackImageUsage(post.id, post.body);
+    await resolveApps(post.id, input.apps);
     return { ok: true as const, post };
   } catch (e) {
     logger.error("Post", `생성 실패: ${e}`);
@@ -453,6 +501,7 @@ export async function updatePost(id: string, input: PostInput) {
     });
     logger.info("Post", `수정 id=${id} slug=${slug} status=${input.status}`);
     await trackImageUsage(id, post.body);
+    await resolveApps(id, input.apps);
     return { ok: true as const, post };
   } catch (e) {
     logger.error("Post", `수정 실패: ${e}`);

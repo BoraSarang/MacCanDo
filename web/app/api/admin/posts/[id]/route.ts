@@ -17,6 +17,7 @@ export const GET = withApi(async (_req, ctx: { params: Promise<{ id: string }> }
     include: {
       categories: { include: { category: { select: { name: true, slug: true } } } },
       tags: { include: { tag: { select: { name: true, slug: true } } } },
+      apps: { orderBy: { sort: "asc" }, include: { downloadLinks: { orderBy: { sort: "asc" } } } }, // T-15
     },
   });
   if (!post) {

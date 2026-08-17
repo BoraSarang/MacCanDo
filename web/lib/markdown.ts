@@ -135,7 +135,7 @@ function isTableSeparator(line: string): boolean {
   return /^\|?[\s:|-]+\|?$/.test(line) && line.includes("-");
 }
 
-export function renderMarkdown(md: string): string {
+export function renderMarkdown(md: string, opts: RenderOptions = {}): string {
   let html = "";
   let inCodeBlock = false;
   let codeBuf: string[] = [];
@@ -145,6 +145,8 @@ export function renderMarkdown(md: string): string {
   let tableHasHeader = false;
   let galleryBuf: string[] = [];
   let inGallery = false;
+  let inApp = false;
+  let appIndex = 0;
 
   const flushList = () => {
     if (listBuf.length === 0) return;
@@ -208,6 +210,13 @@ export function renderMarkdown(md: string): string {
     return `<div class="gallery-grid">${items.join("")}</div>`;
   };
 
+  // [app] 블록 → 앱 카드 (T-15, macOS 렌더러와 동일 규격)
+  const flushApp = (): string => {
+    const app = opts.apps?.[appIndex] ?? null;
+    appIndex++;
+    return buildAppCardHTML(app, appIndex - 1, opts.postSlug);
+  };
+
   for (const rawLine of md.split("\n")) {
     const line = rawLine.trim();
 
@@ -259,6 +268,19 @@ export function renderMarkdown(md: string): string {
       continue;
     }
 
+    // [app] 확장 블록 (T-15)
+    if (line === "[app]") {
+      flushAll();
+      inApp = true;
+      continue;
+    }
+    if (line === "[/app]") {
+      html += flushApp();
+      inApp = false;
+      continue;
+    }
+    if (inApp) continue;
+
     if (line.startsWith("- ") || line.startsWith("* ")) {
       if (listBuf.length > 0 && listType !== "ul") flushList();
       listType = "ul";
@@ -292,4 +314,87 @@ export function renderMarkdown(md: string): string {
   flushAll();
   if (inCodeBlock) html += `<pre><code>${codeBuf.join("\n")}</code></pre>`;
   return html;
+}
+
+// ---------- 앱 카드 (T-15) ----------
+
+export interface AppCardLink {
+  id: string;
+  label: string;
+}
+
+export interface AppCardData {
+  appName?: string | null;
+  storeInfo?: {
+    appName?: string | null;
+    version?: string | null;
+    sellerName?: string | null;
+    price?: string | null;
+    isFree?: boolean | null;
+    languages?: string[] | null;
+    minimumOsVersion?: string | null;
+    currentVersionReleaseDate?: string | null;
+    rating?: number | null;
+    ratingCount?: number | null;
+    artworkUrl100?: string | null;
+    fileSizeBytes?: number | null;
+    sellerUrl?: string | null;
+  } | null;
+  homepageUrl?: string | null;
+  appUrl?: string | null;
+  downloadLinks?: AppCardLink[];
+}
+
+export interface RenderOptions {
+  apps?: AppCardData[];
+  postSlug?: string;
+}
+
+function fmtDate(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
+}
+
+function fmtBytes(n?: number | null): string {
+  if (!n) return "";
+  return n >= 1048576 ? `${(n / 1048576).toFixed(0)} MB` : `${(n / 1024).toFixed(0)} KB`;
+}
+
+// [app] 블록 위치에 삽입되는 앱 카드 HTML (macOS MarkdownRenderer.swift와 동일 규격)
+export function buildAppCardHTML(app: AppCardData | null, index: number, postSlug?: string): string {
+  const info = app?.storeInfo ?? {};
+  const name = app?.appName || info.appName || "앱";
+  const rows: Array<[string, string | null | undefined]> = [
+    ["버전", info.version],
+    ["개발자", info.sellerName],
+    ["가격", info.price ?? (info.isFree ? "무료" : null)],
+    ["언어", info.languages?.join(", ")],
+    ["호환", info.minimumOsVersion ? `macOS ${info.minimumOsVersion} 이상` : null],
+    ["업데이트", fmtDate(info.currentVersionReleaseDate)],
+    ["크기", fmtBytes(info.fileSizeBytes)],
+    ["평점", typeof info.rating === "number" ? `★ ${info.rating.toFixed(1)} (${(info.ratingCount ?? 0).toLocaleString()})` : null],
+  ];
+  const specRows = rows
+    .filter(([, v]) => v)
+    .map(([k, v]) => `<div class="spec-row"><span class="spec-k">${escapeHtml(k)}</span><span class="spec-v">${escapeHtml(v!)}</span></div>`)
+    .join("");
+  const icon = info.artworkUrl100
+    ? `<img src="${escapeHtml(info.artworkUrl100)}" class="app-icon" alt="" loading="lazy"/>`
+    : `<div class="app-icon-placeholder">${escapeHtml(name.charAt(0).toUpperCase())}</div>`;
+  const dlButtons = (app?.downloadLinks ?? [])
+    .map((dl) => {
+      const href = postSlug ? `/post/${postSlug}/download/${dl.id}` : "#";
+      return `<a class="app-dl" href="${escapeHtml(href)}" rel="nofollow">${escapeHtml(dl.label)}</a>`;
+    })
+    .join("");
+  const home =
+    app?.homepageUrl || info.sellerUrl
+      ? `<a class="app-home" href="${escapeHtml(app?.homepageUrl || info.sellerUrl || "#")}" target="_blank" rel="noopener noreferrer">홈페이지 ↗</a>`
+      : "";
+  const store = app?.appUrl
+    ? `<a class="app-home" href="${escapeHtml(app.appUrl)}" target="_blank" rel="noopener noreferrer">App Store ↗</a>`
+    : "";
+  return `<div class="app-card" data-app-index="${index}"><div class="app-card-top">${icon}<div class="app-card-title"><div class="app-name">${escapeHtml(name)}</div>${info.sellerName ? `<div class="app-seller">${escapeHtml(info.sellerName)}</div>` : ""}</div></div><div class="app-specs">${specRows}</div><div class="app-actions">${dlButtons}${home}${store}</div></div>`;
 }

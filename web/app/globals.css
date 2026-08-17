@@ -247,3 +247,47 @@ body {
 .gallery-grid figcaption {
   @apply text-xs text-text-muted mt-1 text-center;
 }
+
+/* ===== T-15: [app] 앱 카드 ===== */
+.app-card {
+  @apply my-6 rounded-xl border border-border bg-surface p-4 md:p-5;
+}
+.app-card-top {
+  @apply flex items-center gap-3 mb-3;
+}
+.app-card .app-icon {
+  @apply w-14 h-14 rounded-xl object-cover border border-border;
+}
+.app-icon-placeholder {
+  @apply w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white bg-primary;
+}
+.app-card-title {
+  @apply min-w-0;
+}
+.app-name {
+  @apply font-bold text-lg leading-tight;
+}
+.app-seller {
+  @apply text-sm text-text-secondary;
+}
+.app-specs {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm my-3;
+}
+.spec-row {
+  @apply flex justify-between gap-2 py-0.5 border-b border-dashed border-border;
+}
+.spec-k {
+  @apply text-text-muted shrink-0;
+}
+.spec-v {
+  @apply text-text text-right;
+}
+.app-actions {
+  @apply flex flex-wrap items-center gap-2 mt-3;
+}
+.app-dl {
+  @apply inline-block px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity;
+}
+.app-home {
+  @apply inline-block px-3 py-2 rounded-lg border border-border text-sm text-text-secondary hover:text-text hover:border-border-strong transition-colors;
+}

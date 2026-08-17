@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { renderMarkdown } from "@/lib/markdown";
+import { renderMarkdown, type AppCardData } from "@/lib/markdown";
 import { getPostBySlug, getRelatedPosts, getPrevNextPosts } from "@/lib/posts";
 import { getUserApprovedCommentCount } from "@/lib/comments";
 import { auth } from "@/auth";
@@ -100,7 +100,22 @@ export default async function PostPage({ params }: Props) {
 
       {/* 본문: MD 또는 HTML (관리자 작성이므로 HTML 직접 렌더링 허용) */}
       <div className="prose prose-lg max-w-none dark:prose-invert">
-        <PostBody html={post.bodyFormat === BodyFormat.MD ? renderMarkdown(post.body) : post.body} />
+        <PostBody
+          html={
+            post.bodyFormat === BodyFormat.MD
+              ? renderMarkdown(post.body, {
+                  apps: post.apps.map((a) => ({
+                    appName: (a.storeInfo as { appName?: string } | null)?.appName ?? null,
+                    storeInfo: a.storeInfo as AppCardData["storeInfo"],
+                    homepageUrl: a.homepageUrl,
+                    appUrl: a.appUrl,
+                    downloadLinks: a.downloadLinks.map((dl) => ({ id: dl.id, label: dl.label })),
+                  })),
+                  postSlug: post.slug,
+                })
+              : post.body
+          }
+        />
       </div>
 
       {/* 태그 */}
