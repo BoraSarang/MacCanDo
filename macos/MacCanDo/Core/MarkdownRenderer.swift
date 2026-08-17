@@ -3,12 +3,43 @@
 //   [youtube:ID] [youtube:ID width=800 height=450 autoplay=1 start=90]
 //   [img:URL width=600 caption=캡션]  /  ![alt](url)
 //   [video:URL width=640 autoplay=0]
+//   [app]~[/app] 앱 카드 (T-15, render(md, apps:) 경유)
 // HTML 인라인 화이트리스트: <span style>, <font color size> (폰트/색상)
 // 서버 의존 없이 로컬 렌더. macOS 미리보기와 웹 렌더러(markdown.ts) 동일 규격.
 import Foundation
 
+// T-15: 앱 카드 데이터 (웹 AppCardData와 동일 규격)
+struct AppStoreInfo: Codable {
+    var appName: String?
+    var version: String?
+    var sellerName: String?
+    var price: String?
+    var isFree: Bool?
+    var languages: [String]?
+    var minimumOsVersion: String?
+    var currentVersionReleaseDate: String?
+    var rating: Double?
+    var ratingCount: Int?
+    var artworkUrl100: String?
+    var fileSizeBytes: Int?
+    var sellerUrl: String?
+}
+
+struct AppCardLink: Codable {
+    var id: String
+    var label: String
+}
+
+struct AppCardData: Codable {
+    var appName: String?
+    var storeInfo: AppStoreInfo?
+    var homepageUrl: String?
+    var appUrl: String?
+    var downloadLinks: [AppCardLink]
+}
+
 enum MarkdownRenderer {
-    static func render(_ md: String) -> String {
+    static func render(_ md: String, apps: [AppCardData] = []) -> String {
         var html = ""
         var inCodeBlock = false
         var codeBuf: [String] = []
@@ -17,6 +48,8 @@ enum MarkdownRenderer {
         var tableBuf: [String] = []
         var galleryBuf: [String] = []
         var inGallery = false
+        var inApp = false
+        var appIndex = 0
 
         func flushList() {
             guard !listBuf.isEmpty else { return }
@@ -71,6 +104,13 @@ enum MarkdownRenderer {
             flushGallery()
         }
 
+        // [app] 블록 → 앱 카드 (T-15, 웹 markdown.ts와 동일 규격)
+        func flushApp() {
+            let app = appIndex < apps.count ? apps[appIndex] : nil
+            appIndex += 1
+            html += buildAppCardHTML(app, index: appIndex - 1)
+        }
+
         for rawLine in md.components(separatedBy: "\n") {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
 
@@ -122,6 +162,19 @@ enum MarkdownRenderer {
                 continue
             }
 
+            // [app] 확장 블록 (T-15)
+            if line == "[app]" {
+                flushAll()
+                inApp = true
+                continue
+            }
+            if line == "[/app]" {
+                flushApp()
+                inApp = false
+                continue
+            }
+            if inApp { continue }
+
             // 목록
             if line.hasPrefix("- ") || line.hasPrefix("* ") {
                 if !listBuf.isEmpty && listType != "ul" { flushList() }
@@ -169,6 +222,73 @@ enum MarkdownRenderer {
             html += "<pre><code>\(codeBuf.joined(separator: "\n"))</code></pre>"
         }
         return html
+    }
+
+    // ---------- 앱 카드 HTML (T-15, 웹 markdown.ts와 동일 규격) ----------
+
+    static func buildAppCardHTML(_ app: AppCardData?, index: Int) -> String {
+        let info = app?.storeInfo
+        let name = app?.appName ?? info?.appName ?? "앱"
+        var rows: [(String, String?)] = [
+            ("버전", info?.version),
+            ("개발자", info?.sellerName),
+            ("가격", info?.price ?? (info?.isFree == true ? "무료" : nil)),
+            ("언어", info?.languages?.joined(separator: ", ")),
+            ("호환", info?.minimumOsVersion.map { "macOS \($0) 이상" }),
+            ("업데이트", fmtDate(info?.currentVersionReleaseDate)),
+            ("크기", fmtBytes(info?.fileSizeBytes)),
+        ]
+        if let rating = info?.rating {
+            rows.append(("평점", "★ \(String(format: "%.1f", rating)) (\((info?.ratingCount ?? 0).formatted()))"))
+        }
+        let specRows = rows
+            .compactMap { (k, v) -> String? in
+                guard let v else { return nil }
+                return "<div class=\"spec-row\"><span class=\"spec-k\">\(escape(k))</span><span class=\"spec-v\">\(escape(v))</span></div>"
+            }
+            .joined()
+        let icon: String
+        if let art = info?.artworkUrl100, !art.isEmpty {
+            icon = "<img src=\"\(escape(art))\" class=\"app-icon\" alt=\"\" loading=\"lazy\"/>"
+        } else {
+            let ch = name.first.map { String($0).uppercased() } ?? "?"
+            icon = "<div class=\"app-icon-placeholder\">\(escape(ch))</div>"
+        }
+        let dlButtons = (app?.downloadLinks ?? []).map { dl in
+            "<a class=\"app-dl\" href=\"#\" rel=\"nofollow\">\(escape(dl.label))</a>"
+        }.joined()
+        let home: String
+        if let h = app?.homepageUrl, !h.isEmpty {
+            home = "<a class=\"app-home\" href=\"\(escape(h))\" target=\"_blank\" rel=\"noopener noreferrer\">홈페이지 ↗</a>"
+        } else if let s = info?.sellerUrl, !s.isEmpty {
+            home = "<a class=\"app-home\" href=\"\(escape(s))\" target=\"_blank\" rel=\"noopener noreferrer\">홈페이지 ↗</a>"
+        } else {
+            home = ""
+        }
+        let store: String
+        if let u = app?.appUrl, !u.isEmpty {
+            store = "<a class=\"app-home\" href=\"\(escape(u))\" target=\"_blank\" rel=\"noopener noreferrer\">App Store ↗</a>"
+        } else {
+            store = ""
+        }
+        let seller = info?.sellerName.map { "<div class=\"app-seller\">\(escape($0))</div>" } ?? ""
+        return "<div class=\"app-card\" data-app-index=\"\(index)\"><div class=\"app-card-top\">\(icon)<div class=\"app-card-title\"><div class=\"app-name\">\(escape(name))</div>\(seller)</div></div><div class=\"app-specs\">\(specRows)</div><div class=\"app-actions\">\(dlButtons)\(home)\(store)</div></div>"
+    }
+
+    private static func fmtDate(_ iso: String?) -> String? {
+        guard let iso else { return nil }
+        let isoFmt = ISO8601DateFormatter()
+        isoFmt.formatOptions = [.withInternetDateTime]
+        guard let d = isoFmt.date(from: iso) else { return nil }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.dateFormat = "yyyy. M. d."
+        return f.string(from: d)
+    }
+
+    private static func fmtBytes(_ n: Int?) -> String? {
+        guard let n, n > 0 else { return nil }
+        return n >= 1_048_576 ? "\(n / 1_048_576) MB" : "\(n / 1024) KB"
     }
 
     // ---------- GFM 테이블 (웹 markdown.ts와 동일 규격) ----------

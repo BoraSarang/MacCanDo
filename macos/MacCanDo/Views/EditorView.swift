@@ -98,6 +98,15 @@ struct EditorView: View {
     @State private var previewTask: Task<Void, Never>?
     // 삽입 다이얼로그
     @State private var showImagePicker = false
+    @State private var showAppSheet = false // T-15: 앱 카드 시트
+    @State private var appCards: [AppCardData] = []
+    @State private var appURL = ""
+    @State private var appFetching = false
+    @State private var appFetchError: String?
+    @State private var appMeta: AppStoreInfo?
+    @State private var appHomepage = ""
+    @State private var appDlLabel = ""
+    @State private var appDlURL = ""
     @State private var showYoutubeDialog = false
     @State private var showVideoDialog = false
     @State private var insertURL = ""
@@ -150,6 +159,117 @@ struct EditorView: View {
             Button("삽입") { insertVideo() }
             Button("취소", role: .cancel) { insertURL = "" }
         }
+        .sheet(isPresented: $showAppSheet) { appCardSheet } // T-15
+    }
+
+    // ---------- 앱 카드 시트 (T-15): App Store URL → 자동 추출 → [app] 삽입 ----------
+    private var appCardSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("앱 카드 삽입")
+                .font(.headline)
+            TextField("App Store URL (https://apps.apple.com/app/.../id123456789)", text: $appURL)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                Button("정보 가져오기") { Task { await fetchAppMeta() } }
+                    .disabled(appFetching || appURL.trimmingCharacters(in: .whitespaces).isEmpty)
+                if appFetching { ProgressView().controlSize(.small) }
+                if let err = appFetchError {
+                    Text(err).font(.caption).foregroundStyle(.red)
+                }
+                Spacer()
+            }
+            if let meta = appMeta {
+                Divider()
+                HStack(spacing: 12) {
+                    if let icon = meta.artworkUrl100, let url = URL(string: icon) {
+                        AsyncImage(url: url) { img in
+                            img.resizable().scaledToFit()
+                        } placeholder: {
+                            Color.gray.opacity(0.2)
+                        }
+                        .frame(width: 48, height: 48)
+                        .cornerRadius(8)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(meta.appName ?? "앱").font(.headline)
+                        Text([meta.sellerName, meta.version, meta.price].compactMap { $0 }.joined(separator: " · "))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                HStack {
+                    Text("언어: \(meta.languages?.joined(separator: ", ") ?? "-")")
+                    Spacer()
+                    if let os = meta.minimumOsVersion { Text("macOS \(os) 이상") }
+                }
+                .font(.caption)
+                Divider()
+                TextField("홈페이지 URL (선택)", text: $appHomepage)
+                    .textFieldStyle(.roundedBorder)
+                TextField("다운로드 버튼 라벨", text: $appDlLabel)
+                    .textFieldStyle(.roundedBorder)
+                TextField("다운로드 URL (선택)", text: $appDlURL)
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Button("삽입") { insertAppCard() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(appCards.count > 20)
+                    Spacer()
+                    Text("앱 카드 \(appCards.count)개")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(20)
+        .frame(width: 460)
+        .onAppear {
+            appURL = ""
+            appHomepage = ""
+            appDlLabel = ""
+            appDlURL = ""
+            appMeta = nil
+            appFetchError = nil
+        }
+    }
+
+    private func fetchAppMeta() async {
+        let url = appURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !url.isEmpty else { return }
+        appFetching = true
+        appFetchError = nil
+        defer { appFetching = false }
+        do {
+            let meta: AppStoreInfo = try await APIClient.request("api/admin/store-fetch", method: "POST", token: auth.token, body: ["url": url])
+            appMeta = meta
+            appDlLabel = meta.isFree == true ? "무료 다운로드" : "다운로드"
+            DebugLogger.info("Editor", "앱 카드 정보 가져오기 성공 (\(meta.appName ?? url))")
+        } catch {
+            appFetchError = error.localizedDescription
+        }
+    }
+
+    private func insertAppCard() {
+        guard let meta = appMeta else { return }
+        var card = AppCardData(
+            appName: meta.appName,
+            storeInfo: meta,
+            homepageUrl: appHomepage.trimmingCharacters(in: .whitespaces).isEmpty ? nil : appHomepage.trimmingCharacters(in: .whitespaces),
+            appUrl: appURL.trimmingCharacters(in: .whitespaces),
+            downloadLinks: []
+        )
+        let dl = appDlLabel.trimmingCharacters(in: .whitespaces)
+        let dlUrl = appDlURL.trimmingCharacters(in: .whitespaces)
+        if !dl.isEmpty {
+            card.downloadLinks = [AppCardLink(id: UUID().uuidString, label: dl.isEmpty ? "다운로드" : dl)]
+        }
+        appCards.append(card)
+        insertInline("[app]\n\n[/app]")
+        appMeta = nil
+        appURL = ""
+        appHomepage = ""
+        appDlLabel = ""
+        appDlURL = ""
+        showAppSheet = false
+        DebugLogger.info("Editor", "앱 카드 삽입 (\(card.appName ?? "앱"), 총 \(appCards.count)개)")
     }
 
     // ---------- 헤더: 제목 + 도구 모음 ----------
@@ -234,6 +354,7 @@ struct EditorView: View {
                 Button { showImagePicker = true } label: { Image(systemName: "photo").help("이미지 삽입") }
                 Button { insertURL = ""; showYoutubeDialog = true } label: { Image(systemName: "play.rectangle").help("유튜브 삽입") }
                 Button { insertURL = ""; showVideoDialog = true } label: { Image(systemName: "film").help("동영상(MP4) 삽입") }
+                Button { showAppSheet = true } label: { Image(systemName: "square.grid.2x2").help("앱 카드 삽입") }
                 Button { showHelp = true } label: { Image(systemName: "questionmark.circle").help("MD 사용법") }
                 Button { startSEO() } label: {
                     if seoMeta != nil {
@@ -307,7 +428,7 @@ struct EditorView: View {
 
     // ---------- 미리보기 HTML (300ms 디바운스 실시간) ----------
     private func buildPreviewHTML(_ md: String) -> String {
-        let content = MarkdownRenderer.render(md)
+        let content = MarkdownRenderer.render(md, apps: appCards)
         let style = """
         <style>
           body { font-family: -apple-system, sans-serif; padding: 24px; line-height: 1.7; color: #1d1d1f; }
@@ -389,7 +510,8 @@ struct EditorView: View {
                     content = post.body
                 }
                 status = post.status
-                DebugLogger.info("Editor", "서버 글 로드 (\(postId))")
+                appCards = post.apps ?? [] // T-15: 앱 카드 로드
+                DebugLogger.info("Editor", "서버 글 로드 (\(postId), 앱 카드 \(appCards.count)개)")
             } catch {
                 loadError = "게시글을 불러오지 못했습니다: \(error.localizedDescription)"
                 return
@@ -546,7 +668,8 @@ struct EditorView: View {
             excerpt: excerpt.isEmpty ? nil : excerpt,
             status: newStatus,
             seoMeta: seoMeta,
-            seriesId: selectedSeriesId
+            seriesId: selectedSeriesId,
+            apps: appCards.isEmpty ? nil : appCards
         )
         do {
             let saved: Post

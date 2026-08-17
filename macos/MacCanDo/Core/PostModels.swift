@@ -38,6 +38,7 @@ struct Post: Decodable, Identifiable {
     let seriesId: String?
     let seriesOrder: Int?
     let featuredOrder: Int? // 홈 추천 순서 (T-11, null=미지정)
+    let apps: [AppCardData]? // T-15: 앱 카드 (에디터 로드/저장)
 
     var isPublished: Bool { status == "PUBLISHED" }
 }
@@ -72,8 +73,9 @@ struct PostInput: Encodable {
     var status: String
     var seoMeta: SeoMeta?
     var seriesId: String?
+    var apps: [AppCardData]? // T-15: 앱 카드
 
-    init(title: String, slug: String?, categoryIds: [String]?, tags: [String]?, contentType: String?, bodyFormat: String, body: String, excerpt: String?, status: String, seoMeta: SeoMeta? = nil, seriesId: String? = nil) {
+    init(title: String, slug: String?, categoryIds: [String]?, tags: [String]?, contentType: String?, bodyFormat: String, body: String, excerpt: String?, status: String, seoMeta: SeoMeta? = nil, seriesId: String? = nil, apps: [AppCardData]? = nil) {
         self.title = title
         self.slug = slug
         self.categoryIds = categoryIds
@@ -85,6 +87,7 @@ struct PostInput: Encodable {
         self.status = status
         self.seoMeta = seoMeta
         self.seriesId = seriesId
+        self.apps = apps
     }
 
     init(post: Post) {
@@ -99,6 +102,7 @@ struct PostInput: Encodable {
         status = post.status
         seoMeta = post.seoMeta
         seriesId = post.seriesId
+        apps = post.apps
     }
 
     init(draft: DraftRecord) {
