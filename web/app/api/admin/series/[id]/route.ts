@@ -15,7 +15,7 @@ export const PATCH = withApi(async (req, { params }: { params: Promise<{ id: str
     return apiError("E-WEB-VALID-1002", 400, { method: "PATCH", path: "/api/admin/series/[id]" });
   }
   return apiOk(
-    await updateSeries(id, body.title, body.description ?? null, body.imageUrl ?? null, body.intro ?? null),
+    await updateSeries(id, body.title, body.description, body.imageUrl, body.intro),
     { method: "PATCH", path: `/api/admin/series/${id}` }
   );
 }, "AdminSeriesUpdate");
