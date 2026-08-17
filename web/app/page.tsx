@@ -56,11 +56,11 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* 카테고리 — 역할 기반 */}
-      <section>
+      {/* 카테고리 — 역할 기반 (T-14: 빈 카테고리 포함 10개 전부) */}
+      <section className="mb-12">
         <h2 className="text-xl font-bold mb-4">역할별 탐색</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {categories.filter((c) => c.postCount > 0).map((c) => (
+          {categories.map((c) => (
             <Link
               key={c.slug}
               href={`/category/${c.slug}`}
@@ -75,20 +75,6 @@ export default async function HomePage() {
             </Link>
           ))}
         </div>
-      </section>
-
-      {/* 최신 게시글 */}
-      <section>
-        <h2 className="text-xl font-bold mb-4">최신 게시글</h2>
-        {posts.items.length === 0 ? (
-          <p className="text-text-muted text-center py-10">아직 게시글이 없습니다.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {posts.items.map((p) => (
-              <PostCard key={p.id} post={p} />
-            ))}
-          </div>
-        )}
       </section>
     </div>
   );
