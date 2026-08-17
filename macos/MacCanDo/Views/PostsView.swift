@@ -118,10 +118,15 @@ struct PostsView: View {
                                     Text("/post/\(post.slug)")
                                         .font(.caption.monospaced())
                                         .foregroundStyle(.secondary)
-                                    if let c = post.category {
+                                    ForEach(post.categories ?? []) { c in
                                         Text(c.name)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
+                                    }
+                                    if let tags = post.tags, !tags.isEmpty {
+                                        Text(tags.map { "#\($0.name)" }.joined(separator: " "))
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
                                     }
                                     Text("👁 \(post.viewCount)")
                                         .font(.caption)

@@ -75,7 +75,9 @@ struct EditorView: View {
     @State private var content = ""
     @State private var status = "DRAFT"
     @State private var categories: [PostCategory] = []
-    @State private var selectedCategoryId: String?
+    @State private var selectedCategoryIds: Set<String> = []
+    @State private var tagsInput = ""
+    @State private var contentType = "ARTICLE"
     @State private var seriesList: [SeriesItem] = []
     @State private var selectedSeriesId: String?
     @State private var showNewSeriesDialog = false
@@ -166,14 +168,38 @@ struct EditorView: View {
                     .padding(.horizontal, 10).padding(.vertical, 4)
                     .background(Capsule().fill(Color.accentColor.opacity(0.12)))
             }
-            HStack(spacing: 8) {
-                Picker("카테고리", selection: $selectedCategoryId) {
-                    Text("없음").tag(String?.none)
-                    ForEach(categories) { c in
-                        Text(c.name).tag(String?.some(c.id))
+            HStack(spacing: 6) {
+                Text("카테고리").font(.caption).foregroundStyle(.secondary)
+                ForEach(categories) { c in
+                    Button {
+                        if selectedCategoryIds.contains(c.id) {
+                            selectedCategoryIds.remove(c.id)
+                        } else {
+                            selectedCategoryIds.insert(c.id)
+                        }
+                        scheduleAutoSave()
+                    } label: {
+                        Text(c.name)
+                            .font(.caption)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(
+                                Capsule().fill(selectedCategoryIds.contains(c.id) ? Color.accentColor.opacity(0.2) : Color.clear)
+                            )
+                            .overlay(Capsule().strokeBorder(selectedCategoryIds.contains(c.id) ? Color.accentColor : Color.secondary.opacity(0.4), lineWidth: 1))
+                            .foregroundStyle(selectedCategoryIds.contains(c.id) ? Color.primary : Color.secondary)
                     }
+                    .buttonStyle(.plain)
+                    .help("카테고리 중복 선택 가능")
                 }
-                .frame(width: 160)
+                Spacer()
+            }
+            HStack(spacing: 8) {
+                Picker("글 타입", selection: $contentType) {
+                    Text("맥 앱").tag("ARTICLE")
+                    Text("맥 팁").tag("TIP")
+                    Text("맥 소식").tag("NEWS")
+                }
+                .frame(width: 110)
                 Picker("시리즈", selection: $selectedSeriesId) {
                     Text("없음").tag(String?.none)
                     ForEach(seriesList) { s in
@@ -189,6 +215,11 @@ struct EditorView: View {
                         showNewSeriesDialog = true
                     }
                 }
+                TextField("태그 (쉼표 구분)", text: $tagsInput)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption)
+                    .frame(width: 180)
+                    .help("#태그 — 쉼표로 구분, 새 태그 자동 생성")
                 TextField("주소(slug) — 비우면 자동 생성", text: $slug)
                     .textFieldStyle(.roundedBorder)
                     .font(.caption.monospaced())
@@ -341,6 +372,16 @@ struct EditorView: View {
                 excerpt = post.excerpt ?? ""
                 seoMeta = post.seoMeta
                 selectedSeriesId = post.seriesId
+                contentType = post.contentType ?? "ARTICLE"
+                // 카테고리: slug → id 매핑 (다대다)
+                if let cats = post.categories {
+                    for ref in cats {
+                        if let c = categories.first(where: { $0.slug == ref.slug }) {
+                            selectedCategoryIds.insert(c.id)
+                        }
+                    }
+                }
+                tagsInput = (post.tags ?? []).map { $0.name }.joined(separator: ", ")
                 if post.bodyFormat == "HTML" {
                     content = HTMLToMarkdown.convert(post.body)
                     DebugLogger.info("Editor", "HTML 글 → MD 변환 (\(postId))")
@@ -497,7 +538,9 @@ struct EditorView: View {
         let input = PostInput(
             title: title,
             slug: slug.isEmpty ? nil : slug,
-            categoryId: selectedCategoryId,
+            categoryIds: Array(selectedCategoryIds),
+            tags: tagsInput.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "^#+", with: "", options: .regularExpression) }.filter { !$0.isEmpty },
+            contentType: contentType,
             bodyFormat: "MD",
             body: content,
             excerpt: excerpt.isEmpty ? nil : excerpt,

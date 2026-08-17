@@ -7,7 +7,14 @@ struct PostCategory: Decodable, Identifiable {
     let name: String
 }
 
-struct PostCategoryRef: Decodable {
+struct PostCategoryRef: Decodable, Identifiable {
+    var id: String { slug }
+    let name: String
+    let slug: String
+}
+
+struct PostTagRef: Decodable, Identifiable {
+    var id: String { slug }
     let name: String
     let slug: String
 }
@@ -24,8 +31,9 @@ struct Post: Decodable, Identifiable {
     let viewCount: Int
     let publishedAt: String?
     let updatedAt: String
-    let category: PostCategoryRef?
-    let categoryId: String?
+    let categories: [PostCategoryRef]?
+    let tags: [PostTagRef]?
+    let contentType: String?
     let seoMeta: SeoMeta?
     let seriesId: String?
     let seriesOrder: Int?
@@ -54,7 +62,9 @@ struct SeoMeta: Codable, Equatable {
 struct PostInput: Encodable {
     var title: String
     var slug: String?
-    var categoryId: String?
+    var categoryIds: [String]?
+    var tags: [String]?
+    var contentType: String?
     var bodyFormat: String
     var body: String
     var excerpt: String?
@@ -62,10 +72,12 @@ struct PostInput: Encodable {
     var seoMeta: SeoMeta?
     var seriesId: String?
 
-    init(title: String, slug: String?, categoryId: String?, bodyFormat: String, body: String, excerpt: String?, status: String, seoMeta: SeoMeta? = nil, seriesId: String? = nil) {
+    init(title: String, slug: String?, categoryIds: [String]?, tags: [String]?, contentType: String?, bodyFormat: String, body: String, excerpt: String?, status: String, seoMeta: SeoMeta? = nil, seriesId: String? = nil) {
         self.title = title
         self.slug = slug
-        self.categoryId = categoryId
+        self.categoryIds = categoryIds
+        self.tags = tags
+        self.contentType = contentType
         self.bodyFormat = bodyFormat
         self.body = body
         self.excerpt = excerpt
@@ -77,7 +89,9 @@ struct PostInput: Encodable {
     init(post: Post) {
         title = post.title
         slug = post.slug
-        categoryId = nil
+        categoryIds = post.categories?.map { $0.slug }
+        tags = post.tags?.map { $0.name }
+        contentType = post.contentType
         bodyFormat = post.bodyFormat
         body = post.body
         excerpt = post.excerpt
@@ -89,7 +103,9 @@ struct PostInput: Encodable {
     init(draft: DraftRecord) {
         title = draft.title
         slug = nil
-        categoryId = nil
+        categoryIds = nil
+        tags = nil
+        contentType = nil
         bodyFormat = draft.bodyFormat
         body = draft.body
         excerpt = nil
