@@ -1,3 +1,10 @@
+## v2.7.3-editor50 (2026-08-18) — [macos] 에디터/미리보기 50:50 고정
+
+- HSplitView(스플리터 비율 자유) → HStack(spacing: 0) + Divider로 변경 — 에디터/미리보기가 항상 동일한 크기 (각 (창폭-280-1)/2)
+- 창 리사이즈 시에도 50:50 유지 검증: 1250→484, 1000→359, 1600→659 (미리보기 폭, GeometryReader 로그)
+- Inspector(280pt 고정)는 변경 없음
+- 배포: ~/Applications/MacCanDo.app (빌드 14)
+
 ## v2.7.2-inspector (2026-08-18) — [macos] Inspector 재배치 (카테고리 최상단 + 커버 이동/상단 크롭)
 
 - Inspector 순서 변경: 카테고리(FlowLayout)를 최상단으로 이동, 커버 이미지 섹션을 글 타입 Form 바로 아래로 이동

@@ -684,16 +684,18 @@ struct EditorView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            HSplitView {
+            // T-58: 에디터/미리보기 50:50 고정 (HSplitView는 스플리터로 비율 어긋남 — HStack으로 동일 사이즈 유지)
+            HStack(spacing: 0) {
                 EditorTextView(text: $content)
-                    .frame(minWidth: 320)
+                    .frame(minWidth: 320, maxWidth: .infinity)
+                Divider()
                 if showPreview {
                     // T-57 수정: WKWebView는 자체 스크롤 보유 — ScrollView로 감싸면
                     // 리사이즈 시 내부 레이아웃이 고정되어 미리보기가 늘어나지 않는 문제 수정
                     PreviewWebView(html: previewHTML, scrollRestoreY: previewScrollY) { y in
                         previewScrollY = y
                     }
-                    .frame(minWidth: 300)
+                    .frame(minWidth: 300, maxWidth: .infinity)
                     // T-48: 다크모드 — 흰색 하드코딩 제거 (웹 프리뷰 배경은 CSS 미디어 쿼리 대응)
                     .background(Color(nsColor: .textBackgroundColor))
                     .background(
@@ -708,6 +710,7 @@ struct EditorView: View {
                     )
                 }
                 if showInspector {
+                    Divider()
                     inspectorView
                 }
             }
