@@ -1,11 +1,15 @@
 // [FEATURE] 설정 — API 토큰 입력/저장/제거 (T-06)
 // 토큰은 웹 /api/auth/token에서 발급 (관리자 로그인 후)
+// T-54: v2.7.0 — SecureField(토큰/키) + 연결 테스트(api/categories) + 캐시 초기화 + 저장 후 필드 유지
 import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var authStore: AuthStore
     @State private var inputToken = ""
     @State private var message = ""
+    @State private var testingConnection = false
+    @State private var testMessage: String?
+    @State private var testIsError = false
 
     var body: some View {
         Form {
@@ -43,13 +47,26 @@ struct SettingsView: View {
                 if authStore.isAuthed {
                     Label("연결됨 (토큰 저장됨)", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(Color.dsSuccess)
-                    Button("토큰 제거", role: .destructive) {
-                        authStore.clear()
-                        message = "토큰이 제거되었습니다."
-                        DebugLogger.info("Settings", "토큰 제거됨")
+                    // T-54: 연결 테스트 — api/categories 호출로 토큰 유효성 확인
+                    HStack(spacing: 8) {
+                        Button("연결 테스트") { testConnection() }
+                            .disabled(testingConnection)
+                        if testingConnection {
+                            ProgressView().controlSize(.small)
+                        }
+                        Button("토큰 제거", role: .destructive) {
+                            authStore.clear()
+                            message = "토큰이 제거되었습니다."
+                            DebugLogger.info("Settings", "토큰 제거됨")
+                        }
+                    }
+                    if let testMessage {
+                        Label(testMessage, systemImage: testIsError ? "xmark.circle.fill" : "checkmark.circle.fill")
+                            .font(.dsCaption)
+                            .foregroundStyle(testIsError ? Color.dsDanger : Color.dsSuccess)
                     }
                 } else {
-                    TextField("토큰 붙여넣기", text: $inputToken)
+                    SecureField("토큰 붙여넣기", text: $inputToken)
                         .font(.dsMono)
                         .textFieldStyle(.roundedBorder)
                     HStack {
@@ -60,7 +77,7 @@ struct SettingsView: View {
                                 return
                             }
                             authStore.save(t)
-                            inputToken = ""
+                            // T-54: 저장 후 필드 유지 (재입력 불편 제거)
                             message = "토큰이 저장되었습니다."
                             DebugLogger.info("Settings", "토큰 저장됨")
                         }
@@ -81,7 +98,7 @@ struct SettingsView: View {
 
             Section("AI SEO (Gemini)") {
                 VStack(alignment: .leading, spacing: 8) {
-                    TextField("Gemini API 키", text: $inputGeminiKey)
+                    SecureField("Gemini API 키", text: $inputGeminiKey)
                         .font(.dsMono)
                         .textFieldStyle(.roundedBorder)
                         .textContentType(.none)
@@ -93,7 +110,7 @@ struct SettingsView: View {
                                 return
                             }
                             UserDefaults.standard.set(k, forKey: "geminiKey")
-                            inputGeminiKey = ""
+                            // T-54: 저장 후 필드 유지
                             geminiMessage = "키가 저장되었습니다."
                             DebugLogger.info("Settings", "Gemini 키 저장됨")
                         }
@@ -144,7 +161,7 @@ struct SettingsView: View {
                                     return
                                 }
                                 UserDefaults.standard.set(k, forKey: "openrouterKey")
-                                inputOpenRouterKey = ""
+                                // T-54: 저장 후 필드 유지
                                 openRouterMessage = "키가 저장되었습니다."
                                 DebugLogger.info("Settings", "OpenRouter 키 저장됨")
                             }
@@ -174,6 +191,24 @@ struct SettingsView: View {
                                 .foregroundStyle(stats.hits * 10 >= total * 7 ? Color.dsSuccess : Color.dsWarning) // T-36
                         }
                     }
+                    // T-54: AI SEO 캐시 초기화
+                    HStack(spacing: 10) {
+                        Button("캐시 초기화") {
+                            DraftStore.clearSEOCache()
+                            DraftStore.resetCacheStats()
+                            cacheMessage = "AI SEO 캐시 \(DraftStore.seoCacheCount())건을 비웠습니다."
+                            DebugLogger.info("Settings", "[FEATURE] AI SEO 캐시 초기화 완료")
+                        }
+                        .controlSize(.small)
+                        if !cacheMessage.isEmpty {
+                            Text(cacheMessage)
+                                .font(.dsCaption)
+                                .foregroundStyle(Color.dsTextSecondary)
+                        }
+                    }
+                    Text("SEO 자동 생성 결과를 저장한 캐시입니다. 캐시를 비우면 다음 요청에서 새로 생성합니다 (AI 비용 발생).")
+                        .font(.dsCaption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -216,11 +251,17 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("설정")
         .onAppear {
             DebugLogger.info("Settings", "설정 화면 표시됨")
+            // T-54: 저장된 값 미리 채우기 (재입력 불편 제거)
+            if let token = authStore.token, !token.isEmpty {
+                inputToken = token
+            }
             if let key = UserDefaults.standard.string(forKey: "geminiKey"), !key.isEmpty {
                 inputGeminiKey = key
+            }
+            if let key = UserDefaults.standard.string(forKey: "openrouterKey"), !key.isEmpty {
+                inputOpenRouterKey = key
             }
         }
     }
@@ -235,6 +276,27 @@ struct SettingsView: View {
     @State private var backupBusy = false
     @State private var backupMessage = ""
     @State private var syncMessage = ""
+    @State private var cacheMessage = ""
+
+    // T-54: 연결 테스트 — api/categories 호출로 토큰 유효성 + 서버 응답 확인
+    private func testConnection() {
+        testingConnection = true
+        testMessage = nil
+        Task {
+            do {
+                let cats: [PostCategory] = try await APIClient.request("api/categories", token: authStore.token)
+                testMessage = "연결 성공 — 서버 응답 정상 (카테고리 \(cats.count)개)"
+                testIsError = false
+                DebugLogger.info("Settings", "[FEATURE] 연결 테스트 성공 (카테고리 \(cats.count)개)")
+            } catch {
+                let e = error as? APIError
+                testMessage = "연결 실패: \(e?.message ?? error.localizedDescription) (HTTP \(e?.status ?? -1))"
+                testIsError = true
+                DebugLogger.error("Settings", "연결 테스트 실패: \(e?.code ?? "unknown") status=\(e?.status ?? -1)")
+            }
+            testingConnection = false
+        }
+    }
 
     private func syncDrafts() {
         let drafts = DraftStore.all()

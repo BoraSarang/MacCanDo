@@ -9,7 +9,20 @@
 
 | 번호 | 작업 | 플랫폼 | 상태 | 비고 |
 |------|------|--------|------|------|
-| — | — | — | — | — |
+| T-44 | 공통 컴포넌트 (ErrorState/EmptyState/StatusBar/배지) + 토큰 실적용 | macos | ✅ | v2.7.0 |
+| T-45 | Settings scene 분리 (⌘,) + 사이드바 설정 제거 | macos | ✅ | v2.7.0 |
+| T-46 | ContentView — ⌘1~8 hidden Button + ⌥⌘S 토글 + 배지 + 맥 소식 탭 | macos | ✅ | v2.7.0 |
+| T-47 | WindowManager 닫은 창 정리 + 창 크기 상수화 | macos | ✅ | v2.7.0 |
+| T-48 | 에디터 — 헤더 1줄 + Inspector(⌘⌥I) + 포커스/저장상태/이미지 시트/미리보기/갱신 버그 | macos | ✅ | v2.7.0 |
+| T-49 | 게시글 관리 — 표준 행/필터/새로고침/상태바/피드백 | macos | ✅ | v2.7.0 |
+| T-50 | 시리즈 — NavigationSplitView 2열 + 글 추가 시트 | macos | ✅ | v2.7.0 |
+| T-51 | 댓글 — segmented 필터 유지 + 로컬 반영 | macos | ✅ | v2.7.0 |
+| T-52 | 광고 — NavigationStack/재시도/로컬 반영 | macos | ✅ | v2.7.0 |
+| T-53 | 통계 — 기간 선택(7/14/30) + 새로고침 | macos | ✅ | v2.7.0 |
+| T-54 | 설정 상세 — SecureField/연결 테스트/캐시 초기화 | macos | ✅ | v2.7.0 |
+| T-55 | 맥 소식 독립 탭 + AuthStore 단일화 | macos | ✅ | v2.7.0 |
+| T-56 | AI 도우미 표준 정리 + 팔레트 TTL/검색 규칙 | macos | ✅ | v2.7.0 |
+| T-57 | 전체 빌드/자동 검증/배포/문서/커밋 | macos | ✅ | v2.7.0 |
 
 ## 대기
 

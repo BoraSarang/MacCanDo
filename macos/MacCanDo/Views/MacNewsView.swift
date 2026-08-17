@@ -1,9 +1,11 @@
 // [FEATURE] 맥 소식 리포트 탭 (T-23) — AI 도우미 창 내 "맥 소식" 섹션
 // 소스 RSS 수집 → AI 요약 리포트 리스트 (로컬 저장) → "글 작성에 사용"으로 에디터 새 창 시드
+// T-55: v2.7.0 — 사이드바 독립 탭 + @EnvironmentObject auth + List 표준화(커스텀 카드 제거) + 소스 관리 시트
 import SwiftUI
 import AppKit
 
 struct MacNewsView: View {
+    @EnvironmentObject private var auth: AuthStore // T-55: 시드 에디터에 메인 토큰 전달 (AuthStore() 신규 인스턴스 금지)
     @State private var reports: [NewsReport] = []
     @State private var sources: [NewsSource] = []
     @State private var isCollecting = false
@@ -12,107 +14,143 @@ struct MacNewsView: View {
     @State private var showSourceManager = false
     @State private var newSourceName = ""
     @State private var newSourceURL = ""
-    @State private var hoveredItemID: String? // T-39: 소식 항목 hover
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Label("맥 소식 리포트", systemImage: "newspaper")
-                    .font(.headline)
-                Spacer()
-                Button("소스 관리") { showSourceManager.toggle() }
-                    .controlSize(.small)
-                Button("새로 수집") { Task { await collect() } }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(isCollecting)
-            }
-            if isCollecting {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text(progress).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            if let lastError {
-                Label(lastError, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(Color.dsWarning) // T-36
-            }
-            if showSourceManager { sourceManagerView }
-            if reports.isEmpty && !isCollecting {
-                VStack(spacing: 10) {
-                    Image(systemName: "newspaper").font(.system(size: 30)).foregroundStyle(.secondary)
-                    Text("소식 리포트가 없습니다.\n'새로 수집'을 누르면 RSS 소스에서 최신 맥 소식을 모아\nAI가 요약·평가해 저장합니다.")
-                        .font(.dsBody)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity, minHeight: 200)
-            } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 14) {
-                        ForEach(reports) { report in
-                            reportSection(report)
+        NavigationStack {
+            Group {
+                if reports.isEmpty && !isCollecting {
+                    EmptyState(
+                        icon: "newspaper",
+                        title: "소식 리포트가 없습니다",
+                        subtitle: "'새로 수집'을 누르면 RSS 소스에서 최신 맥 소식을 모아 AI가 요약·평가해 저장합니다"
+                    )
+                } else {
+                    VStack(spacing: 0) {
+                        if isCollecting {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text(progress).font(.caption).foregroundStyle(.secondary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.bar)
+                            .overlay(alignment: .bottom) { Divider() }
                         }
+                        if let lastError {
+                            Label(lastError, systemImage: "exclamationmark.triangle")
+                                .font(.caption)
+                                .foregroundStyle(Color.dsWarning)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.dsWarning.opacity(0.08))
+                        }
+                        // T-55: 커스텀 카드 → List 섹션 표준 (리포트 = 섹션, 날짜 헤더 + 삭제)
+                        List {
+                            ForEach(reports) { report in
+                                Section {
+                                    ForEach(report.items) { item in
+                                        itemRow(item)
+                                    }
+                                } header: {
+                                    HStack(spacing: 8) {
+                                        Text(report.createdAt.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.caption.bold())
+                                            .foregroundStyle(Color.dsTextSecondary)
+                                        Text("\(report.items.count)건")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        Button {
+                                            MacNewsStore.deleteReport(id: report.id)
+                                            reports = MacNewsStore.loadReports()
+                                            DebugLogger.info("News", "리포트 삭제 (\(report.id.prefix(8)))")
+                                        } label: {
+                                            Image(systemName: "trash")
+                                        }
+                                        .buttonStyle(.borderless)
+                                        .help("리포트 삭제")
+                                    }
+                                }
+                            }
+                        }
+                        .listStyle(.inset)
                     }
-                    .padding(4)
                 }
+            }
+            .navigationTitle("맥 소식")
+            .toolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button("소스 관리") { showSourceManager = true }
+                        .help("RSS 소스 관리")
+                    Button("새로 수집") { Task { await collect() } }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isCollecting)
+                        .help("소스에서 새 맥 소식 수집")
+                }
+            }
+            .sheet(isPresented: $showSourceManager) {
+                sourceManagerSheet
             }
         }
         .onAppear {
             reports = MacNewsStore.loadReports()
             sources = MacNewsStore.loadSources()
-            DebugLogger.info("Feature", "맥 소식 리포트 표시됨 (리포트 \(reports.count)개)")
+            DebugLogger.info("News", "맥 소식 리포트 표시됨 (리포트 \(reports.count)개)")
         }
     }
 
-    // ---------- 소스 관리 ----------
-    private var sourceManagerView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("소스 관리 (\(sources.count))").font(.caption.bold()).foregroundStyle(.secondary)
-                Spacer()
-            }
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 4) {
-                    ForEach(sources) { source in
-                        HStack {
-                            Image(systemName: source.isActive ? "dot.radiowaves.left.and.right" : "slash.circle")
-                                .foregroundStyle(source.isActive ? Color.dsSuccess : .secondary)
-                            Text(source.name).font(.dsBody)
-                            Text(source.url).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
-                            Spacer()
-                            Button {
-                                MacNewsStore.deleteSource(id: source.id)
-                                sources = MacNewsStore.loadSources()
-                                DebugLogger.info("News", "소스 삭제: \(source.name)")
-                            } label: {
-                                Image(systemName: "trash")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("소스 삭제")
-                        }
-                        .padding(.vertical, 1)
+    // ---------- 소스 관리 시트 (T-55) ----------
+    private var sourceManagerSheet: some View {
+        VStack(spacing: 0) {
+            List(sources) { source in
+                HStack(spacing: 10) {
+                    Image(systemName: source.isActive ? "dot.radiowaves.left.and.right" : "slash.circle")
+                        .foregroundStyle(source.isActive ? Color.dsSuccess : .secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(source.name).font(.dsBody)
+                        Text(source.url).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
                     }
+                    Spacer()
+                    Button {
+                        MacNewsStore.deleteSource(id: source.id)
+                        sources = MacNewsStore.loadSources()
+                        DebugLogger.info("News", "소스 삭제: \(source.name)")
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("소스 삭제")
                 }
+                .padding(.vertical, 3)
             }
-            .frame(height: 170)
             HStack(spacing: 6) {
                 TextField("이름 (예: 9to5Mac)", text: $newSourceName)
                     .textFieldStyle(.roundedBorder)
                 TextField("RSS 주소 (https://…)", text: $newSourceURL)
                     .textFieldStyle(.roundedBorder)
                 Button("추가") { addSource() }
-                    .controlSize(.small)
                     .disabled(newSourceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                               || newSourceURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .padding(12)
             Text("RSS 피드를 제공하는 사이트만 추가하세요 (예: 사이트/feed, 사이트/rss).")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 4)
+            HStack {
+                Spacer()
+                Button("닫기") { showSourceManager = false }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(12)
+            .overlay(alignment: .top) { Divider() }
         }
-        .padding(8)
-        .background(RoundedRectangle(cornerRadius: Radius.sm).fill(Color(nsColor: .textBackgroundColor)))
+        .frame(width: 500, height: 380)
+        .onAppear { DebugLogger.info("News", "[FEATURE] 소스 관리 시트 표시됨 (\(sources.count)개)") }
     }
 
     private func addSource() {
@@ -150,44 +188,14 @@ struct MacNewsView: View {
         progress = ""
     }
 
-    // ---------- 리포트 섹션 ----------
-    private func reportSection(_ report: NewsReport) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(report.createdAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption.bold())
-                    .foregroundStyle(Color.dsTextSecondary)
-                Text("\(report.items.count)건")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button {
-                    MacNewsStore.deleteReport(id: report.id)
-                    reports = MacNewsStore.loadReports()
-                    DebugLogger.info("News", "리포트 삭제 (\(report.id.prefix(8)))")
-                } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.borderless)
-                .help("리포트 삭제")
-            }
-            ForEach(report.items) { item in
-                itemRow(item)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(8)
-        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color(nsColor: .controlBackgroundColor)))
-    }
-
     // ---------- 소식 항목 행 ----------
     // 왼쪽: 제목/소스/요약 텍스트, 오른쪽: 버튼 2개(원문, 글 작성에 사용) 세로 배치
     private func itemRow(_ item: NewsItem) -> some View {
-        HStack(alignment: .top, spacing: 6) {
-            // T-38: 별점 이모지 → SF Symbol
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: item.rating == "추천" ? "star.fill" : "minus")
                 .font(.caption)
                 .foregroundStyle(item.rating == "추천" ? Color.dsWarning : Color.secondary)
+                .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
                     .font(.dsBody.bold())
@@ -209,10 +217,10 @@ struct MacNewsView: View {
                         NSWorkspace.shared.open(url)
                     } label: {
                         Text("원문")
-                            .frame(maxWidth: .infinity) // 라벨이 칸 폭 100% 채움
+                            .frame(maxWidth: .infinity)
                     }
                     .controlSize(.small)
-                    .buttonStyle(.bordered) // 회색 중립
+                    .buttonStyle(.bordered)
                     .help("원문 페이지 열기")
                 }
                 Button {
@@ -220,23 +228,15 @@ struct MacNewsView: View {
                 } label: {
                     Text("글 작성에 사용")
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity) // 라벨이 칸 폭 100% 채움
+                        .frame(maxWidth: .infinity)
                 }
                 .controlSize(.small)
-                .buttonStyle(.borderedProminent) // 강조색
+                .buttonStyle(.borderedProminent)
                 .help("새 글 에디터를 열어 제목·본문을 미리 채웁니다")
             }
-            .frame(width: 150) // 버튼 칸 고정 — 두 버튼 동일 폭 (가로 100%)
+            .frame(width: 150)
         }
-        .padding(.vertical, 4)
-        // T-39: 항목 hover (리포트 카드 안에서 구분)
-        .background(hoveredItemID == item.id ? Color.dsSurfaceHover : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
-        .contentShape(RoundedRectangle(cornerRadius: Radius.sm))
-        .onHover { hovering in
-            if hovering { hoveredItemID = item.id } else if hoveredItemID == item.id { hoveredItemID = nil }
-        }
-        // T-40: 항목 우클릭 메뉴
+        .padding(.vertical, 5)
         .contextMenu {
             if let url = URL(string: item.url) {
                 Button("원문 열기") { NSWorkspace.shared.open(url) }
@@ -257,10 +257,9 @@ struct MacNewsView: View {
         이 글에서 다룰 내용을 작성해 주세요.
         """
         let editor = EditorView(postId: nil, seedTitle: item.title, seedBody: body) {
-            // T-26: 저장 성공 → 글 관리 목록 즉시 갱신 알림 (시드 경로에도 onSaved 연결)
-            NotificationCenter.default.post(name: .postSaved, object: nil)
+            // T-48: 저장 성공 알림(.postSaved)은 EditorView 내부에서 표준 발행 — 여기서는 불필요
         } onClose: {}
-            .environmentObject(AuthStore())
+            .environmentObject(auth)
         WindowManager.openEditor(
             key: "seed:\(item.url)",
             title: "새 글 — \(item.title)",

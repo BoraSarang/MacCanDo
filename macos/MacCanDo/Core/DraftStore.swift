@@ -297,4 +297,21 @@ enum DraftStore {
         guard sqlite3_step(p) == SQLITE_ROW else { return 0 }
         return Int(sqlite3_column_int(p, 0))
     }
+
+    // T-54: AI SEO 캐시 전체 초기화 (설정의 '캐시 초기화' 버튼)
+    static func clearSEOCache() {
+        open()
+        guard let db else { return }
+        let stmt = "DELETE FROM seo_cache;"
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return }
+        sqlite3_step(p)
+        sqlite3_finalize(p)
+    }
+
+    // T-54: 캐시 히트/미스 통계 리셋
+    static func resetCacheStats() {
+        UserDefaults.standard.set(0, forKey: "seoCacheHits")
+        UserDefaults.standard.set(0, forKey: "seoCacheMisses")
+    }
 }

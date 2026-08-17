@@ -92,7 +92,7 @@ struct AssistantView: View {
             } else if let errorMessage {
                 VStack(spacing: 10) {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.dsWarning)
                     Button("다시 시도") { Task { await search() } }
                 }
                 .frame(maxWidth: .infinity, minHeight: 220)
@@ -105,12 +105,12 @@ struct AssistantView: View {
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 220)
                     Spacer()
+                    // T-56: ⌘C 충돌 제거 — 시스템 복사(⌘C)와 중복되어 텍스트 선택 복사 불가가 되던 문제
                     Button("복사") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(result, forType: .string)
                         DebugLogger.info("Assistant", "도우미 결과 복사됨")
                     }
-                    .keyboardShortcut("c", modifiers: .command)
                 }
                 Group {
                     if viewMode == "원문" {
@@ -230,8 +230,9 @@ struct AssistantView: View {
         DebugLogger.info("Reference", "저장 자료 불러옴 (\(entry.query))")
     }
 
+    // T-56: 미리보기 다크모드 지원 (prefers-color-scheme 미디어 쿼리)
     private func assistantHTML(_ md: String) -> String {
-        "<html><head><meta charset=\"utf-8\"><style>body{font-family:-apple-system,sans-serif;padding:16px;line-height:1.7;color:#222}img{max-width:100%}pre{background:#f4f4f4;padding:8px;border-radius:6px}blockquote{border-left:3px solid #ccc;margin:0;padding-left:12px;color:#555}</style></head><body>\(MarkdownRenderer.render(md))</body></html>"
+        "<html><head><meta charset=\"utf-8\"><style>body{font-family:-apple-system,sans-serif;padding:16px;line-height:1.7;color:#222}img{max-width:100%}pre{background:#f4f4f4;padding:8px;border-radius:6px}blockquote{border-left:3px solid #ccc;margin:0;padding-left:12px;color:#555}@media (prefers-color-scheme: dark){body{color:#e5e5e5}pre{background:#2a2a2a;color:#e5e5e5;border:1px solid #3a3a3a}blockquote{border-left-color:#555;color:#9a9a9a}code{color:#e5e5e5}a{color:#7fb4ff}}</style></head><body>\(MarkdownRenderer.render(md))</body></html>"
     }
 
     private func search(forceRefresh: Bool = false) async {

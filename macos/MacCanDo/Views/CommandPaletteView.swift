@@ -29,12 +29,12 @@ struct CommandPaletteView: View {
 
     @State private var query = ""
     @State private var posts: [Post] = []
-    @State private var loaded = false
+    @State private var loadedAt: Date = .distantPast // T-56: TTL 갱신 (60초)
     @State private var selectedIndex = 0
     @FocusState private var fieldFocused: Bool
 
-    // 팔레트 화면 목록 (AI 도우미는 창 열기 액션으로 별도 처리)
-    private let screens: [SidebarItem] = [.posts, .series, .comments, .stats, .ads, .settings]
+    // 팔레트 화면 목록 (설정은 ⌘, Settings scene — T-45, AI 도우미는 창 열기 액션으로 별도 처리)
+    private let screens: [SidebarItem] = [.posts, .series, .comments, .stats, .ads, .macNews]
     private let actions: [PaletteAction] = [.newPost, .assistant, .debugPanel]
 
     var body: some View {
@@ -116,8 +116,14 @@ struct CommandPaletteView: View {
         var out: [PaletteEntry] = []
         out += screens.filter { $0.rawValue.lowercased().contains(q) }.map { .screen($0) }
         out += actions.filter { actionName($0).contains(q) }.map { .action($0) }
+        // T-56: 검색 규칙 일치 — PostsView와 동일 (제목/슬러그/태그/카테고리/설명)
         out += posts
-            .filter { $0.title.lowercased().contains(q) || $0.slug.lowercased().contains(q) }
+            .filter { p in
+                p.title.lowercased().contains(q) || p.slug.lowercased().contains(q)
+                    || (p.excerpt ?? "").lowercased().contains(q)
+                    || (p.tags ?? []).contains { $0.name.lowercased().contains(q) }
+                    || (p.categories ?? []).contains { $0.name.lowercased().contains(q) }
+            }
             .prefix(8)
             .map { .post($0) }
         return out
@@ -226,13 +232,15 @@ struct CommandPaletteView: View {
         WindowManager.openEditor(key: key, title: title, rootView: editor)
     }
 
-    // ---------- 글 목록 로드 (검색용) ----------
+    // ---------- 글 목록 로드 (검색용) — T-56: 60초 TTL, 초과 시 재로드 ----------
     private func loadPosts() async {
-        guard auth.isAuthed, !loaded else { return }
+        guard auth.isAuthed else { return }
+        let needsReload = posts.isEmpty || Date().timeIntervalSince(loadedAt) > 60
+        guard needsReload else { return }
         do {
             let list: [Post] = try await APIClient.request("api/admin/posts?all=1", token: auth.token)
             posts = list
-            loaded = true
+            loadedAt = Date()
             DebugLogger.debug("Palette", "글 목록 로드 (\(list.count)건)")
         } catch {
             DebugLogger.warn("Palette", "글 목록 로드 실패: \(error.localizedDescription)")

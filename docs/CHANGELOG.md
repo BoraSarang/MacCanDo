@@ -1,3 +1,21 @@
+## v2.7.0-T44~T57 (2026-08-18) — [macos] 전면 HIG 표준화: 공통 컴포넌트·에디터·목록·설정
+
+- T-44: 공통 컴포넌트 신규 (ErrorState/EmptyState/StatusBar/StatusBadge) + 디자인 토큰 실적용 (6개 뷰 시스템 색 → ds*)
+- T-45: Settings scene 분리 (⌘,) — 사이드바 설정 제거, "설정 열기" 표준 셀렉터 통일
+- T-46: ContentView — ⌘1~8 hidden Button 통일, ⌥⌘S 사이드바 토글, 댓글 대기(60초 타이머)/초안 배지, 맥 소식 독립 탭(+⌘8)
+- T-47: WindowManager — 닫은 창 참조 정리(willClose) + 창 크기 상수 (1100×720/1000×640/900×600)
+- T-48: 에디터 — 헤더 4줄→제목 1줄+포맷 바, Inspector(⌘⌥I, 280pt)로 메타/카테고리(FlowLayout)/커버 이동, 제목 자동 포커스, 저장 상태 SF Symbol, 이미지 시트 연속 삽입, 미리보기 다크모드+스크롤 복원, .postSaved 표준 발행(시드/⌘N/⌘K 갱신 버그 해결), 새 시리즈 취소 nil, 이모지 제거
+- T-49: 글 관리 — 96px 표준 행(144×80 썸네일), 필터 메뉴(전체/초안/발행 유지)+⌘R, 클릭=선택·더블클릭/Return=열기, hover 액션, 삭제 실패 alert, 상태 바
+- T-50: 시리즈 — HSplitView→NavigationSplitView 2열(170pt), 하단 버튼 바→툴바(+⌘N/편집⌘E/삭제⌘⌫), "글 추가"(⌘+) 시트(검색+체크박스) — 검색 시 목록 통째 교체 버그 수정
+- T-51: 댓글 — 필터 AppStorage 유지, 상태 변경 로컬 반영(스크롤 유지), ⌘R, 실패 alert
+- T-52: 광고 — NavigationStack+타이틀, 커스텀 카드→List 섹션, 토글 로컬 반영(재로드 없음), ⌘R
+- T-53: 통계 — 기간 선택(7/14/30 유지)+⌘R, 차트 기간 연동, 카드 dsSurface 표준화, 시리즈 색 ds 토큰 통일
+- T-54: 설정 — SecureField(토큰/키, 저장값 프리필), 연결 테스트(api/categories), AI SEO 캐시 초기화, 저장 후 필드 유지
+- T-55: 맥 소식 — 커스텀 카드→List 섹션(리포트=섹션), 소스 관리 시트, EmptyState
+- T-56: AI 도우미 — ⌘C 충돌 제거(시스템 복사 복원), 미리보기 다크모드, 팔레트 글 검색 규칙 PostsView와 일치(태그/카테고리/설명) + 60초 TTL
+- 배포: Release 빌드 → ~/Applications/MacCanDo.app (빌드 11, v1.0.0)
+- 알려진 이슈: 서버 /api/admin/stats daily 빈 배열 (MacCanDo-c80) — 일별 차트 데이터 없음
+
 # MacCanDo — 변경 이력 (CHANGELOG)
 
 > 형식: [platform] 태그 필수

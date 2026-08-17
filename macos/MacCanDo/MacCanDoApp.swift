@@ -51,6 +51,11 @@ struct MacCanDoApp: App {
         .windowToolbarStyle(.unified)
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1100, height: 720)
+        // T-45: 설정 — 별도 Settings scene (⌘,) — 사이드바에서 분리 (macOS 표준)
+        Settings {
+            SettingsView()
+                .environmentObject(authStore)
+        }
         .commands {
             // T-34: File — ⌘N 새 글 (표준 단축키)
             CommandGroup(replacing: .newItem) {

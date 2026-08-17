@@ -59,19 +59,54 @@ struct EditorTextView: NSViewRepresentable {
 }
 
 // ---------- WKWebView 미리보기 래퍼 ----------
+// T-48: 다크모드 대응 + 입력 중 스크롤 위치 유지 (리로드 후 복원)
 struct PreviewWebView: NSViewRepresentable {
     let html: String
+    var scrollRestoreY: CGFloat = 0
+    var onScrollChange: ((CGFloat) -> Void)? = nil
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeNSView(context: Context) -> WKWebView {
         let webView = WKWebView()
         webView.isInspectable = true
+        webView.navigationDelegate = context.coordinator
         // 유튜브 iframe 임베드가 WKWebView 기본 UA에서 거부되는 문제 → Safari UA로 설정
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
+        context.coordinator.lastLoadedHTML = html
         return webView
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
-        nsView.loadHTMLString(html, baseURL: APIClient.baseURL)
+        // 현재 스크롤 위치 캡처 (입력 중 스크롤 유지용)
+        nsView.evaluateJavaScript("window.scrollY") { result, _ in
+            var y: CGFloat = 0
+            if let cg = result as? CGFloat {
+                y = cg
+            } else if let num = result as? NSNumber {
+                y = CGFloat(truncating: num)
+            }
+            onScrollChange?(y)
+        }
+        // HTML이 바뀌었을 때만 리로드 (스크롤 리셋 최소화)
+        if context.coordinator.lastLoadedHTML != html {
+            context.coordinator.lastLoadedHTML = html
+            context.coordinator.pendingScrollY = scrollRestoreY
+            nsView.loadHTMLString(html, baseURL: APIClient.baseURL)
+        }
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        var parent: PreviewWebView
+        var lastLoadedHTML: String?
+        var pendingScrollY: CGFloat = 0
+        init(_ parent: PreviewWebView) { self.parent = parent }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            if pendingScrollY > 0 {
+                webView.evaluateJavaScript("window.scrollTo(0, \(pendingScrollY))")
+            }
+        }
     }
 }
 
@@ -163,6 +198,10 @@ struct EditorView: View {
     @State private var spellingIssues: [SpellingIssue] = []
     @State private var isCheckingSpelling = false
     @State private var spellCheckError: String?
+    // T-48: v2.7.0 — 우측 Inspector 토글(⌘⌥I) + 미리보기 스크롤 복원 + 제목 자동 포커스
+    @State private var showInspector = true
+    @State private var previewScrollY: CGFloat = 0
+    @FocusState private var titleFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -193,11 +232,23 @@ struct EditorView: View {
         }
         .onChange(of: status) { scheduleAutoSave() }
         .onAppear { DebugLogger.info("Editor", "에디터 표시됨 (\(postId ?? savedPostId ?? "새 글"))") }
+        // T-48: 새 글은 제목에 자동 포커스
+        .onAppear {
+            if postId == nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { titleFocused = true }
+            }
+        }
+        .background(
+            // T-48: ⌘⌥I — Inspector 표시/숨김 (Pages/Xcode 패턴)
+            Button("") { toggleInspector() }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+                .hidden()
+        )
         .alert("새 시리즈", isPresented: $showNewSeriesDialog) {
             TextField("시리즈 제목 (예: CleanMyMac 완벽 가이드)", text: $newSeriesTitle)
             Button("만들기") { Task { await createNewSeries() } }
             Button("취소", role: .cancel) {
-                selectedSeriesId = seriesList.first?.id
+                selectedSeriesId = nil
             }
         } message: {
             Text("시리즈를 만들고 나서 글을 등록하면 시리즈에 묶입니다.")
@@ -257,7 +308,7 @@ struct EditorView: View {
                     .disabled(appFetching || appURL.trimmingCharacters(in: .whitespaces).isEmpty)
                 if appFetching { ProgressView().controlSize(.small) }
                 if let err = appFetchError {
-                    Text(err).font(.caption).foregroundStyle(.red)
+                    Text(err).font(.caption).foregroundStyle(Color.dsDanger)
                 }
                 Spacer()
             }
@@ -367,176 +418,255 @@ struct EditorView: View {
         DebugLogger.info("Editor", "앱 카드 삽입 (\(card.appName ?? "앱"), 총 \(appCards.count)개)")
     }
 
-    // ---------- 헤더: 제목 + 도구 모음 ----------
+    // ---------- 헤더: 제목 + 저장 상태 + 액션 (T-48: 1줄로 통합, 메타는 Inspector로 이동) ----------
     private var headerBar: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 0) {
+            // 1줄: 제목 + 저장 상태 + 미리보기/저장/발행/웹
             HStack(spacing: 8) {
                 TextField("제목", text: $title)
                     .textFieldStyle(.roundedBorder)
                     .font(.title3.weight(.semibold))
-                Text(saveState)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .focused($titleFocused)
+                saveStateIndicator
                 Text("Markdown")
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10).padding(.vertical, 4)
                     .background(Capsule().fill(Color.accentColor.opacity(0.12)))
-            }
-            HStack(spacing: 6) {
-                Text("카테고리").font(.caption).foregroundStyle(.secondary)
-                ForEach(categories) { c in
-                    Button {
-                        if selectedCategoryIds.contains(c.id) {
-                            selectedCategoryIds.remove(c.id)
-                        } else {
-                            selectedCategoryIds.insert(c.id)
-                        }
-                        scheduleAutoSave()
-                    } label: {
-                        Text(c.name)
-                            .font(.caption)
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(
-                                Capsule().fill(selectedCategoryIds.contains(c.id) ? Color.accentColor.opacity(0.2) : Color.clear)
-                            )
-                            .overlay(Capsule().strokeBorder(selectedCategoryIds.contains(c.id) ? Color.accentColor : Color.secondary.opacity(0.4), lineWidth: 1))
-                            .foregroundStyle(selectedCategoryIds.contains(c.id) ? Color.primary : Color.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("카테고리 중복 선택 가능")
-                }
+                    .help("Markdown 형식으로 작성됩니다")
                 Spacer()
-            }
-            VStack(spacing: 6) {
-                // 1줄: 글 타입/시리즈/태그/slug + 저장 액션
-                HStack(spacing: 8) {
-                    Picker("글 타입", selection: $contentType) {
-                        Text("맥 앱").tag("ARTICLE")
-                        Text("맥 팁").tag("TIP")
-                        Text("맥 소식").tag("NEWS")
-                        Text("페이지").tag("PAGE") // T-17: 정적 페이지 (About/Privacy 등)
-                    }
-                    .frame(width: 110)
-                    Picker("시리즈", selection: $selectedSeriesId) {
-                        Text("없음").tag(String?.none)
-                        ForEach(seriesList) { s in
-                            Text(s.title).tag(String?.some(s.id))
-                        }
-                        Divider()
-                        Text("＋ 새 시리즈…").tag(String?.some("__new__"))
-                    }
-                    .frame(width: 170)
-                    .onChange(of: selectedSeriesId) { _, v in
-                        if v == "__new__" {
-                            newSeriesTitle = ""
-                            showNewSeriesDialog = true
-                        }
-                    }
-                    TextField("태그 (쉼표 구분)", text: $tagsInput)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.caption)
-                        .frame(width: 180)
-                        .help("#태그 — 쉼표로 구분, 새 태그 자동 생성")
-                    TextField("주소(slug) — 비우면 자동 생성", text: $slug)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.caption.monospaced())
-                    Spacer()
-                    Button("미리보기 \(showPreview ? "숨김" : "보기")") {
-                        showPreview.toggle()
-                        DebugLogger.info("Editor", "미리보기 \(showPreview ? "열림" : "닫힘")")
-                    }
-                    .keyboardShortcut("p", modifiers: .command)
-                    Button("초안만 저장") { Task { await saveToServer(status: "DRAFT") } }
-                        .keyboardShortcut("s", modifiers: .command) // T-41: ⌘S 저장
-                        .disabled(isLoading)
-                    Button("발행") { Task { await saveToServer(status: "PUBLISHED") } }
-                        .keyboardShortcut(.return, modifiers: .command) // T-41: ⌘Return 발행
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isLoading)
-                    Button {
-                        openOnWeb()
-                    } label: {
-                        Image(systemName: "safari")
-                    }
-                    .help("웹에서 보기 (발행된 글)")
-                    .disabled(isLoading || status != "PUBLISHED")
+                Button {
+                    showPreview.toggle()
+                    DebugLogger.info("Editor", "미리보기 \(showPreview ? "열림" : "닫힘")")
+                } label: {
+                    Image(systemName: showPreview ? "eye" : "eye.slash")
                 }
-                // 2줄: 마크다운 삽입 + AI (B ~ AI 도우미) — 사용자 요청으로 별도 줄로 분리
+                .help("미리보기 \(showPreview ? "숨기기" : "보기")")
+                Button("초안만 저장") { Task { await saveToServer(status: "DRAFT") } }
+                    .keyboardShortcut("s", modifiers: .command) // T-41: ⌘S 저장
+                    .disabled(isLoading)
+                Button("발행") { Task { await saveToServer(status: "PUBLISHED") } }
+                    .keyboardShortcut(.return, modifiers: .command) // T-41: ⌘Return 발행
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isLoading)
+                Button {
+                    openOnWeb()
+                } label: {
+                    Image(systemName: "safari")
+                }
+                .help("웹에서 보기 (발행된 글)")
+                .disabled(isLoading || status != "PUBLISHED")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            // 2줄: 마크다운 삽입 + AI 포맷 바 (T-48: 카테고리/태그/시리즈/slug/커버는 Inspector로)
+            HStack(spacing: 6) {
+                Divider().frame(height: 16)
+                Button { insertInline("**텍스트**") } label: { Label("B", systemImage: "").font(.caption.bold()) }
+                    .help("굵게")
+                Button { insertInline("*텍스트*") } label: { Label("I", systemImage: "").font(.caption.italic()).help("기울임") }
+                Button { insertInline("~~텍스트~~") } label: { Label("S", systemImage: "").font(.caption).help("취소선") }
+                Button { insertInline("## 제목") } label: { Label("H", systemImage: "").font(.caption.bold()).help("제목") }
+                Button { insertInline("[텍스트](https://)") } label: { Image(systemName: "link").help("링크") }
+                Button { showImagePicker = true } label: { Image(systemName: "photo").help("이미지 삽입") }
+                Button { insertURL = ""; showYoutubeDialog = true } label: { Image(systemName: "play.rectangle").help("유튜브 삽입") }
+                Button { insertURL = ""; showVideoDialog = true } label: { Image(systemName: "film").help("동영상(MP4) 삽입") }
+                Button { showAppSheet = true } label: { Image(systemName: "square.grid.2x2").help("앱 카드 삽입") }
+                Button { showHelp = true } label: { Image(systemName: "questionmark.circle").help("MD 사용법") }
+                Spacer()
+                Divider().frame(height: 16)
+                Button { startSEO() } label: {
+                    if seoMeta != nil {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(Color.dsPrimary)
+                        Text("SEO ✓")
+                            .font(.caption.bold())
+                            .foregroundStyle(Color.dsPrimary)
+                    } else {
+                        Image(systemName: "sparkles")
+                    }
+                }
+                .help(seoMeta != nil ? "AI SEO — 저장된 메타 적용됨 (클릭 시 확인/재생성)" : "AI SEO — 제목/설명/키워드 생성")
+                Button { openAssistant() } label: {
+                    Image(systemName: "wand.and.stars")
+                }
+                .help("AI 도우미 — 프로그램/웹사이트 소개 참고 자료 생성")
+                // T-27: 한글 맞춤법 검사 (Gemini) — 하단 패널에 오류 목록 → 개별 적용
+                Button { checkSpelling() } label: {
+                    if isCheckingSpelling {
+                        ProgressView().controlSize(.mini)
+                    } else if !spellingIssues.isEmpty {
+                        Image(systemName: "text.badge.checkmark")
+                            .foregroundStyle(Color.dsPrimary)
+                        Text("맞춤법 \(spellingIssues.count)")
+                            .font(.caption.bold())
+                            .foregroundStyle(Color.dsPrimary)
+                    } else {
+                        Image(systemName: "text.badge.checkmark")
+                    }
+                }
+                .help(spellingIssues.isEmpty ? "한글 맞춤법 검사 (Gemini) — 띄어쓰기/문법 오류 찾기" : "맞춤법 오류 \(spellingIssues.count)건 — 하단 패널에서 개별 적용")
+                .disabled(!GeminiService.hasKey || isCheckingSpelling
+                    || content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                // T-48: 커버 버튼 → Inspector 커버 섹션으로 이동 (헤더 정리)
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
+        }
+        .background(.bar)
+    }
+
+    // T-48: 저장 상태 표시 — 상태별 아이콘+색 (이모지 텍스트 → SF Symbol 표준화)
+    @ViewBuilder
+    private var saveStateIndicator: some View {
+        if saveState.contains("저장 중") {
+            ProgressView().controlSize(.mini)
+                .help(saveState)
+        } else {
+            HStack(spacing: 4) {
+                if saveState.contains("완료") || saveState.contains("복구됨") {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(Color.dsSuccess)
+                } else if saveState.contains("실패") || saveState.contains("없습니다")
+                            || saveState.contains("찾을 수") || saveState.contains("입력해")
+                            || saveState.contains("저장 차단") || saveState.contains("생성 실패") {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Color.dsWarning)
+                } else {
+                    Image(systemName: "circle.dashed")
+                        .foregroundStyle(Color.dsTextMuted)
+                }
+                Text(saveState)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .help(saveState)
+        }
+    }
+
+    // T-48: 우측 Inspector (⌘⌥I) — 글 설정/카테고리/커버 메타 (Pages/Xcode 패턴)
+    private var inspectorView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Form {
+                Picker("글 타입", selection: $contentType) {
+                    Text("맥 앱").tag("ARTICLE")
+                    Text("맥 팁").tag("TIP")
+                    Text("맥 소식").tag("NEWS")
+                    Text("페이지").tag("PAGE") // T-17: 정적 페이지 (About/Privacy 등)
+                }
+                Picker("시리즈", selection: $selectedSeriesId) {
+                    Text("없음").tag(String?.none)
+                    ForEach(seriesList) { s in
+                        Text(s.title).tag(String?.some(s.id))
+                    }
+                    Divider()
+                    Text("＋ 새 시리즈…").tag(String?.some("__new__"))
+                }
+                .onChange(of: selectedSeriesId) { _, v in
+                    if v == "__new__" {
+                        newSeriesTitle = ""
+                        showNewSeriesDialog = true
+                    }
+                }
+                TextField("태그 (쉼표 구분)", text: $tagsInput)
+                    .help("#태그 — 쉼표로 구분, 새 태그 자동 생성")
+                TextField("주소(slug)", text: $slug)
+                    .font(.dsMono)
+                    .help("비우면 자동 생성 — 저장 후 고정")
+            }
+            .formStyle(.grouped)
+
+            // 카테고리 — FlowLayout 토큰 선택 (줄바꿈, 중복 선택 가능)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("카테고리").font(.caption.bold()).foregroundStyle(.secondary)
+                FlowLayout(spacing: 6) {
+                    ForEach(categories) { c in
+                        Button {
+                            if selectedCategoryIds.contains(c.id) {
+                                selectedCategoryIds.remove(c.id)
+                            } else {
+                                selectedCategoryIds.insert(c.id)
+                            }
+                            scheduleAutoSave()
+                        } label: {
+                            Text(c.name)
+                                .font(.caption)
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(
+                                    Capsule().fill(selectedCategoryIds.contains(c.id) ? Color.accentColor.opacity(0.2) : Color.clear)
+                                )
+                                .overlay(Capsule().strokeBorder(selectedCategoryIds.contains(c.id) ? Color.accentColor : Color.secondary.opacity(0.4), lineWidth: 1))
+                                .foregroundStyle(selectedCategoryIds.contains(c.id) ? Color.primary : Color.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("카테고리 중복 선택 가능")
+                    }
+                }
+                if categories.isEmpty {
+                    Text("카테고리가 없습니다 (웹에서 생성)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            // 커버 이미지 (T-21: AI 생성 / T-30: 업로드 이미지에서 선택)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("커버 이미지").font(.caption.bold()).foregroundStyle(.secondary)
+                if let url = absoluteImageURL(thumbnailUrl) {
+                    AsyncImage(url: url) { img in
+                        img.resizable().scaledToFill()
+                    } placeholder: {
+                        Rectangle().fill(Color.gray.opacity(0.15))
+                    }
+                    .frame(height: 80)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+                }
                 HStack(spacing: 6) {
-                    Divider().frame(height: 16)
-                    Button { insertInline("**텍스트**") } label: { Label("B", systemImage: "").font(.caption.bold()) }
-                        .help("굵게")
-                    Button { insertInline("*텍스트*") } label: { Label("I", systemImage: "").font(.caption.italic()).help("기울임") }
-                    Button { insertInline("~~텍스트~~") } label: { Label("S", systemImage: "").font(.caption).help("취소선") }
-                    Button { insertInline("## 제목") } label: { Label("H", systemImage: "").font(.caption.bold()).help("제목") }
-                    Button { insertInline("[텍스트](https://)") } label: { Image(systemName: "link").help("링크") }
-                    Button { showImagePicker = true } label: { Image(systemName: "photo").help("이미지 삽입") }
-                    Button { insertURL = ""; showYoutubeDialog = true } label: { Image(systemName: "play.rectangle").help("유튜브 삽입") }
-                    Button { insertURL = ""; showVideoDialog = true } label: { Image(systemName: "film").help("동영상(MP4) 삽입") }
-                    Button { showAppSheet = true } label: { Image(systemName: "square.grid.2x2").help("앱 카드 삽입") }
-                    Button { showHelp = true } label: { Image(systemName: "questionmark.circle").help("MD 사용법") }
-                    Spacer()
-                    Divider().frame(height: 16)
-                    Button { startSEO() } label: {
-                        if seoMeta != nil {
-                            Image(systemName: "sparkles")
-                                .foregroundStyle(Color.dsPrimary)
-                            Text("SEO ✓")
-                                .font(.caption.bold())
-                                .foregroundStyle(Color.dsPrimary)
-                        } else {
-                            Image(systemName: "sparkles")
-                        }
-                    }
-                    .help(seoMeta != nil ? "AI SEO — 저장된 메타 적용됨 (클릭 시 확인/재생성)" : "AI SEO — 제목/설명/키워드 생성")
-                    Button { openAssistant() } label: {
-                        Image(systemName: "wand.and.stars")
-                    }
-                    .help("AI 도우미 — 프로그램/웹사이트 소개 참고 자료 생성")
-                    // T-27: 한글 맞춤법 검사 (Gemini) — 하단 패널에 오류 목록 → 개별 적용
-                    Button { checkSpelling() } label: {
-                        if isCheckingSpelling {
-                            ProgressView().controlSize(.mini)
-                        } else if !spellingIssues.isEmpty {
-                            Image(systemName: "text.badge.checkmark")
-                                .foregroundStyle(Color.dsPrimary)
-                            Text("맞춤법 \(spellingIssues.count)")
-                                .font(.caption.bold())
-                                .foregroundStyle(Color.dsPrimary)
-                        } else {
-                            Image(systemName: "text.badge.checkmark")
-                        }
-                    }
-                    .help(spellingIssues.isEmpty ? "한글 맞춤법 검사 (Gemini) — 띄어쓰기/문법 오류 찾기" : "맞춤법 오류 \(spellingIssues.count)건 — 하단 패널에서 개별 적용")
-                    .disabled(!GeminiService.hasKey || isCheckingSpelling
-                        || content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    // T-21: AI 커버 이미지 생성 — 제목+본문 → 16:9 → 미리보기 → 커버(대표 이미지)로 적용
                     Button {
                         imageGenPromptText = coverImagePrompt()
                         showCoverImagePrompt = true
                     } label: {
                         if generatingCoverImage {
                             ProgressView().controlSize(.mini)
-                        } else if thumbnailUrl != nil {
-                            // 저장된 커버 있음 — AI SEO 적용됨 배지와 동일 패턴
-                            Image(systemName: "photo.fill")
-                                .foregroundStyle(Color.dsPrimary)
-                            Text("커버 ✓")
-                                .font(.caption.bold())
-                                .foregroundStyle(Color.dsPrimary)
                         } else {
-                            Image(systemName: "photo.badge.plus")
+                            Label("AI 생성", systemImage: "photo.badge.plus")
                         }
                     }
-                    .help(thumbnailUrl != nil ? "커버 이미지 적용됨 (클릭 시 확인/재생성)" : "AI 커버 이미지 — 글 커버(대표 이미지) 생성")
+                    .controlSize(.small)
                     .disabled(generatingCoverImage || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .help("제목+본문으로 AI 커버 생성 (16:9)")
+                    Button("이미지에서…") { showCoverPicker = true }
+                        .controlSize(.small)
+                        .help("업로드 이미지 중에서 커버 지정")
+                    if thumbnailUrl != nil {
+                        Button("제거") {
+                            thumbnailUrl = nil
+                            seoImageInput = ""
+                            saveState = "커버 제거됨 — 저장 시 반영"
+                        }
+                        .controlSize(.small)
+                        .help("커버 이미지 제거")
+                    }
                 }
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            Spacer()
         }
-        .padding(12)
-        // T-37: 헤더 재질 — 컨텐츠가 밑으로 흐르는 느낌 (Liquid Glass 대응 — .bar는 macOS 26 자동 glass)
+        .frame(minWidth: 280, maxWidth: 280)
         .background(.bar)
+        .overlay(alignment: .leading) { Divider() }
+    }
+
+    private func toggleInspector() {
+        showInspector.toggle()
+        DebugLogger.info("Editor", "Inspector \(showInspector ? "열림" : "닫힘")")
     }
 
     // ---------- 본문: 좌 MD 에디터 / 우 실시간 미리보기 ----------
@@ -549,7 +679,7 @@ struct EditorView: View {
             VStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 32))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.dsWarning)
                 Text(loadError)
                 Button("닫기") { closeWindow() }
             }
@@ -560,10 +690,16 @@ struct EditorView: View {
                     .frame(minWidth: 320)
                 if showPreview {
                     ScrollView {
-                        PreviewWebView(html: previewHTML)
-                            .frame(minWidth: 320, minHeight: 560)
+                        PreviewWebView(html: previewHTML, scrollRestoreY: previewScrollY) { y in
+                            previewScrollY = y
+                        }
+                        .frame(minWidth: 300, minHeight: 560)
                     }
-                    .background(Color.white)
+                    // T-48: 다크모드 — 흰색 하드코딩 제거 (웹 프리뷰 배경은 CSS 미디어 쿼리 대응)
+                    .background(Color(nsColor: .textBackgroundColor))
+                }
+                if showInspector {
+                    inspectorView
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -637,14 +773,14 @@ struct EditorView: View {
                 .help("결과 패널 닫기")
             }
             if let err = spellCheckError {
-                Text(err).font(.caption).foregroundStyle(.red)
+                Text(err).font(.caption).foregroundStyle(Color.dsDanger)
             } else if isCheckingSpelling {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
                     Text("Gemini가 검사 중입니다… (최대 8,000자)").font(.caption).foregroundStyle(.secondary)
                 }
             } else if spellingIssues.isEmpty {
-                Text("이상 없음 ✅").font(.caption).foregroundStyle(.green)
+                Text("이상 없음").font(.caption).foregroundStyle(Color.dsSuccess)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 6) {
@@ -654,7 +790,7 @@ struct EditorView: View {
                                     Text(issue.original)
                                         .font(.caption)
                                         .strikethrough()
-                                        .foregroundStyle(.red)
+                                        .foregroundStyle(Color.dsDanger)
                                         .textSelection(.enabled)
                                     Text(issue.fixed)
                                         .font(.caption.bold())
@@ -685,7 +821,7 @@ struct EditorView: View {
         let content = MarkdownRenderer.render(md, apps: appCards)
         let style = """
         <style>
-          body { font-family: -apple-system, sans-serif; padding: 24px; line-height: 1.7; color: #1d1d1f; }
+          body { font-family: -apple-system, sans-serif; padding: 24px; line-height: 1.7; color: #1d1d1f; background: #fff; }
           pre { background: #f5f5f7; padding: 12px; border-radius: 8px; overflow-x: auto; }
           code { background: #f5f5f7; padding: 2px 5px; border-radius: 4px; font-size: 0.9em; }
           pre code { background: none; padding: 0; }
@@ -715,6 +851,21 @@ struct EditorView: View {
           .app-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
           .app-dl { display: inline-block; padding: 8px 16px; border-radius: 8px; background: #007aff; color: #fff; font-size: 13px; font-weight: 500; text-decoration: none; }
           .app-home { display: inline-block; padding: 7px 12px; border-radius: 8px; border: 1px solid #d2d2d7; font-size: 13px; color: #6e6e73; text-decoration: none; }
+          /* T-48: 다크모드 대응 (앱 시스템 다크 모드 연동) */
+          @media (prefers-color-scheme: dark) {
+            body { color: #f5f5f7; background: #1e1e1e; }
+            pre { background: #2a2a2c; }
+            code { background: #2a2a2c; }
+            blockquote { color: #b0b0b8; }
+            th, td { border-color: #3a3a3c; }
+            .app-card { background: #262628; border-color: #3a3a3c; }
+            .app-icon { border-color: #3a3a3c; }
+            .app-seller, .app-desc, .app-specs { color: #b0b0b8; }
+            .spec-k { color: #86868b; }
+            .spec-v { color: #f5f5f7; }
+            .spec-row { border-bottom-color: #3a3a3c; }
+            .app-home { border-color: #3a3a3c; color: #b0b0b8; }
+          }
         </style>
         """
         return "<html><head><meta charset=\"utf-8\">\(style)</head><body>\(content)</body></html>"
@@ -930,7 +1081,7 @@ struct EditorView: View {
     private func createNewSeries() async {
         let title = newSeriesTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else {
-            selectedSeriesId = seriesList.first?.id
+            selectedSeriesId = nil
             return
         }
         do {
@@ -941,7 +1092,7 @@ struct EditorView: View {
         } catch {
             let e = error as? APIError
             saveState = "시리즈 생성 실패: \(e?.message ?? error.localizedDescription)"
-            selectedSeriesId = seriesList.first?.id
+            selectedSeriesId = nil
             DebugLogger.error("Editor", "시리즈 생성 실패: \(e?.code ?? "unknown")")
         }
     }
@@ -1051,9 +1202,11 @@ struct EditorView: View {
                 savedPostId = saved.id // 신규 글: 이후 저장·자동저장은 PUT/서버 id 키 사용
                 if slug.isEmpty { slug = saved.slug } // T-26: 서버가 만든 slug 유지 — 저장마다 URL이 바뀌는 문제 방지
             }
-            saveState = newStatus == "PUBLISHED" ? "발행 완료 ✅" : "저장 완료 ✅"
+            saveState = newStatus == "PUBLISHED" ? "발행 완료" : "저장 완료"
             DebugLogger.info("Editor", "서버 저장 완료 (\(newStatus)) postId=\(saved.id)")
             onSaved?()
+            // T-48: 모든 저장 경로(⌘N/⌘K/시드)에서 목록 갱신 알림 표준화 — ContentView onSaved 클로저 공백 버그 해결
+            NotificationCenter.default.post(name: .postSaved, object: nil)
         } catch {
             let e = error as? APIError
             saveState = "저장 실패: \(e?.message ?? error.localizedDescription)"
@@ -1139,7 +1292,7 @@ struct EditorView: View {
             appliedAt: ISO8601DateFormatter().string(from: Date())
         )
         showSEO = false
-        saveState = "AI SEO 적용됨 ✨ (저장하면 웹 meta 태그에 반영)"
+        saveState = "AI SEO 적용됨 (저장하면 웹 meta 태그에 반영)"
         DebugLogger.info("Editor", "AI SEO 제안 적용됨 (seoMeta 저장)")
     }
 
@@ -1166,11 +1319,12 @@ struct EditorView: View {
             } else if let seoError {
                 VStack(alignment: .leading, spacing: 10) {
                     Label(seoError, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.dsWarning)
                     if seoError.contains("설정") {
                         Button("설정 열기") {
                             showSEO = false
-                            NotificationCenter.default.post(name: .navigateToSettings, object: nil)
+                            // T-45: 설정이 별도 Settings scene(⌘,)으로 이동 — 표준 셀렉터로 열기
+                            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                         }
                     }
                 }
@@ -1308,10 +1462,10 @@ struct EditorView: View {
             if generatedCoverImageData != nil, generatedCoverProvider == "pollinations" {
                 Label("무료 생성 이미지 — 요청 내용과 다를 수 있습니다. Gemini 유료 키를 설정하면 정확한 이미지가 생성됩니다.", systemImage: "exclamationmark.triangle")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.dsWarning)
             }
             if let err = coverImageError {
-                Text(err).font(.caption).foregroundStyle(.red)
+                Text(err).font(.caption).foregroundStyle(Color.dsDanger)
             }
             HStack {
                 Button("취소") { showCoverImagePrompt = false }.keyboardShortcut(.cancelAction)
@@ -1386,7 +1540,7 @@ struct EditorView: View {
             generatedCoverImageData = nil
             generatedCoverProvider = nil
             showCoverImagePrompt = false
-            saveState = "커버 이미지 적용됨 ✨ (저장하면 웹에 반영)"
+            saveState = "커버 이미지 적용됨 (저장하면 웹에 반영)"
             DebugLogger.info("Editor", "[FEATURE] 커버 이미지 적용 완료 (\(url))")
         } catch {
             let e = error as? APIError
@@ -1725,7 +1879,7 @@ struct ImagePickerSheet: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let errorMessage {
                     VStack(spacing: 10) {
-                        Text(errorMessage).foregroundStyle(.orange)
+                        Text(errorMessage).foregroundStyle(Color.dsWarning)
                         Button("다시 시도") { Task { await load() } }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1853,7 +2007,7 @@ struct ImagePickerSheet: View {
                         confirmDelete = item
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary, Color.red.opacity(0.3))
+                            .foregroundStyle(.secondary, Color.dsDanger.opacity(0.3))
                     }
                     .buttonStyle(.plain)
                     .help("삭제")
@@ -1877,7 +2031,9 @@ struct ImagePickerSheet: View {
         let caption = typed.isEmpty ? dbCaption : typed
         onInsert(caption.isEmpty ? "[img:\(item.url)]" : "[img:\(item.url) caption=\(caption)]")
         DebugLogger.info("Upload", "이미지 삽입 (\(item.name))")
-        dismiss()
+        // T-48: 삽입 모드는 시트 유지 — 연속 삽입 (닫기 버튼으로 닫음), 캡션만 초기화
+        captionInput = ""
+        urlInput = ""
     }
 
     private func insertURLImage() {
@@ -1893,7 +2049,9 @@ struct ImagePickerSheet: View {
         let caption = captionInput.trimmingCharacters(in: .whitespacesAndNewlines)
         onInsert(caption.isEmpty ? "[img:\(url)]" : "[img:\(url) caption=\(caption)]")
         DebugLogger.info("Upload", "URL 이미지 삽입")
-        dismiss()
+        // T-48: 삽입 모드는 시트 유지 — 연속 삽입
+        captionInput = ""
+        urlInput = ""
     }
 
     private func pickImageFile() {
@@ -1983,7 +2141,7 @@ struct ImagePickerSheet: View {
 }
 
 extension Notification.Name {
-    static let navigateToSettings = Notification.Name("navigateToSettings")
+    // T-45: 설정이 Settings scene으로 이동 — navigateToSettings 발행처 제거 (에디터는 showSettingsWindow 표준 셀렉터 사용)
     // T-26: 시드 에디터 등 외부 경로 저장 성공 → 글 관리 목록 갱신 알림
     static let postSaved = Notification.Name("MacCanDo.postSaved")
     // T-35: ⌘N 새 글 요청 (메뉴 바 → ContentView)

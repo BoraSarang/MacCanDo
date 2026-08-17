@@ -1,6 +1,8 @@
 // [FEATURE] 메인 콘텐츠 — NavigationSplitView 3열 (T-06)
 // T-35: 사이드바 220pt + SF Symbols + 컨텍스트 메뉴 + ⌘1~7 화면 전환 + @SceneStorage 선택 복원
 // T-42: ⌘K 커맨드 팔레트 오버레이
+// T-45: 설정 → 별도 Settings scene(⌘,)으로 이동 — 사이드바에서 제거
+// T-46: ⌘1~8 hidden Button 통일 + ⌥⌘S 사이드바 토글 + 사이드바 배지(댓글 대기/초안) + 맥 소식 탭(+⌘8)
 import SwiftUI
 
 enum SidebarItem: String, CaseIterable, Identifiable {
@@ -10,7 +12,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case stats = "통계"
     case ads = "광고"
     case assistant = "AI 도우미" // T-21: 새 창으로 열리는 항목 (패널 전환 없음)
-    case settings = "설정"
+    case macNews = "맥 소식" // T-46: 도우미 창에서 사이드바 독립 탭으로 승격
 
     var id: String { rawValue }
 
@@ -22,11 +24,11 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .stats: return "chart.bar"
         case .ads: return "megaphone"
         case .assistant: return "wand.and.stars"
-        case .settings: return "gearshape"
+        case .macNews: return "newspaper"
         }
     }
 
-    // T-35: ⌘1~7 화면 전환 단축키 번호 (assistant는 새 창 열기)
+    // T-35/T-46: ⌘1~8 화면 전환 단축키 번호 (assistant는 새 창 열기, 설정은 ⌘,)
     var shortcutNumber: Int? {
         switch self {
         case .posts: return 1
@@ -35,7 +37,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .stats: return 4
         case .ads: return 5
         case .assistant: return 6
-        case .settings: return 7
+        case .macNews: return 8
         }
     }
 }
@@ -47,6 +49,10 @@ struct ContentView: View {
     @AppStorage("sidebar.selection") private var selectionRaw: String = SidebarItem.posts.rawValue
     @State private var sidebarWidth: CGFloat = 220
     @State private var showPalette = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all // T-46: ⌥⌘S 토글
+    @State private var pendingCommentCount: Int? // T-46: 사이드바 배지
+    @State private var draftsCount = 0
+    @State private var badgeTimer: Timer?
 
     private var selection: Binding<SidebarItem?> {
         Binding(
@@ -57,7 +63,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            NavigationSplitView {
+            NavigationSplitView(columnVisibility: $columnVisibility) {
                 List(SidebarItem.allCases, selection: selection) { item in
                     if item == .assistant {
                         // AI 도우미: 새 창으로 열기 — 오른쪽 패널 전환 없음 (에디터 창과 나란히 활용)
@@ -67,16 +73,9 @@ struct ContentView: View {
                                 Button("AI 도우미 열기") { openAssistantWindow() }
                             }
                     } else {
-                        if let sc = shortcut(item) { // ⌘1~7
-                            sidebarRow(item)
-                                .tag(item)
-                                .keyboardShortcut(sc)
-                                .contextMenu { sidebarContextMenu(item) }
-                        } else {
-                            sidebarRow(item)
-                                .tag(item)
-                                .contextMenu { sidebarContextMenu(item) }
-                        }
+                        sidebarRow(item)
+                            .tag(item)
+                            .contextMenu { sidebarContextMenu(item) }
                     }
                 }
                 .listStyle(.sidebar)
@@ -97,13 +96,10 @@ struct ContentView: View {
                 case .stats: StatsView()
                 case .ads: AdsView()
                 case .assistant: EmptyView() // 새 창으로 열리므로 패널에는 표시 안 함
-                case .settings: SettingsView()
+                case .macNews: MacNewsView() // T-46: 사이드바 독립 탭
                 }
             }
             .navigationTitle("MacCanDo")
-            .onReceive(NotificationCenter.default.publisher(for: .navigateToSettings)) { _ in
-                selection.wrappedValue = .settings
-            }
             .onReceive(NotificationCenter.default.publisher(for: .newPostRequested)) { _ in
                 openNewPost()
             }
@@ -118,11 +114,69 @@ struct ContentView: View {
             }
         }
         .background(
-            // ⌘K — 숨은 버튼으로 단축키 수신 (스킬 §6 패턴)
-            Button("") { togglePalette() }
-                .keyboardShortcut("k", modifiers: .command)
-                .hidden()
+            // T-46: ⌘1~8 — 숨은 버튼 패턴으로 단축키 수신 (List 바인딩 keyboardShortcut 제거)
+            VStack(spacing: 0) {
+                ForEach(SidebarItem.allCases) { item in
+                    Button("") { selectTab(item) }
+                        .keyboardShortcut(shortcut(item))
+                        .hidden()
+                }
+                Button("") { togglePalette() }
+                    .keyboardShortcut("k", modifiers: .command)
+                    .hidden()
+                // T-46: ⌥⌘S — 사이드바 표시/숨김 (Xcode/Finder 패턴)
+                Button("") { toggleSidebar() }
+                    .keyboardShortcut("s", modifiers: [.command, .option])
+                    .hidden()
+            }
         )
+        .onAppear {
+            loadBadges()
+            badgeTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+                Task { await loadPendingCount() }
+            }
+        }
+        .onDisappear {
+            badgeTimer?.invalidate()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postSaved)) { _ in
+            draftsCount = DraftStore.all().count
+        }
+    }
+
+    // T-46: 사이드바 배지 — 댓글 대기 수(60초 타이머) + 초안 수(로컬 즉시)
+    private func loadBadges() {
+        draftsCount = DraftStore.all().count
+        Task { await loadPendingCount() }
+    }
+
+    private func loadPendingCount() async {
+        guard auth.isAuthed else {
+            pendingCommentCount = nil
+            return
+        }
+        do {
+            let stats: AdminStats = try await APIClient.request("api/admin/stats", token: auth.token)
+            pendingCommentCount = stats.pendingCommentCount
+        } catch {
+            pendingCommentCount = nil
+        }
+    }
+
+    private func selectTab(_ item: SidebarItem) {
+        if item == .assistant {
+            openAssistantWindow()
+        } else {
+            selection.wrappedValue = item
+        }
+        DebugLogger.info("Nav", "화면 전환 → \(item.rawValue)")
+    }
+
+    private func toggleSidebar() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+        }
+        DebugLogger.info("Nav", "사이드바 \(columnVisibility == .detailOnly ? "숨김" : "표시")")
     }
 
     private func togglePalette() {
@@ -130,12 +184,12 @@ struct ContentView: View {
         DebugLogger.info("Palette", "팔레트 \(showPalette ? "열림" : "닫힘")")
     }
 
-    private func shortcut(_ item: SidebarItem) -> KeyboardShortcut? {
-        guard let n = item.shortcutNumber else { return nil }
-        return KeyboardShortcut(KeyEquivalent(Character("\(n)")), modifiers: .command)
+    private func shortcut(_ item: SidebarItem) -> KeyboardShortcut {
+        KeyboardShortcut(KeyEquivalent(Character("\(item.shortcutNumber ?? 0)")), modifiers: .command)
     }
 
     // T-12: 폭 110 미만이면 아이콘만 (라벨 숨김, 툴팁으로 이름 표시)
+    // T-46: 댓글 대기/초안 수 배지 (좁은 폭에서는 숨김)
     @ViewBuilder
     private func sidebarRow(_ item: SidebarItem) -> some View {
         if sidebarWidth < 110 {
@@ -143,8 +197,27 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
                 .help(item.rawValue)
         } else {
-            Label(item.rawValue, systemImage: item.icon)
+            HStack(spacing: 6) {
+                Label(item.rawValue, systemImage: item.icon)
+                Spacer()
+                if item == .comments, let n = pendingCommentCount, n > 0 {
+                    badge("\(n)")
+                }
+                if item == .posts, draftsCount > 0 {
+                    badge("\(draftsCount)")
+                }
+            }
         }
+    }
+
+    private func badge(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2.bold())
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(Color.secondary.opacity(0.2)))
+            .help("대기 항목 수")
     }
 
     // T-35: 사이드바 우클릭 컨텍스트 메뉴

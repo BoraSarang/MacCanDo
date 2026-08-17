@@ -13,6 +13,7 @@
 		1A1836B6E6788B5E0B5A3A48 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 449BF5A67E60F260EAB660B7 /* AppIcon.icns */; };
 		2811498303528C759EF51BE0 /* GeminiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E584E5806A3725E311690D /* GeminiService.swift */; };
 		3436E1A739B517F894103C0A /* AdsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBF84F0E2F7072D7EC887043 /* AdsView.swift */; };
+		3DF82053EEFE8D74899C7547 /* CommonUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52EB225E9FA1A70AF85687C8 /* CommonUI.swift */; };
 		4F2167770ABAF449BC656079 /* ReferenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 808A4BB3D5CAB0AFC32FD952 /* ReferenceStore.swift */; };
 		514AFDA4D128DF28E63EC379 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE6313F95F40001D531E92C /* EditorView.swift */; };
 		5FBC05736583DC5E9167E294 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = A430B85286C4980A1CFD6FE0 /* DesignTokens.swift */; };
@@ -29,6 +30,7 @@
 		C4A6F313BC55C762F26A947F /* MacNewsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26C166BAA72C6DD7E5B6C687 /* MacNewsView.swift */; };
 		CACA0BFAA657F990D572613F /* SeriesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59975CCD9634CB6FA4377C6A /* SeriesView.swift */; };
 		CBC5862B43C31C73AE3983DA /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 8CCF8E662072B9CC8DC1D5CD /* InfoPlist.strings */; };
+		D2650BDD0C5B98869B58386D /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 183EDFCAB32ABFA1EDE93818 /* FlowLayout.swift */; };
 		D7503A38219525C7A5C3AA5F /* AuthStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FFB1F24D3E6F6922C52C36F /* AuthStore.swift */; };
 		D8DAFDDE2F3FBAFCDB53AA7F /* AppStoreLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFFA962A096762466440D9C1 /* AppStoreLookup.swift */; };
 		DABAD8941C2702D3779B440A /* PostModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D631EAAAE7479E6F98D57CC /* PostModels.swift */; };
@@ -40,6 +42,7 @@
 /* Begin PBXFileReference section */
 		016EB1302F480287DD6A18C4 /* WindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManager.swift; sourceTree = "<group>"; };
 		091FDAB9CC5E84F21D8F1470 /* AssistantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantView.swift; sourceTree = "<group>"; };
+		183EDFCAB32ABFA1EDE93818 /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
 		1EFDAF205EA552858C081DB4 /* DebugLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogger.swift; sourceTree = "<group>"; };
 		20672A02C9DE8CC5933780F7 /* HTMLToMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLToMarkdown.swift; sourceTree = "<group>"; };
 		26C166BAA72C6DD7E5B6C687 /* MacNewsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacNewsView.swift; sourceTree = "<group>"; };
@@ -47,6 +50,7 @@
 		394D02BF49B6232DDDEB1F0D /* CommentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentsView.swift; sourceTree = "<group>"; };
 		449BF5A67E60F260EAB660B7 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		45480C8F1BE47080B3F46F9B /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
+		52EB225E9FA1A70AF85687C8 /* CommonUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonUI.swift; sourceTree = "<group>"; };
 		59975CCD9634CB6FA4377C6A /* SeriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeriesView.swift; sourceTree = "<group>"; };
 		5A4AEB15CE47BA28D95EDF1F /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		5D2F82541CEDA1F9DB7B5627 /* MacCanDo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MacCanDo.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -132,10 +136,12 @@
 				82F0832757645D9B13D012DB /* APIClient.swift */,
 				DFFA962A096762466440D9C1 /* AppStoreLookup.swift */,
 				7FFB1F24D3E6F6922C52C36F /* AuthStore.swift */,
+				52EB225E9FA1A70AF85687C8 /* CommonUI.swift */,
 				1EFDAF205EA552858C081DB4 /* DebugLogger.swift */,
 				B81AAE9D7D3BEB5151D7F9A6 /* DebugPanel.swift */,
 				A430B85286C4980A1CFD6FE0 /* DesignTokens.swift */,
 				DBB95D936939BD275541A157 /* DraftStore.swift */,
+				183EDFCAB32ABFA1EDE93818 /* FlowLayout.swift */,
 				71E584E5806A3725E311690D /* GeminiService.swift */,
 				20672A02C9DE8CC5933780F7 /* HTMLToMarkdown.swift */,
 				2AFCF9D468A32C5EAF752013 /* MacNewsStore.swift */,
@@ -223,12 +229,14 @@
 				D7503A38219525C7A5C3AA5F /* AuthStore.swift in Sources */,
 				8A43D9FEB69E65B4734458DE /* CommandPaletteView.swift in Sources */,
 				A8044AC59346FDF81B697391 /* CommentsView.swift in Sources */,
+				3DF82053EEFE8D74899C7547 /* CommonUI.swift in Sources */,
 				ECF54413581C50D02B9CA303 /* ContentView.swift in Sources */,
 				7D6D8463D7C7157ADD24BDCC /* DebugLogger.swift in Sources */,
 				B70CAF7C2849134B520FFEFD /* DebugPanel.swift in Sources */,
 				5FBC05736583DC5E9167E294 /* DesignTokens.swift in Sources */,
 				B2A24906B494B51B8C529439 /* DraftStore.swift in Sources */,
 				514AFDA4D128DF28E63EC379 /* EditorView.swift in Sources */,
+				D2650BDD0C5B98869B58386D /* FlowLayout.swift in Sources */,
 				2811498303528C759EF51BE0 /* GeminiService.swift in Sources */,
 				F6D7B481FAB41D245EE36D76 /* HTMLToMarkdown.swift in Sources */,
 				BDE6F6746E3AAB9E8E0D13BD /* MacCanDoApp.swift in Sources */,

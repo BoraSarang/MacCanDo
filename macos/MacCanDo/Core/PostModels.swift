@@ -37,7 +37,7 @@ struct Post: Decodable, Identifiable {
     let seoMeta: SeoMeta?
     let seriesId: String?
     let seriesOrder: Int?
-    let featuredOrder: Int? // 홈 추천 순서 (T-11, null=미지정)
+    var featuredOrder: Int? // 홈 추천 순서 (T-11, null=미지정, T-52: 토글 로컬 반영 위해 var)
     let apps: [AppCardData]? // T-15: 앱 카드 (에디터 로드/저장)
 
     var isPublished: Bool { status == "PUBLISHED" }
