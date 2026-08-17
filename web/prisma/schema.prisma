@@ -74,6 +74,7 @@ model Category {
 slug      String     @unique
   name      String
   description String?
+  icon      String? // T-12: 사이드바/카드용 이모지 아이콘
   sort      Int        @default(0)
   createdAt DateTime @default(now())
 

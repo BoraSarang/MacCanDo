@@ -66,7 +66,10 @@ export default async function HomePage() {
               href={`/category/${c.slug}`}
               className="card p-4 hover:border-primary/50 hover:shadow-md transition-all"
             >
-              <div className="font-semibold">{c.name}</div>
+              <div className="font-semibold flex items-center gap-2">
+                <span aria-hidden className="text-lg">{c.icon ?? "📁"}</span>
+                {c.name}
+              </div>
               {c.description && <div className="text-xs text-text-muted mt-1">{c.description}</div>}
               <div className="text-xs text-text-muted mt-2">게시글 {c.postCount}개</div>
             </Link>

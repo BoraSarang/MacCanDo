@@ -10,6 +10,7 @@ import { logger } from "@/lib/logger";
 import { BodyFormat } from "@/app/generated/prisma/client";
 import CommentsSection from "@/components/CommentsSection";
 import SeriesList from "@/components/SeriesList";
+import PostBody from "@/components/PostBody";
 import { getSeriesForPost } from "@/lib/series";
 
 export const revalidate = 60;
@@ -99,11 +100,7 @@ export default async function PostPage({ params }: Props) {
 
       {/* 본문: MD 또는 HTML (관리자 작성이므로 HTML 직접 렌더링 허용) */}
       <div className="prose prose-lg max-w-none">
-        <div
-          dangerouslySetInnerHTML={{
-            __html: post.bodyFormat === BodyFormat.MD ? renderMarkdown(post.body) : post.body,
-          }}
-        />
+        <PostBody html={post.bodyFormat === BodyFormat.MD ? renderMarkdown(post.body) : post.body} />
       </div>
 
       {/* 태그 */}

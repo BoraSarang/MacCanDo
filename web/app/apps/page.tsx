@@ -30,24 +30,30 @@ export default async function AppsPage({ searchParams }: Props) {
   const active = category ? cats.find((c) => c.slug === category) : null;
 
   return (
-    <div className="md:flex md:gap-8">
-      {/* 좌측: 역할 카테고리 필터 */}
-      <aside className="md:w-56 shrink-0 mb-6 md:mb-0">
-        <h1 className="text-2xl font-bold mb-4">맥 앱</h1>
+    <div className="md:flex md:gap-6">
+      {/* 좌측: 역할 카테고리 필터 (T-12: 좁아지면 아이콘만 표시) */}
+      <aside className="md:w-11 lg:w-56 shrink-0 mb-6 md:mb-0">
+        <h1 className="text-2xl font-bold mb-4 md:hidden lg:block">맥 앱</h1>
         <nav className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible">
           <Link
             href="/apps"
-            className={`badge whitespace-nowrap ${!category ? "bg-primary text-white" : "bg-surface-hover text-text-secondary"}`}
+            title="전체"
+            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors md:w-11 md:justify-center md:px-0 lg:w-auto lg:justify-start lg:px-3 ${!category ? "bg-primary text-white" : "bg-surface-hover text-text-secondary hover:text-text"}`}
           >
-            전체
+            <span aria-hidden className="text-base">🗂️</span>
+            <span className="md:hidden lg:inline">전체</span>
           </Link>
           {cats.map((c) => (
             <Link
               key={c.slug}
               href={`/apps?category=${c.slug}`}
-              className={`badge whitespace-nowrap ${active?.slug === c.slug ? "bg-primary text-white" : "bg-surface-hover text-text-secondary"}`}
+              title={`${c.name} (${c.postCount})`}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors md:w-11 md:justify-center md:px-0 lg:w-auto lg:justify-start lg:px-3 ${active?.slug === c.slug ? "bg-primary text-white" : "bg-surface-hover text-text-secondary hover:text-text"}`}
             >
-              {c.name} ({c.postCount})
+              <span aria-hidden className="text-base">{c.icon ?? "📁"}</span>
+              <span className="md:hidden lg:inline">
+                {c.name} ({c.postCount})
+              </span>
             </Link>
           ))}
         </nav>

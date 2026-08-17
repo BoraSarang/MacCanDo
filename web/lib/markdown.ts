@@ -143,6 +143,8 @@ export function renderMarkdown(md: string): string {
   let listType: "ul" | "ol" = "ul";
   let tableBuf: string[] = [];
   let tableHasHeader = false;
+  let galleryBuf: string[] = [];
+  let inGallery = false;
 
   const flushList = () => {
     if (listBuf.length === 0) return;
@@ -177,6 +179,33 @@ export function renderMarkdown(md: string): string {
   const flushAll = () => {
     flushList();
     flushTable();
+    flushGallery();
+  };
+
+  // [gallery] 블록 → 그리드 (T-13, macOS 렌더러와 동일 규격)
+  const flushGallery = (): string => {
+    if (galleryBuf.length === 0) return "";
+    const items: string[] = [];
+    for (const l of galleryBuf) {
+      const std = l.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+      if (std) {
+        items.push(
+          `<figure><img src="${escapeHtml(std[2])}" alt="${escapeHtml(std[1] ?? "")}" loading="lazy"/></figure>`
+        );
+        continue;
+      }
+      const ext = l.match(/^\[img:([^\s\]]+)([^\]]*)\]$/);
+      if (ext) {
+        const params = parseParams(ext[2] ?? "");
+        const caption = params.caption ? `<figcaption>${escapeHtml(params.caption)}</figcaption>` : "";
+        items.push(
+          `<figure><img src="${escapeHtml(ext[1])}" alt="${escapeHtml(params.caption ?? "")}" loading="lazy"/>${caption}</figure>`
+        );
+      }
+    }
+    galleryBuf = [];
+    if (items.length === 0) return "";
+    return `<div class="gallery-grid">${items.join("")}</div>`;
   };
 
   for (const rawLine of md.split("\n")) {
@@ -212,6 +241,23 @@ export function renderMarkdown(md: string): string {
       continue;
     }
     flushTable();
+
+    // [gallery] 확장 블록 (T-13)
+    if (line === "[gallery]") {
+      flushAll();
+      inGallery = true;
+      galleryBuf = [];
+      continue;
+    }
+    if (line === "[/gallery]") {
+      html += flushGallery();
+      inGallery = false;
+      continue;
+    }
+    if (inGallery) {
+      if (line !== "") galleryBuf.push(line);
+      continue;
+    }
 
     if (line.startsWith("- ") || line.startsWith("* ")) {
       if (listBuf.length > 0 && listType !== "ul") flushList();

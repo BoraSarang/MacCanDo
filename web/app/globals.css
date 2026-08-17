@@ -233,3 +233,17 @@ body {
   background: var(--ds-primary);
   color: #fff;
 }
+/* ===== T-13: [gallery] 갤러리 그리드 ===== */
+.gallery-grid {
+  @apply grid grid-cols-2 md:grid-cols-3 gap-3 my-6;
+}
+.gallery-grid figure {
+  @apply m-0;
+}
+.gallery-grid img {
+  @apply w-full h-full object-cover rounded-lg cursor-zoom-in border border-border transition-opacity hover:opacity-85;
+  aspect-ratio: 4/3;
+}
+.gallery-grid figcaption {
+  @apply text-xs text-text-muted mt-1 text-center;
+}

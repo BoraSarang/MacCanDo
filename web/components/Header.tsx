@@ -9,6 +9,8 @@ import { useTheme } from "@/components/ThemeProvider";
 
 const MENU = [
   { href: "/apps", label: "맥 앱" },
+  { href: "/category/os", label: "OS" },
+  { href: "/category/games", label: "게임" },
   { href: "/tips", label: "맥 팁" },
   { href: "/news", label: "맥 소식" },
 ];

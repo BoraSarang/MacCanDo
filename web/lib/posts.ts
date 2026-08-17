@@ -247,6 +247,7 @@ export async function getCategories() {
     slug: c.slug,
     name: c.name,
     description: c.description,
+    icon: c.icon, // T-12: 사이드바/카드용 이모지
     postCount: c._count.posts,
   }));
 }

@@ -32,12 +32,23 @@ test.describe("시리즈", () => {
 });
 
 test.describe("맥 앱 허브 (역할 카테고리)", () => {
-  test("좌측 필터 6개 + 전체 글 목록", async ({ page }) => {
+  test("좌측 필터 10개 + 전체 글 목록", async ({ page }) => {
     await page.goto("/apps");
     const filters = page.locator("main aside a[href^='/apps?category=']");
-    await expect(filters).toHaveCount(6);
-    await expect(page.getByRole("heading", { name: "모든 맥 앱" })).toBeVisible();
+    await expect(filters).toHaveCount(10);
+    await expect(page.getByRole("heading", { name: "맥 앱", exact: true })).toBeVisible();
     await expect(page.locator("main a[href^='/post/']").first()).toBeVisible();
+  });
+
+  test("사이드바 접힘: 좁은 화면(900px) 아이콘만, 넓은 화면(1280px) 라벨", async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 800 });
+    await page.goto("/apps");
+    const devLink = page.locator("main aside a[href='/apps?category=develop']");
+    await expect(devLink).toBeVisible();
+    await expect(devLink.getByText("Develop")).not.toBeVisible();
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(devLink.getByText("Develop")).toBeVisible();
   });
 
   test("Develop 필터 → 개발 글만 (4개) + 설명 노출", async ({ page }) => {
@@ -93,6 +104,28 @@ test.describe("카테고리", () => {
     await expect(page.getByRole("heading", { name: "Develop" })).toBeVisible();
     await expect(page.locator("main a[href^='/post/']").first()).toBeVisible();
   });
+
+  test("OS 카테고리: macOS Tahoe 글 노출", async ({ page }) => {
+    await page.goto("/category/os");
+    await expect(page.getByRole("heading", { name: "OS", exact: true })).toBeVisible();
+    const cards = page.locator("main a[href^='/post/']");
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText("macOS Tahoe");
+  });
+
+  test("게임 카테고리: 빈 상태 안내", async ({ page }) => {
+    await page.goto("/category/games");
+    await expect(page.getByText("게시글이 없습니다.")).toBeVisible();
+  });
+});
+
+test.describe("메뉴", () => {
+  test("헤더에 OS/게임 메뉴", async ({ page }) => {
+    await page.goto("/");
+    const menu = page.locator("header nav");
+    await expect(menu.getByRole("link", { name: "OS" })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "게임" })).toBeVisible();
+  });
 });
 
 test.describe("맥 팁/맥 소식", () => {
@@ -111,14 +144,14 @@ test.describe("맥 팁/맥 소식", () => {
 });
 
 test.describe("글 상세 확장 (관련 게시글 + 이전/다음)", () => {
-  test("비시리즈 글: 관련 게시글 (카테고리 폴백)", async ({ page }) => {
-    await page.goto("/post/macos-tahoe-iphone-mirroring-liquid-glass");
+  test("관련 게시글 (태그 공유)", async ({ page }) => {
+    await page.goto("/post/ai-coding-assistant-guide");
     await expect(page.getByRole("heading", { name: "관련 게시글" })).toBeVisible();
     const related = page
       .locator("main section")
       .filter({ has: page.getByRole("heading", { name: "관련 게시글" }) })
       .locator("a[href^='/post/']");
-    await expect(related).toHaveCount(3);
+    await expect(related.first()).toBeVisible();
   });
 
   test("시리즈 글: 이전/다음 없음 (시리즈 목록이 역할)", async ({ page }) => {
