@@ -1,3 +1,9 @@
+## v2.7.4-spellfix (2026-08-18) — [macos] 맞춤법 검사 에러 표시 수정
+
+- APIError가 LocalizedError를 채택하지 않아 error.localizedDescription이 "작업을 완료할 수 없습니다.(MacCanDo.APIError 오류 1.)"로만 표시되던 문제 수정 — errorDescription = message로 실제 원인(에러코드/상태) 표시
+- 맞춤법 검사 재검증: 본문 입력 → 검사 실행 → 오류 1건 발견("이글은"→"이 글은"), 적용 버튼 정상 (이전 실패는 일시 오류였고 이제 원인 메시지가 표시됨)
+- 배포: ~/Applications/MacCanDo.app (빌드 15)
+
 ## v2.7.3-editor50 (2026-08-18) — [macos] 에디터/미리보기 50:50 고정
 
 - HSplitView(스플리터 비율 자유) → HStack(spacing: 0) + Divider로 변경 — 에디터/미리보기가 항상 동일한 크기 (각 (창폭-280-1)/2)

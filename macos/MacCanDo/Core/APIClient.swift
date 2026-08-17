@@ -2,10 +2,11 @@
 // Bearer 토큰 인증 (관리자 API 토큰), 응답 규격 { ok, data | error }
 import Foundation
 
-struct APIError: Error {
+struct APIError: Error, LocalizedError {
     let code: String
     let message: String
     let status: Int
+    var errorDescription: String? { message }
 }
 
 struct APIResponse<T: Decodable>: Decodable {
