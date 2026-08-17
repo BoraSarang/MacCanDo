@@ -15,6 +15,8 @@ enum MarkdownRenderer {
         var listBuf: [String] = []
         var listType = "ul"
         var tableBuf: [String] = []
+        var galleryBuf: [String] = []
+        var inGallery = false
 
         func flushList() {
             guard !listBuf.isEmpty else { return }
@@ -45,9 +47,28 @@ enum MarkdownRenderer {
             tableBuf = []
         }
 
+        // [gallery] 블록 → 그리드 (T-13, 웹 markdown.ts와 동일 규격)
+        func flushGallery() {
+            guard !galleryBuf.isEmpty else { return }
+            var items: [String] = []
+            for l in galleryBuf {
+                if let m = l.firstMatch(of: #/^!\[([^\]]*)\]\(([^)]+)\)$/#) {
+                    items.append("<figure><img src=\"\(escape(String(m.2)))\" alt=\"\(escape(String(m.1)))\" loading=\"lazy\"/></figure>")
+                } else if let m = l.firstMatch(of: #/^\[img:([^\s\]]+)([^\]]*)\]$/#) {
+                    let params = parseParams(String(m.2))
+                    let caption = params["caption"].map { "<figcaption>\(escape($0))</figcaption>" } ?? ""
+                    items.append("<figure><img src=\"\(escape(String(m.1)))\" alt=\"\(escape(params["caption"] ?? ""))\" loading=\"lazy\"/>\(caption)</figure>")
+                }
+            }
+            galleryBuf = []
+            guard !items.isEmpty else { return }
+            html += "<div class=\"gallery-grid\">\(items.joined())</div>"
+        }
+
         func flushAll() {
             flushList()
             flushTable()
+            flushGallery()
         }
 
         for rawLine in md.components(separatedBy: "\n") {
@@ -83,6 +104,23 @@ enum MarkdownRenderer {
                 continue
             }
             flushTable()
+
+            // [gallery] 확장 블록 (T-13)
+            if line == "[gallery]" {
+                flushAll()
+                inGallery = true
+                galleryBuf = []
+                continue
+            }
+            if line == "[/gallery]" {
+                flushGallery()
+                inGallery = false
+                continue
+            }
+            if inGallery {
+                if !line.isEmpty { galleryBuf.append(line) }
+                continue
+            }
 
             // 목록
             if line.hasPrefix("- ") || line.hasPrefix("* ") {

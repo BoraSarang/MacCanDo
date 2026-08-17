@@ -26,15 +26,24 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 
 struct ContentView: View {
     @State private var selection: SidebarItem? = .posts
+    @State private var sidebarWidth: CGFloat = 190
 
     var body: some View {
         NavigationSplitView {
             List(SidebarItem.allCases, selection: $selection) { item in
-                Label(item.rawValue, systemImage: item.icon)
+                sidebarRow(item)
                     .tag(item)
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 160, ideal: 190)
+            .navigationSplitViewColumnWidth(min: 48, ideal: 190)
+            .background(
+                // T-12: 사이드바 폭 감지 — 좁아지면 아이콘만 표시 (Finder 스타일)
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear { sidebarWidth = geo.size.width }
+                        .onChange(of: geo.size.width) { _, w in sidebarWidth = w }
+                }
+            )
         } detail: {
             switch selection ?? .posts {
             case .posts: PostsView()
@@ -48,6 +57,18 @@ struct ContentView: View {
         .navigationTitle("MacCanDo")
         .onReceive(NotificationCenter.default.publisher(for: .navigateToSettings)) { _ in
             selection = .settings
+        }
+    }
+
+    // T-12: 폭 110 미만이면 아이콘만 (라벨 숨김, 툴팁으로 이름 표시)
+    @ViewBuilder
+    private func sidebarRow(_ item: SidebarItem) -> some View {
+        if sidebarWidth < 110 {
+            Image(systemName: item.icon)
+                .frame(maxWidth: .infinity)
+                .help(item.rawValue)
+        } else {
+            Label(item.rawValue, systemImage: item.icon)
         }
     }
 }
