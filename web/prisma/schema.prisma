@@ -154,6 +154,7 @@ enum PostContentType {
   ARTICLE
   TIP
   NEWS
+  PAGE // 정적 페이지 (About/Privacy/Disclaimer/Terms/FAQ/Contact) — 목록·댓글·조회수 제외 (T-17)
 }
 
 // ===== 시리즈 =====

@@ -51,51 +51,57 @@ export default async function PostPage({ params }: Props) {
   const post = await getPostBySlug(slug);
   if (!post) notFound();
 
+  // T-17: 정적 페이지(PAGE) — 게시글 전용 UI(카테고리/조회수/썸네일/댓글/시리즈/관련글) 숨김
+  const isPage = post.contentType === "PAGE";
+
   // 다운로드 게이트: 로그인 + 승인 댓글 1개 이상 시 링크 공개 (T-04)
   // T-15: 앱 카드(postAppId) 링크는 제외 — 앱 카드 다운로드는 공개
-  const gateLinks = post.downloadLinks.filter((dl) => !dl.postAppId);
-  const session = await auth();
-  const commentCount = session?.user?.id
-    ? await getUserApprovedCommentCount(session.user.id)
-    : 0;
-  const gateUnlocked = (session?.user?.id ? commentCount >= 1 : false) && gateLinks.length > 0;
-  logger.info("PostDetail", `게이트 판정 (slug=${slug}, user=${session?.user?.id ?? "-"}, comments=${commentCount})`);
+  const gateLinks = isPage ? [] : post.downloadLinks.filter((dl) => !dl.postAppId);
+  const session = isPage ? null : await auth();
+  const commentCount =
+    !isPage && session?.user?.id ? await getUserApprovedCommentCount(session.user.id) : 0;
+  const gateUnlocked = isPage ? false : (session?.user?.id ? commentCount >= 1 : false) && gateLinks.length > 0;
+  if (!isPage) logger.info("PostDetail", `게이트 판정 (slug=${slug}, user=${session?.user?.id ?? "-"}, comments=${commentCount})`);
 
   // 시리즈 컨텍스트 (하단 목록 — 발행 글만, 순서대로)
-  const series = post.seriesId ? await getSeriesForPost(post.seriesId) : null;
+  const series = !isPage && post.seriesId ? await getSeriesForPost(post.seriesId) : null;
 
   // 관련 게시글 (태그 공유 → 카테고리 폴백) + 이전/다음글 (일반 글만) (T-11)
-  const [related, prevNext] = await Promise.all([
-    getRelatedPosts(
-      post.id,
-      post.tags.map((t) => t.tagId),
-      post.categories.map((c) => c.categoryId),
-      3
-    ),
-    getPrevNextPosts(slug),
-  ]);
+  const [related, prevNext] = isPage
+    ? ([[], null] as const)
+    : await Promise.all([
+        getRelatedPosts(
+          post.id,
+          post.tags.map((t) => t.tagId),
+          post.categories.map((c) => c.categoryId),
+          3
+        ),
+        getPrevNextPosts(slug),
+      ]);
 
   return (
     <article className="max-w-3xl mx-auto">
       <header className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-text-muted mb-3 flex-wrap">
-          {post.categories.map((pc) => (
-            <Link
-              key={pc.category.slug}
-              href={`/category/${pc.category.slug}`}
-              className="badge bg-primary-soft text-primary"
-            >
-              {pc.category.name}
-            </Link>
-          ))}
-          <span>{formatDate(post.publishedAt)}</span>
-          <span>👁 {post.viewCount}</span>
-        </div>
+        {!isPage && (
+          <div className="flex items-center gap-2 text-sm text-text-muted mb-3 flex-wrap">
+            {post.categories.map((pc) => (
+              <Link
+                key={pc.category.slug}
+                href={`/category/${pc.category.slug}`}
+                className="badge bg-primary-soft text-primary"
+              >
+                {pc.category.name}
+              </Link>
+            ))}
+            <span>{formatDate(post.publishedAt)}</span>
+            <span>👁 {post.viewCount}</span>
+          </div>
+        )}
         <h1 className="text-3xl font-bold leading-tight">{post.title}</h1>
         {post.excerpt && <p className="text-text-secondary mt-3">{post.excerpt}</p>}
       </header>
 
-      {post.thumbnailUrl && (
+      {!isPage && post.thumbnailUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={post.thumbnailUrl} alt={post.title} className="w-full rounded-xl mb-8" />
       )}
@@ -121,7 +127,7 @@ export default async function PostPage({ params }: Props) {
       </div>
 
       {/* 태그 */}
-      {post.tags.length > 0 && (
+      {!isPage && post.tags.length > 0 && (
         <div className="mt-8 flex flex-wrap gap-2">
           {post.tags.map((pt) => (
             <Link
@@ -136,7 +142,7 @@ export default async function PostPage({ params }: Props) {
       )}
 
       {/* 다운로드 링크 (게이트 — 댓글 1개 이상 + 로그인 시 공개, 앱 카드 링크 제외) */}
-      {gateLinks.length > 0 && (
+      {!isPage && gateLinks.length > 0 && (
         <section className="mt-10 card p-6 border-primary/30 bg-primary-soft/50">
           <h2 className="font-bold text-lg mb-1">📥 다운로드</h2>
           {gateUnlocked ? (
@@ -166,10 +172,10 @@ export default async function PostPage({ params }: Props) {
       )}
 
       {/* 시리즈 목록 (하단) */}
-      <SeriesList series={series} currentId={post.id} />
+      {!isPage && <SeriesList series={series} currentId={post.id} />}
 
       {/* 이전글/다음글 — 일반 글만 (시리즈 글은 시리즈 목록이 역할) (T-11) */}
-      {prevNext && (prevNext.prev || prevNext.next) && (
+      {!isPage && prevNext && (prevNext.prev || prevNext.next) && (
         <nav className="mt-10 grid grid-cols-2 gap-3 text-sm" aria-label="이전/다음 글">
           {prevNext.prev ? (
             <Link href={`/post/${prevNext.prev.slug}`} className="card p-4 hover:border-primary/50 hover:shadow-md transition-all">
@@ -191,7 +197,7 @@ export default async function PostPage({ params }: Props) {
       )}
 
       {/* 관련 게시글 (T-11) */}
-      {related.length > 0 && (
+      {!isPage && related.length > 0 && (
         <section className="mt-10">
           <h2 className="text-lg font-bold mb-4">관련 게시글</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -217,8 +223,8 @@ export default async function PostPage({ params }: Props) {
         </section>
       )}
 
-      {/* 댓글 */}
-      <CommentsSection slug={post.slug} />
+      {/* 댓글 — 정적 페이지는 비활성 (T-17) */}
+      {!isPage && <CommentsSection slug={post.slug} />}
     </article>
   );
 }

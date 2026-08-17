@@ -118,7 +118,7 @@ export async function restoreBackup(payload: BackupPayload) {
       excerpt: p.excerpt ?? null,
       thumbnailUrl: p.thumbnailUrl ?? null,
       status: (p.status as "DRAFT" | "PUBLISHED") ?? "DRAFT",
-      contentType: (p.contentType as "ARTICLE" | "TIP" | "NEWS") ?? "ARTICLE",
+      contentType: (p.contentType as "ARTICLE" | "TIP" | "NEWS" | "PAGE") ?? "ARTICLE",
       viewCount: p.viewCount ?? 0,
       publishedAt: p.publishedAt ? new Date(p.publishedAt) : null,
       updatedAt: p.updatedAt ? new Date(p.updatedAt) : new Date(),

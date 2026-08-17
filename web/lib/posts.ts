@@ -40,14 +40,15 @@ export interface PostListParams {
   sort?: "latest" | "views"; // T-11 정렬 (최신순/조회수순)
 }
 
-// 목록 (카테고리 필터 + pg_trgm 기반 검색 + 페이징) — 발행 글만
+// 목록 (카테고리 필터 + pg_trgm 기반 검색 + 페이징) — 발행 글만 (PAGE 타입 제외, T-17)
 // 정렬: 시리즈 글은 (시리즈 최신 편 발행일, seriesOrder) 기준으로 나란히, 일반 글은 publishedAt desc
 export async function getPosts(params: PostListParams = {}): Promise<PostListResult> {
   const { categorySlug, contentType, tagSlug, query, page = 1, pageSize = 12, skip = 0, sort = "latest" } = params;
+  const notPage = { not: "PAGE" as PostContentType };
   const where: Prisma.PostWhereInput = {
     status: "PUBLISHED" as PostStatus,
+    ...(contentType ? { contentType: contentType as PostContentType } : { contentType: notPage }),
     ...(categorySlug ? { categories: { some: { category: { slug: categorySlug } } } } : {}),
-    ...(contentType ? { contentType: contentType as PostContentType } : {}),
     ...(tagSlug ? { tags: { some: { tag: { slug: tagSlug } } } } : {}),
     ...(query
       ? {
@@ -67,7 +68,11 @@ export async function getPosts(params: PostListParams = {}): Promise<PostListRes
       Prisma.sql`EXISTS (SELECT 1 FROM "PostCategory" pcx JOIN "Category" cx ON cx.id = pcx."categoryId" WHERE pcx."postId" = p.id AND cx."slug" = ${categorySlug})`
     );
   }
-  if (contentType) conds.push(Prisma.sql`p."contentType" = ${contentType}::"PostContentType"`);
+  if (contentType) {
+    conds.push(Prisma.sql`p."contentType" = ${contentType}::"PostContentType"`);
+  } else {
+    conds.push(Prisma.sql`p."contentType" != 'PAGE'`);
+  }
   if (tagSlug) {
     conds.push(
       Prisma.sql`EXISTS (SELECT 1 FROM "PostTag" ptx JOIN "Tag" tx ON tx.id = ptx."tagId" WHERE ptx."postId" = p.id AND tx."slug" = ${tagSlug})`
@@ -143,7 +148,7 @@ export async function getFeaturedPosts(count = 3) {
     categories: { include: { category: { select: { name: true, slug: true } } } },
   } as const;
   const featured = await db.post.findMany({
-    where: { status: "PUBLISHED", featuredOrder: { not: null } },
+    where: { status: "PUBLISHED", contentType: { not: "PAGE" }, featuredOrder: { not: null } },
     orderBy: [{ featuredOrder: "asc" }, { publishedAt: "desc" }],
     take: count,
     select: pick,
@@ -152,6 +157,7 @@ export async function getFeaturedPosts(count = 3) {
   const extra = await db.post.findMany({
     where: {
       status: "PUBLISHED",
+      contentType: { not: "PAGE" },
       featuredOrder: null,
       ...(featured.length ? { id: { notIn: featured.map((f) => f.id) } } : {}),
     },
@@ -179,6 +185,7 @@ export async function getRelatedPosts(postId: string, tagIds: string[], category
   const byTag = await db.post.findMany({
     where: {
       status: "PUBLISHED",
+      contentType: { not: "PAGE" },
       ...notSelf,
       ...(tagIds.length ? { tags: { some: { tagId: { in: tagIds } } } } : { id: "__none__" }),
     },
@@ -190,6 +197,7 @@ export async function getRelatedPosts(postId: string, tagIds: string[], category
   const byCat = await db.post.findMany({
     where: {
       status: "PUBLISHED",
+      contentType: { not: "PAGE" },
       ...notSelf,
       ...(byTag.length ? { id: { notIn: byTag.map((p) => p.id) } } : {}),
       ...(categoryIds.length ? { categories: { some: { categoryId: { in: categoryIds } } } } : { id: "__none__" }),
@@ -213,6 +221,7 @@ export async function getPrevNextPosts(slug: string) {
     db.post.findFirst({
       where: {
         status: "PUBLISHED",
+        contentType: { not: "PAGE" },
         seriesId: null,
         OR: [
           { publishedAt: { lt: post.publishedAt } },
@@ -225,6 +234,7 @@ export async function getPrevNextPosts(slug: string) {
     db.post.findFirst({
       where: {
         status: "PUBLISHED",
+        contentType: { not: "PAGE" },
         seriesId: null,
         OR: [
           { publishedAt: { gt: post.publishedAt } },
@@ -277,7 +287,8 @@ export async function getPostBySlug(slug: string, incrementView = true) {
   });
   if (!post || post.status !== "PUBLISHED") return null;
 
-  if (incrementView) {
+  // T-17: 정적 페이지(PAGE)는 조회수 미집계
+  if (incrementView && post.contentType !== "PAGE") {
     db.post
       .update({ where: { id: post.id }, data: { viewCount: { increment: 1 } } })
       .catch((e) => logger.warn("Post", `조회수 증가 실패: ${e}`));
@@ -303,7 +314,7 @@ export interface PostInput {
   slug?: string;
   categoryIds?: string[];
   tags?: string[];
-  contentType?: "ARTICLE" | "TIP" | "NEWS";
+  contentType?: "ARTICLE" | "TIP" | "NEWS" | "PAGE"; // T-17: PAGE = 정적 페이지
   bodyFormat: BodyFormat;
   body: string;
   excerpt?: string | null;
@@ -424,7 +435,7 @@ export function validatePostInput(input: PostInput): string | null {
   if (!input.body?.trim()) return "E-WEB-VALID-1001";
   if (input.bodyFormat !== "MD" && input.bodyFormat !== "HTML") return "E-WEB-VALID-1001";
   if (input.status !== "DRAFT" && input.status !== "PUBLISHED") return "E-WEB-VALID-1001";
-  if (input.contentType && !["ARTICLE", "TIP", "NEWS"].includes(input.contentType)) return "E-WEB-VALID-1001";
+  if (input.contentType && !["ARTICLE", "TIP", "NEWS", "PAGE"].includes(input.contentType)) return "E-WEB-VALID-1001";
   return null;
 }
 

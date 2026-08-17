@@ -318,6 +318,7 @@ struct EditorView: View {
                     Text("맥 앱").tag("ARTICLE")
                     Text("맥 팁").tag("TIP")
                     Text("맥 소식").tag("NEWS")
+                    Text("페이지").tag("PAGE") // T-17: 정적 페이지 (About/Privacy 등)
                 }
                 .frame(width: 110)
                 Picker("시리즈", selection: $selectedSeriesId) {

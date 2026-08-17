@@ -4,6 +4,7 @@ import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import MobileBar from "@/components/MobileBar";
 import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Header />
             <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8">{children}</main>
             <Footer />
+            <MobileBar />
           </ThemeProvider>
         </SessionProvider>
       </body>

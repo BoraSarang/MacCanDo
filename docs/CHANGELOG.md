@@ -4,6 +4,16 @@
 
 ---
 
+## v2.5.0-T17 (2026-08-17) — [web+macos] 정적 페이지 6종 + 모바일 하단 바
+
+- DB: PostContentType enum에 PAGE 추가 (수동 마이그레이션 20260817_add_page_content_type, Neon db execute + migrate resolve)
+- 웹: 목록 쿼리 일괄 PAGE 제외 (홈/카테고리/검색/추천/관련글/이전·다음/sitemap 목록), 글 상세 — PAGE면 카테고리/조회수/썸네일/댓글/시리즈/관련글 숨김 + 조회수 미집계 (본문·앱 카드 기능은 그대로)
+- 푸터: About · Privacy Policy · Disclaimer · Terms of Service · FAQ · Contact Us 링크 6개 (데스크톱 가로/모바일 세로)
+- 모바일 하단 고정 바 (appstorrent 패턴, <768px): 🔍 검색 / ☰ 메뉴 / ⋯ 드롭업(6개 링크 + 닫기) — MobileBar.tsx 신규
+- macOS: 에디터 글 타입 드롭다운에 '페이지' 옵션 추가 (contentType=PAGE로 저장)
+- 시드: 6개 페이지 초안 한국어 등록 (about/privacy-policy/disclaimer/terms/faq/contact, lib/seed_pages.ts 재실행 안전)
+- 검증: E2E 35/35 (TC-PAGE-001~004 신규), TSC 통과, macOS BUILD SUCCEEDED, 스크린샷 docs/screenshots/web/v2.5_page_*
+
 ## v2.5.0-T15 (2026-08-17) — [web+macos] 앱 카드 (한 글에 여러 앱)
 
 - DB: PostApp 테이블 (postId/sort/appId/appUrl/homepageUrl/storeInfo Json 스냅샷) + DownloadLink.postAppId — 수동 마이그레이션 20260817_post_app (Neon db execute + migrate resolve)
