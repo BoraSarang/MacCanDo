@@ -217,7 +217,8 @@ struct SeriesView: View {
         VStack(alignment: .leading, spacing: 4) {
             List(data.series, id: \.id, selection: $selectedSeriesId) { s in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("📚 \(s.title)")
+                    // T-38: 이모지 → SF Symbol
+                    Label(s.title, systemImage: "books.vertical")
                         .font(.body)
                     Text("글 \(s.posts.count)개\(s.description.map { " · \($0)" } ?? "")")
                         .font(.caption)
@@ -225,6 +226,25 @@ struct SeriesView: View {
                         .lineLimit(1)
                 }
                 .tag(s.id)
+                // T-40: 시리즈 우클릭 컨텍스트 메뉴 (기존 버튼과 동일 동작)
+                .contextMenu {
+                    Button("편집") {
+                        selectedSeriesId = s.id
+                        newTitle = s.title
+                        newDescription = s.description ?? ""
+                        newImageUrl = s.imageUrl ?? ""
+                        newIntro = s.intro ?? ""
+                        generatedImagePreview = nil
+                        showEdit = true
+                        DebugLogger.info("Series", "컨텍스트: 편집 요청 (\(s.id))")
+                    }
+                    Divider()
+                    Button("삭제", role: .destructive) {
+                        selectedSeriesId = s.id
+                        showDeleteConfirm = true
+                        DebugLogger.info("Series", "컨텍스트: 삭제 요청 (\(s.id))")
+                    }
+                }
             }
             .listStyle(.sidebar)
             HStack(spacing: 6) {
@@ -290,7 +310,8 @@ struct SeriesView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .padding(.bottom, 4)
                     }
-                    Text("📚 \(s.title)")
+                    // T-38: 이모지 → SF Symbol
+                    Label(s.title, systemImage: "books.vertical")
                         .font(.title3.bold())
                     if let desc = s.description, !desc.isEmpty {
                         Text(desc)
@@ -343,8 +364,8 @@ struct SeriesView: View {
                                         .font(.caption2)
                                         .padding(.horizontal, 5)
                                         .padding(.vertical, 1)
-                                        .background(Color.orange.opacity(0.2), in: Capsule())
-                                        .foregroundStyle(.orange)
+                                        .background(Color.dsWarning.opacity(0.2), in: Capsule()) // T-36
+                                        .foregroundStyle(Color.dsWarning)
                                 }
                                 Spacer()
                             }
@@ -405,8 +426,8 @@ struct SeriesView: View {
                                         .font(.caption2)
                                         .padding(.horizontal, 5)
                                         .padding(.vertical, 1)
-                                        .background(Color.orange.opacity(0.2), in: Capsule())
-                                        .foregroundStyle(.orange)
+                                        .background(Color.dsWarning.opacity(0.2), in: Capsule()) // T-36
+                                        .foregroundStyle(Color.dsWarning)
                                 }
                             }
                             .tag(p.id)

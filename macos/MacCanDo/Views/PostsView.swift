@@ -11,6 +11,7 @@ struct PostsView: View {
     @State private var deletingPost: Post?
     @State private var searchText = "" // T-21: 검색 (제목/슬러그/태그/카테고리/설명)
     @State private var drafts: [DraftRecord] = [] // T-24: 로컬 임시 저장 초안
+    @State private var hoveredPostID: String? // T-39: 목록 행 hover
 
     // 검색 필터 — 제목/슬러그/태그/카테고리/설명 기준 부분 일치
     private var filteredPosts: [Post] {
@@ -97,7 +98,7 @@ struct PostsView: View {
                                 ForEach(drafts, id: \.postId) { draft in
                                     HStack(spacing: 10) {
                                         Image(systemName: "clock.arrow.circlepath")
-                                            .foregroundStyle(Color.orange)
+                                            .foregroundStyle(Color.dsWarning) // T-36
                                             .font(.title3)
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(draft.title)
@@ -187,8 +188,8 @@ struct PostsView: View {
                                             .font(.caption2.bold())
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
-                                            .background(Color.orange.opacity(0.15))
-                                            .foregroundStyle(.orange)
+                                            .background(Color.dsWarning.opacity(0.15)) // T-36
+                                            .foregroundStyle(Color.dsWarning)
                                             .clipShape(Capsule())
                                     }
                                 }
@@ -206,7 +207,8 @@ struct PostsView: View {
                                             .font(.caption)
                                             .foregroundStyle(.tertiary)
                                     }
-                                    Text("👁 \(post.viewCount)")
+                                    // T-38: 조회수 이모지 → SF Symbol
+                                    Label("\(post.viewCount)", systemImage: "eye")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -230,9 +232,31 @@ struct PostsView: View {
                             }
                             .buttonStyle(.borderless)
                         }
+                        // T-39: 행 hover + T-40: 우클릭 컨텍스트 메뉴
+                        .background(hoveredPostID == post.id ? Color.dsSurfaceHover : Color.clear)
                         .contentShape(Rectangle())
+                        .onHover { hovering in
+                            if hovering { hoveredPostID = post.id } else if hoveredPostID == post.id { hoveredPostID = nil }
+                        }
                         .onTapGesture {
                             openEditor(postId: post.id)
+                        }
+                        .contextMenu {
+                            Button("에디터에서 열기") {
+                                openEditor(postId: post.id)
+                                DebugLogger.info("Posts", "컨텍스트: 에디터 열기 (\(post.id))")
+                            }
+                            if let url = webURL(for: post.slug) {
+                                Button("웹에서 보기") {
+                                    NSWorkspace.shared.open(url)
+                                    DebugLogger.info("Posts", "컨텍스트: 웹에서 열기 (\(post.slug))")
+                                }
+                            }
+                            Divider()
+                            Button("삭제", role: .destructive) {
+                                deletingPost = post
+                                DebugLogger.info("Posts", "컨텍스트: 삭제 요청 (\(post.id))")
+                            }
                         }
                     }
                 }

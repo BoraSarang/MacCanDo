@@ -448,8 +448,10 @@ struct EditorView: View {
                     }
                     .keyboardShortcut("p", modifiers: .command)
                     Button("초안만 저장") { Task { await saveToServer(status: "DRAFT") } }
+                        .keyboardShortcut("s", modifiers: .command) // T-41: ⌘S 저장
                         .disabled(isLoading)
                     Button("발행") { Task { await saveToServer(status: "PUBLISHED") } }
+                        .keyboardShortcut(.return, modifiers: .command) // T-41: ⌘Return 발행
                         .buttonStyle(.borderedProminent)
                         .disabled(isLoading)
                     Button {
@@ -533,6 +535,8 @@ struct EditorView: View {
             }
         }
         .padding(12)
+        // T-37: 헤더 재질 — 컨텐츠가 밑으로 흐르는 느낌 (Liquid Glass 대응 — .bar는 macOS 26 자동 glass)
+        .background(.bar)
     }
 
     // ---------- 본문: 좌 MD 에디터 / 우 실시간 미리보기 ----------
@@ -863,12 +867,21 @@ struct EditorView: View {
             }
         }
 
-        // 로컬 초안이 있으면 우선 복구 (오프라인/자동저장 대비)
+        // T-32: 기존 글은 서버 우선 — 로컬 초안이 서버 본문을 덮지 않음
+        // (구버전 버그: title만 있고 body가 빈 초안이 서버 본문을 지워 "글 내용이 사라진 것처럼" 보였음)
+        if let postId {
+            if DraftStore.load(postId: postId) != nil {
+                DraftStore.clear(postId: postId)
+                DebugLogger.info("Editor", "기존 글 초안 정리 (서버 우선, \(postId))")
+            }
+            return
+        }
+        // 새 글만 로컬 초안 복구 (오프라인/자동저장 대비)
         // T-24: 시드된 새 글(AI 도우미 등)은 초안 로드 안 함 — 항상 새 글 시작
-        if postId == nil && isSeeded { return }
-        if let draft = DraftStore.load(postId: postId ?? draftKey) {
-            let hasContent = !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                || !draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if isSeeded { return }
+        if let draft = DraftStore.load(postId: draftKey) {
+            // T-32: 본문이 비어 있으면 폐기 — 제목만 있는 초안은 복구하지 않음
+            let hasContent = !draft.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             if hasContent {
                 title = draft.title
                 content = draft.body
@@ -881,10 +894,10 @@ struct EditorView: View {
                     excerpt = m.description ?? excerpt
                 }
                 saveState = "초안 복구됨 (\(draft.savedAt.formatted(date: .omitted, time: .shortened)))"
-                DebugLogger.info("Editor", "로컬 초안 복구 (\(postId ?? draftKey))")
+                DebugLogger.info("Editor", "로컬 초안 복구 (\(draftKey))")
             } else {
-                DraftStore.clear(postId: postId ?? draftKey)
-                DebugLogger.debug("Editor", "빈 초안 폐기 (\(postId ?? draftKey))")
+                DraftStore.clear(postId: draftKey)
+                DebugLogger.debug("Editor", "빈 초안 폐기 (\(draftKey))")
             }
         }
     }
@@ -1973,4 +1986,6 @@ extension Notification.Name {
     static let navigateToSettings = Notification.Name("navigateToSettings")
     // T-26: 시드 에디터 등 외부 경로 저장 성공 → 글 관리 목록 갱신 알림
     static let postSaved = Notification.Name("MacCanDo.postSaved")
+    // T-35: ⌘N 새 글 요청 (메뉴 바 → ContentView)
+    static let newPostRequested = Notification.Name("MacCanDo.newPostRequested")
 }

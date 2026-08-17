@@ -93,6 +93,24 @@
 2. 복구: 로컬 백업 파일 → 테스트(검증) 통과 후 온라인 DB 반영
 3. 바로 복구하지 않고 테스트 후 적용
 
+### 3.3 윈도우 & 화면 상태 (v2.6.0)
+| 항목 | 설계 |
+|------|------|
+| 툴바 | `.windowToolbarStyle(.unified)` — macOS 26에서 Liquid Glass 자동 대응 (semantic API만 사용) |
+| 기본 크기 | `.defaultSize(1100×720)` + `.windowResizability(.contentMinSize)` |
+| 화면 복원 | `@AppStorage("sidebar.selection")` — **SceneStorage 사용 금지** (macOS 종료 시 저장 미보장, 통계→글 관리 리셋 버그 경험) |
+| 창 복원 | `NSWindow.setFrameAutosaveName` — `MacCanDo-Assistant`, `MacCanDo-Editor-{sanitizedKey}` |
+| 메뉴 바 | File(새 글 ⌘N), View(DebugPanel ⌘⇧D), Help(웹사이트) — 기본 newItem 대체 |
+| 단축키 | ⌘1~7 화면 전환, ⌘S 초안 저장, ⌘Return 발행, ⌘K 팔레트 |
+| ⌘K 팔레트 | `CommandPaletteView` — 화면 6개 + 액션(새 글/도우미/DebugPanel) + 글 검색 → 에디터 열기, 640×460, 화살표/Return/Esc |
+
+### 3.4 디자인 시스템 (v2.6.0)
+- 색상: `Color.dsPrimary/dsAccent/dsSuccess/dsWarning/dsDanger/dsSurfaceHover` 토큰 전 화면 통일 — 시스템 색 직접 사용 금지
+- 재질: 헤더 `.bar`, 팔레트 `.regularMaterial`
+- 아이콘: 이모지 금지, SF Symbols 전용
+- hover: 목록 행/카드 `dsSurfaceHover` + `.onHover`
+- 컨텍스트 메뉴: 글(에디터/웹/삭제), 댓글(승인/스팸/복구), 시리즈(편집/삭제), 광고(지정/해제), 맥 소식(원문/글 작성), 사이드바(새 글/열기)
+
 ## 4. [공통] 디버그 패널 & 로깅 (19장)
 
 ### 4.1 DebugPanel

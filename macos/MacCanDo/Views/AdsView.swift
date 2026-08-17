@@ -10,6 +10,7 @@ struct AdsView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var busyID: String?
+    @State private var hoveredID: String? // T-39: 행 hover
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,7 +29,8 @@ struct AdsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("📢 광고").font(.title2.bold())
+            // T-38: 이모지 → SF Symbol
+            Label("광고", systemImage: "megaphone").font(.title2.bold())
             Text("홈 상단 시리즈 배너 + 추천 게시글 슬롯. 지정하지 않으면 전체 시리즈/조회수 top으로 자동 채움.")
                 .font(.caption).foregroundStyle(.secondary)
         }
@@ -50,7 +52,8 @@ struct AdsView: View {
     // ---- 시리즈 배너 ----
     private var seriesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("📚 시리즈 배너 (홈 상단)").font(.headline)
+            // T-38: 이모지 → SF Symbol
+            Label("시리즈 배너 (홈 상단)", systemImage: "books.vertical").font(.headline)
             Text("★ 지정 시 먼저 노출 (순서), 미지정 시 최신순 자동 채움").font(.caption).foregroundStyle(.secondary)
             if series.isEmpty {
                 Text("시리즈가 없습니다.").font(.caption).foregroundStyle(.secondary).padding(.vertical, 8)
@@ -75,8 +78,19 @@ struct AdsView: View {
                             .disabled(busyID == "s-\(s.id)")
                         }
                         .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
+                        // T-39: 행 hover
+                        .background(hoveredID == "s-\(s.id)" ? Color.dsSurfaceHover : Color(nsColor: .textBackgroundColor).opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .contentShape(RoundedRectangle(cornerRadius: 8))
+                        .onHover { hovering in
+                            if hovering { hoveredID = "s-\(s.id)" } else if hoveredID == "s-\(s.id)" { hoveredID = nil }
+                        }
+                        // T-40: 행 우클릭 메뉴
+                        .contextMenu {
+                            Button(s.featuredOrder != nil ? "홈 지정 해제" : "홈 지정") {
+                                Task { await toggleSeriesBanner(s) }
+                            }
+                        }
                     }
                 }
             }
@@ -86,7 +100,7 @@ struct AdsView: View {
     // ---- 추천 글 ----
     private var featuredSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("⭐ 추천 게시글 (홈 추천 섹션)").font(.headline)
+            Label("추천 게시글 (홈 추천 섹션)", systemImage: "star.fill").font(.headline) // T-38
             Text("★ 지정 시 추천 노출 (최대 3개 권장), 미지정 시 조회수 top 자동 채움").font(.caption).foregroundStyle(.secondary)
             if posts.isEmpty {
                 Text("게시글이 없습니다.").font(.caption).foregroundStyle(.secondary).padding(.vertical, 8)
@@ -111,8 +125,19 @@ struct AdsView: View {
                             .disabled(busyID == "p-\(p.id)")
                         }
                         .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
+                        // T-39: 행 hover
+                        .background(hoveredID == "p-\(p.id)" ? Color.dsSurfaceHover : Color(nsColor: .textBackgroundColor).opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .contentShape(RoundedRectangle(cornerRadius: 8))
+                        .onHover { hovering in
+                            if hovering { hoveredID = "p-\(p.id)" } else if hoveredID == "p-\(p.id)" { hoveredID = nil }
+                        }
+                        // T-40: 행 우클릭 메뉴
+                        .contextMenu {
+                            Button(p.featuredOrder != nil ? "추천 해제" : "홈 추천 지정") {
+                                Task { await toggleFeatured(p) }
+                            }
+                        }
                     }
                 }
             }

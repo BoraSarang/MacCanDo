@@ -8,6 +8,7 @@ struct StatsView: View {
     @State private var stats: AdminStats?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var hoveredCardID: String? // T-39: 카드 hover
 
     var body: some View {
         NavigationStack {
@@ -19,7 +20,7 @@ struct StatsView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 32))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.dsWarning) // T-36
                         Text(errorMessage)
                         Button("다시 시도") { Task { await load() } }
                     }
@@ -27,14 +28,14 @@ struct StatsView: View {
                 } else if let stats {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 16) {
-                            // 요약 카드
+                            // 요약 카드 (T-36: ds 토큰 4색 재사용, T-38: SF Symbol, T-39: hover)
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                summaryCard("📝 게시글", stats.postCount, color: .blue)
-                                summaryCard("💬 댓글", stats.commentCount, color: .green)
-                                summaryCard("⏳ 대기 댓글", stats.pendingCommentCount, color: .orange)
-                                summaryCard("👁 총 조회수", stats.totalViews, color: .purple)
-                                summaryCard("⬇️ 다운로드 클릭", stats.clickCount, color: .pink)
-                                summaryCard("👤 사용자", stats.userCount, color: .teal)
+                                summaryCard(id: "posts", icon: "square.and.pencil", label: "게시글", value: stats.postCount, color: Color.dsPrimary)
+                                summaryCard(id: "comments", icon: "bubble.left.and.bubble.right", label: "댓글", value: stats.commentCount, color: Color.dsAccent)
+                                summaryCard(id: "pending", icon: "hourglass", label: "대기 댓글", value: stats.pendingCommentCount, color: Color.dsWarning)
+                                summaryCard(id: "views", icon: "eye", label: "총 조회수", value: stats.totalViews, color: Color.dsPrimary)
+                                summaryCard(id: "clicks", icon: "arrow.down.circle", label: "다운로드 클릭", value: stats.clickCount, color: Color.dsSuccess)
+                                summaryCard(id: "users", icon: "person", label: "사용자", value: stats.userCount, color: Color.dsAccent)
                             }
 
                             // 일별 차트
@@ -107,16 +108,26 @@ struct StatsView: View {
         .onAppear { DebugLogger.info("Stats", "통계 화면 표시됨") }
     }
 
-    private func summaryCard(_ label: String, _ value: Int, color: Color) -> some View {
+    // T-39: 카드 hover (호버 시 dsSurfaceHover 배경)
+    private func summaryCard(id: String, icon: String, label: String, value: Int, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Label(label, systemImage: icon)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Text("\(value)")
                 .font(.system(size: 26, weight: .bold, design: .rounded))
                 .foregroundStyle(color)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color(nsColor: .controlBackgroundColor)))
+        .background(
+            RoundedRectangle(cornerRadius: Radius.md)
+                .fill(hoveredCardID == id ? Color.dsSurfaceHover : Color(nsColor: .controlBackgroundColor))
+        )
+        .contentShape(RoundedRectangle(cornerRadius: Radius.md))
+        .onHover { hovering in
+            if hovering { hoveredCardID = id } else if hoveredCardID == id { hoveredCardID = nil }
+        }
     }
 
     private func legendDot(_ label: String, _ color: Color) -> some View {

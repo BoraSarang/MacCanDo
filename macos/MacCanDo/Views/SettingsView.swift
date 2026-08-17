@@ -171,7 +171,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                             Text("\(Int(Double(stats.hits) / Double(total) * 100))% (\(stats.hits)/\(total)회, 목표 70%)")
                                 .font(.caption.monospaced())
-                                .foregroundStyle(stats.hits * 10 >= total * 7 ? Color.dsSuccess : Color.orange)
+                                .foregroundStyle(stats.hits * 10 >= total * 7 ? Color.dsSuccess : Color.dsWarning) // T-36
                         }
                     }
                 }

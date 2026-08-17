@@ -20,7 +20,7 @@ struct CommentsView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 32))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.dsWarning) // T-36
                         Text(errorMessage)
                         Button("다시 시도") { Task { await load() } }
                     }
@@ -74,16 +74,21 @@ struct CommentsView: View {
                                     }
                                     .buttonStyle(.bordered)
                                     .controlSize(.small)
-                                    .foregroundStyle(.red)
+                                    .foregroundStyle(Color.dsDanger) // T-36
                                 } else if comment.status == "APPROVED" {
-                                    Text("✅ 승인됨").font(.caption).foregroundStyle(.green)
+                                    // T-38: 이모지 → SF Symbol
+                                    Label("승인됨", systemImage: "checkmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(Color.dsSuccess)
                                     Button("스팸 처리") {
                                         workingId = comment.id
                                         Task { await setStatus(comment.id, "SPAM") }
                                     }
-                                    .buttonStyle(.plain).font(.caption).foregroundStyle(.red)
+                                    .buttonStyle(.plain).font(.caption).foregroundStyle(Color.dsDanger)
                                 } else {
-                                    Text("🚫 스팸").font(.caption).foregroundStyle(.red)
+                                    Label("스팸", systemImage: "xmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(Color.dsDanger)
                                     Button("복구") {
                                         workingId = comment.id
                                         Task { await setStatus(comment.id, "PENDING") }
@@ -96,6 +101,27 @@ struct CommentsView: View {
                             }
                         }
                         .padding(.vertical, 4)
+                        // T-40: 댓글 우클릭 컨텍스트 메뉴 (기존 인라인 버튼과 동일 동작)
+                        .contextMenu {
+                            if comment.status != "APPROVED" {
+                                Button("승인") {
+                                    workingId = comment.id
+                                    Task { await setStatus(comment.id, "APPROVED") }
+                                }
+                            }
+                            if comment.status != "SPAM" {
+                                Button("스팸 처리") {
+                                    workingId = comment.id
+                                    Task { await setStatus(comment.id, "SPAM") }
+                                }
+                            }
+                            if comment.status == "SPAM" {
+                                Button("복구") {
+                                    workingId = comment.id
+                                    Task { await setStatus(comment.id, "PENDING") }
+                                }
+                            }
+                        }
                     }
                 }
             }

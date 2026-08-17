@@ -23,6 +23,7 @@ enum WindowManager {
         win.isReleasedWhenClosed = false
         win.contentView = NSHostingView(rootView: AssistantView())
         win.center()
+        win.setFrameAutosaveName("MacCanDo-Assistant") // T-33: 크기/위치 복원
         win.makeKeyAndOrderFront(nil)
         assistantWindow = win
         DebugLogger.info("Window", "AI 도우미 창 열림")
@@ -48,6 +49,9 @@ enum WindowManager {
         win.isReleasedWhenClosed = false
         win.contentView = NSHostingView(rootView: AnyView(rootView))
         win.center()
+        // T-33: 키별 autosave 이름 — 창 크기/위치 복원 (한글/특수문자 sanitize)
+        let safeKey = key.map { $0.isLetter || $0.isNumber ? $0 : "_" }
+        win.setFrameAutosaveName("MacCanDo-Editor-\(safeKey)")
         win.makeKeyAndOrderFront(nil)
         editorWindows[key] = win
         DebugLogger.info("Window", "에디터 창 열림 (\(key))")

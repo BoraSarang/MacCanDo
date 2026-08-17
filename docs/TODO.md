@@ -41,6 +41,18 @@
 | T-29 | 앱 카드 "App Store ↗" 오표시 수정 (DB 정리 + 로드 정규화 + 이름 호스트명) | web+macos | ✅ 2026-08-17 |
 | T-30 | 커버 이미지 수동 지정 (업로드 목록에서 선택 — 글/시리즈 커버, 1600×900 권장) | macos | ✅ 2026-08-17 |
 | T-31 | 일반 웹사이트 앱 카드 og 메타 스크래핑 (og:title/image/description + fallback, "설명" 줄) | web+macos | ✅ 2026-08-17 |
+| T-32 | 기존 글 초안 서버 우선 (로컬 초안이 서버 본문을 덮는 버그 수정) | macos | ✅ 2026-08-17 |
+| T-33 | 윈도우 아키텍처 (unified 툴바 + defaultSize 1100×720 + @SceneStorage + NSWindow autosave) | macos | ✅ 2026-08-17 |
+| T-34 | 메뉴 바 정비 (⌘N 새 글, ⌘⇧D DebugPanel, Help 웹) | macos | ✅ 2026-08-17 |
+| T-35 | 사이드바 개선 (220pt + SF Symbols + 컨텍스트 메뉴 + ⌘1~7 + 화면 복원) | macos | ✅ 2026-08-17 |
+| T-36 | 색상 토큰 통일 (전 화면 시스템 색 → ds 토큰) | macos | ✅ 2026-08-17 |
+| T-37 | 재질 적용 (.bar/.regularMaterial — macOS 26 glassEffect 자동 대응) | macos | ✅ 2026-08-17 |
+| T-38 | 타이포 계층 통일 + 이모지 → SF Symbols 전면 교체 | macos | ✅ 2026-08-17 |
+| T-39 | hover 상태 (Posts/Stats/Ads/MacNews 행·카드 — dsSurfaceHover) | macos | ✅ 2026-08-17 |
+| T-40 | 컨텍스트 메뉴 (글/댓글/시리즈/광고/소식/사이드바) | macos | ✅ 2026-08-17 |
+| T-41 | 단축키 (⌘N 새 글, ⌘S 초안 저장, ⌘Return 발행) | macos | ✅ 2026-08-17 |
+| T-42 | ⌘K 커맨드 팔레트 (화면 전환 + 글 검색 + 액션, CommandPaletteView) | macos | ✅ 2026-08-17 |
+| T-43 | 통계 화면 종료→재시작 시 글 관리로 리셋 버그 (SceneStorage → AppStorage 교체) | macos | ✅ 2026-08-17 |
 
 ## 완료
 

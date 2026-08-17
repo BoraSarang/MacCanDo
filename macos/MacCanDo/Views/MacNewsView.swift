@@ -12,6 +12,7 @@ struct MacNewsView: View {
     @State private var showSourceManager = false
     @State private var newSourceName = ""
     @State private var newSourceURL = ""
+    @State private var hoveredItemID: String? // T-39: 소식 항목 hover
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -35,7 +36,7 @@ struct MacNewsView: View {
             if let lastError {
                 Label(lastError, systemImage: "exclamationmark.triangle")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.dsWarning) // T-36
             }
             if showSourceManager { sourceManagerView }
             if reports.isEmpty && !isCollecting {
@@ -183,8 +184,10 @@ struct MacNewsView: View {
     // 왼쪽: 제목/소스/요약 텍스트, 오른쪽: 버튼 2개(원문, 글 작성에 사용) 세로 배치
     private func itemRow(_ item: NewsItem) -> some View {
         HStack(alignment: .top, spacing: 6) {
-            Text(item.rating == "추천" ? "⭐" : "·")
+            // T-38: 별점 이모지 → SF Symbol
+            Image(systemName: item.rating == "추천" ? "star.fill" : "minus")
                 .font(.caption)
+                .foregroundStyle(item.rating == "추천" ? Color.dsWarning : Color.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
                     .font(.dsBody.bold())
@@ -226,6 +229,20 @@ struct MacNewsView: View {
             .frame(width: 150) // 버튼 칸 고정 — 두 버튼 동일 폭 (가로 100%)
         }
         .padding(.vertical, 4)
+        // T-39: 항목 hover (리포트 카드 안에서 구분)
+        .background(hoveredItemID == item.id ? Color.dsSurfaceHover : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.sm))
+        .onHover { hovering in
+            if hovering { hoveredItemID = item.id } else if hoveredItemID == item.id { hoveredItemID = nil }
+        }
+        // T-40: 항목 우클릭 메뉴
+        .contextMenu {
+            if let url = URL(string: item.url) {
+                Button("원문 열기") { NSWorkspace.shared.open(url) }
+            }
+            Button("글 작성에 사용") { openEditor(with: item) }
+        }
     }
 
     // "글 작성에 사용" — 에디터 새 창 (제목 + 요약/링크 시드) — T-25: 소식당 1개 창만

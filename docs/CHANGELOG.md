@@ -4,6 +4,21 @@
 
 ---
 
+## v2.6.0-T32~T42 (2026-08-17) — [macos] 디자인 개편: 윈도우/사이드바/⌘K 팔레트/토큰 통일
+
+- T-32: 기존 글 초안 서버 우선 (로컬 빈 초안이 서버 본문을 덮는 버그 수정 — 기존 글은 초안 정리, 새 글만 body 필수 복구)
+- T-33: 윈도우 아키텍처 — unified 툴바 + defaultSize 1100×720 + contentMinSize + @SceneStorage("sidebar.selection") + NSWindow autosave (도우미/에디터 창 크기·위치 복원)
+- T-34: 메뉴 바 정비 — File(새 글 ⌘N), View(DebugPanel ⌘⇧D), Help(MacCanDo 웹사이트)
+- T-35: 사이드바 — 220pt(ideal/max 300) + 행 컨텍스트 메뉴 + ⌘1~7 화면 전환 + 마지막 화면 복원
+- T-36: 색상 토큰 통일 — 전 화면 시스템 색 → dsPrimary/dsAccent/dsSuccess/dsWarning/dsDanger/dsSurfaceHover
+- T-37: 재질 — EditorView 헤더 .bar, ⌘K 팔레트 .regularMaterial (macOS 26 glassEffect는 semantic API로 자동 대응)
+- T-38: 이모지 → SF Symbols — 조회수 eye, books.vertical, star.fill, checkmark/xmark.circle.fill, megaphone 등 전면 교체
+- T-39: hover — 글 목록 행/통계 카드/광고 행/맥 소식 항목 (dsSurfaceHover + onHover)
+- T-40: 컨텍스트 메뉴 — 글(에디터/웹/삭제), 댓글(승인/스팸/복구), 시리즈(편집/삭제), 광고(지정/해제), 맥 소식(원문/글 작성), 사이드바(새 글/열기)
+- T-41: 단축키 — ⌘S 초안 저장, ⌘Return 발행 (에디터)
+- T-42: ⌘K 커맨드 팔레트 (CommandPaletteView) — 화면 6개 + 액션 3개 + 글 22개 검색 → 에디터 열기, 화살표/Return/Esc
+- 배포: Release 빌드 → ~/Applications/MacCanDo.app (빌드 9, v1.0.0)
+
 ## v2.5.0-T19~T31 (2026-08-17) — [macos+web] 시리즈 커버·초안·맞춤법·중첩 목록·앱 카드 개선
 
 - T-19: 시리즈 커버 AI 생성 (제목·설명 기반 프롬프트 확인/편집 → 생성 → 업로드 → URL 자동 입력)
