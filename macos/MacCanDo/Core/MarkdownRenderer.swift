@@ -14,6 +14,7 @@ enum MarkdownRenderer {
         var codeBuf: [String] = []
         var listBuf: [String] = []
         var listType = "ul"
+        var tableBuf: [String] = []
 
         func flushList() {
             guard !listBuf.isEmpty else { return }
@@ -21,6 +22,32 @@ enum MarkdownRenderer {
             for item in listBuf { html += "<li>\(inline(item))</li>" }
             html += "</\(listType)>"
             listBuf = []
+        }
+
+        // GFM 테이블 — 웹 lib/markdown.ts와 동일 규격 (T-10)
+        func flushTable() {
+            guard !tableBuf.isEmpty else { return }
+            if tableBuf.count < 2 {
+                for t in tableBuf { html += "<p>\(inline(t))</p>" }
+                tableBuf = []
+                return
+            }
+            if isTableSeparator(tableBuf[1]) {
+                let head = tableCells(tableBuf[0]).map { "<th>\($0)</th>" }.joined()
+                var body = ""
+                for row in tableBuf.dropFirst(2) where !isTableSeparator(row) {
+                    body += "<tr>\(tableCells(row).map { "<td>\($0)</td>" }.joined())</tr>"
+                }
+                html += "<div class=\"overflow-x-auto\"><table><thead><tr>\(head)</tr></thead><tbody>\(body)</tbody></table></div>"
+            } else {
+                for t in tableBuf { html += "<p>\(inline(t))</p>" }
+            }
+            tableBuf = []
+        }
+
+        func flushAll() {
+            flushList()
+            flushTable()
         }
 
         for rawLine in md.components(separatedBy: "\n") {
@@ -33,7 +60,7 @@ enum MarkdownRenderer {
                     codeBuf = []
                     inCodeBlock = false
                 } else {
-                    flushList()
+                    flushAll()
                     inCodeBlock = true
                 }
                 continue
@@ -43,11 +70,19 @@ enum MarkdownRenderer {
                 continue
             }
 
-            // 빈 줄 → 리스트/단락 구분
+            // 빈 줄 → 리스트/테이블/단락 구분
             if line.isEmpty {
-                flushList()
+                flushAll()
                 continue
             }
+
+            // GFM 테이블 행 (|로 시작+끝)
+            if line.hasPrefix("|") && line.hasSuffix("|") {
+                flushList()
+                tableBuf.append(line)
+                continue
+            }
+            flushTable()
 
             // 목록
             if line.hasPrefix("- ") || line.hasPrefix("* ") {
@@ -91,11 +126,26 @@ enum MarkdownRenderer {
             }
             html += "<p>\(inline(line))</p>"
         }
-        flushList()
+        flushAll()
         if inCodeBlock {
             html += "<pre><code>\(codeBuf.joined(separator: "\n"))</code></pre>"
         }
         return html
+    }
+
+    // ---------- GFM 테이블 (웹 markdown.ts와 동일 규격) ----------
+
+    // "| --- | :---: |" 같은 구분선인지
+    static func isTableSeparator(_ line: String) -> Bool {
+        line.range(of: #"^\|?[\s:|-]+\|?$"#, options: .regularExpression) != nil && line.contains("-")
+    }
+
+    // "| a | b |" → ["a", "b"] (인라인 변환 적용)
+    static func tableCells(_ line: String) -> [String] {
+        var s = line.trimmingCharacters(in: .whitespaces)
+        if s.hasPrefix("|") { s.removeFirst() }
+        if s.hasSuffix("|") { s.removeLast() }
+        return s.components(separatedBy: "|").map { inline($0.trimmingCharacters(in: .whitespaces)) }
     }
 
     // ---------- 확장 블록 ----------
