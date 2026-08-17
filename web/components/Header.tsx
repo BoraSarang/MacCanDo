@@ -67,13 +67,13 @@ export default function Header() {
           </Link>
         </nav>
 
-        <form onSubmit={submit} className="ml-auto flex items-center gap-2">
+        <form onSubmit={submit} className="ml-auto flex-1 min-w-0 flex items-center gap-2 md:flex-none">
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="게시글 검색"
-            className="input w-40 md:w-56"
+            className="input flex-1 min-w-0 md:flex-none md:w-56"
             aria-label="검색어 입력"
           />
           <button type="submit" className="btn-primary">

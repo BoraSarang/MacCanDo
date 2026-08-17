@@ -36,4 +36,15 @@ test.describe("글 상세", () => {
     expect(bgLum).toBeLessThan(80); // 어두운 배경
     expect(textLum).toBeGreaterThan(bgLum + 120); // 본문이 배경보다 충분히 밝음
   });
+
+  test("코드 블록 복사 버튼: 클릭 시 코드 클립보드 복사", async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/post/iterm2-tmux-oh-my-zsh");
+    const btn = page.locator(".prose pre [data-copy-btn]").first();
+    await expect(btn).toBeVisible();
+    await btn.click();
+    await expect(btn).toHaveText("✓");
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clip).toContain("brew install tmux");
+  });
 });
