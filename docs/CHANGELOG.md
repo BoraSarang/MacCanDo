@@ -1,3 +1,12 @@
+## v2.7.2-inspector (2026-08-18) — [macos] Inspector 재배치 (카테고리 최상단 + 커버 이동/상단 크롭)
+
+- Inspector 순서 변경: 카테고리(FlowLayout)를 최상단으로 이동, 커버 이미지 섹션을 글 타입 Form 바로 아래로 이동
+  - 기존: [글 타입/시리즈/태그/slug] → [카테고리] → [커버]
+  - 변경: [카테고리] → [글 타입/시리즈/태그/slug] → [커버]
+- 커버 미리보기 크롭 기준 중앙 → 상단 (frame alignment: .top + clipped) — 세로로 긴 이미지에서 상단이 보이도록
+- AX 트리 덤프로 섹션 순서 검증 (카테고리 토큰 4개 → 글 타입 → 커버 버튼들)
+- 배포: ~/Applications/MacCanDo.app (빌드 13)
+
 ## v2.7.1-T57fix (2026-08-18) — [macos] 시리즈 화면 복구 + 도우미 탭 정리 + 미리보기 리사이즈 + 시트 UX
 
 - T-57 수정 1 (시리즈 동작 안 됨): ContentView(NavigationSplitView) detail 안 중첩 NavigationSplitView가 렌더되지 않는 문제 → NavigationStack + HSplitView 2열로 복구. + isLoading 초기값 false→true (빈 뷰 mount 불가 → .task 미실행이 근본 원인, Posts/Comments와 통일)

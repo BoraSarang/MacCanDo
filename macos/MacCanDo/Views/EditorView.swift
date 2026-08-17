@@ -548,35 +548,6 @@ struct EditorView: View {
     // T-48: 우측 Inspector (⌘⌥I) — 글 설정/카테고리/커버 메타 (Pages/Xcode 패턴)
     private var inspectorView: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Form {
-                Picker("글 타입", selection: $contentType) {
-                    Text("맥 앱").tag("ARTICLE")
-                    Text("맥 팁").tag("TIP")
-                    Text("맥 소식").tag("NEWS")
-                    Text("페이지").tag("PAGE") // T-17: 정적 페이지 (About/Privacy 등)
-                }
-                Picker("시리즈", selection: $selectedSeriesId) {
-                    Text("없음").tag(String?.none)
-                    ForEach(seriesList) { s in
-                        Text(s.title).tag(String?.some(s.id))
-                    }
-                    Divider()
-                    Text("＋ 새 시리즈…").tag(String?.some("__new__"))
-                }
-                .onChange(of: selectedSeriesId) { _, v in
-                    if v == "__new__" {
-                        newSeriesTitle = ""
-                        showNewSeriesDialog = true
-                    }
-                }
-                TextField("태그 (쉼표 구분)", text: $tagsInput)
-                    .help("#태그 — 쉼표로 구분, 새 태그 자동 생성")
-                TextField("주소(slug)", text: $slug)
-                    .font(.dsMono)
-                    .help("비우면 자동 생성 — 저장 후 고정")
-            }
-            .formStyle(.grouped)
-
             // 카테고리 — FlowLayout 토큰 선택 (줄바꿈, 중복 선택 가능)
             VStack(alignment: .leading, spacing: 6) {
                 Text("카테고리").font(.caption.bold()).foregroundStyle(.secondary)
@@ -612,6 +583,35 @@ struct EditorView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
 
+            Form {
+                Picker("글 타입", selection: $contentType) {
+                    Text("맥 앱").tag("ARTICLE")
+                    Text("맥 팁").tag("TIP")
+                    Text("맥 소식").tag("NEWS")
+                    Text("페이지").tag("PAGE") // T-17: 정적 페이지 (About/Privacy 등)
+                }
+                Picker("시리즈", selection: $selectedSeriesId) {
+                    Text("없음").tag(String?.none)
+                    ForEach(seriesList) { s in
+                        Text(s.title).tag(String?.some(s.id))
+                    }
+                    Divider()
+                    Text("＋ 새 시리즈…").tag(String?.some("__new__"))
+                }
+                .onChange(of: selectedSeriesId) { _, v in
+                    if v == "__new__" {
+                        newSeriesTitle = ""
+                        showNewSeriesDialog = true
+                    }
+                }
+                TextField("태그 (쉼표 구분)", text: $tagsInput)
+                    .help("#태그 — 쉼표로 구분, 새 태그 자동 생성")
+                TextField("주소(slug)", text: $slug)
+                    .font(.dsMono)
+                    .help("비우면 자동 생성 — 저장 후 고정")
+            }
+            .formStyle(.grouped)
+
             // 커버 이미지 (T-21: AI 생성 / T-30: 업로드 이미지에서 선택)
             VStack(alignment: .leading, spacing: 6) {
                 Text("커버 이미지").font(.caption.bold()).foregroundStyle(.secondary)
@@ -621,8 +621,7 @@ struct EditorView: View {
                     } placeholder: {
                         Rectangle().fill(Color.gray.opacity(0.15))
                     }
-                    .frame(height: 80)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: 80, alignment: .top)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 }
