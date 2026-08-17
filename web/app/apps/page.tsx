@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getPosts, getCategories } from "@/lib/posts";
 import PostCard from "@/components/PostCard";
 import Pagination from "@/components/Pagination";
+import SortSelect from "@/components/SortSelect";
 
 export const revalidate = 60;
 
@@ -13,16 +14,18 @@ export const metadata: Metadata = {
 };
 
 interface Props {
-  searchParams: Promise<{ category?: string; page?: string }>;
+  searchParams: Promise<{ category?: string; page?: string; sort?: string }>;
 }
 
 export default async function AppsPage({ searchParams }: Props) {
-  const { category, page: pageStr } = await searchParams;
+  const { category, page: pageStr, sort: sortStr } = await searchParams;
   const page = pageStr ? Number(pageStr) : 1;
+  const sort = sortStr === "views" ? ("views" as const) : ("latest" as const);
+  const baseFilter = category ? `?category=${category}` : "";
 
   const [cats, result] = await Promise.all([
     getCategories(),
-    getPosts({ categorySlug: category || undefined, page }),
+    getPosts({ categorySlug: category || undefined, page, sort }),
   ]);
   const active = category ? cats.find((c) => c.slug === category) : null;
 
@@ -52,7 +55,7 @@ export default async function AppsPage({ searchParams }: Props) {
 
       {/* 우측: 글 목록 */}
       <section className="flex-1">
-        <div className="mb-4">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">
             {active ? (
               <>
@@ -65,8 +68,9 @@ export default async function AppsPage({ searchParams }: Props) {
               "모든 맥 앱"
             )}
           </h2>
-          <p className="text-sm text-text-muted mt-1">게시글 {result.total}개</p>
+          <SortSelect value={sort} basePath={`/apps${baseFilter}`} />
         </div>
+          <p className="text-sm text-text-muted mt-1">게시글 {result.total}개</p>
 
         {result.items.length === 0 ? (
           <p className="text-text-muted text-center py-10">게시글이 없습니다.</p>
@@ -80,7 +84,7 @@ export default async function AppsPage({ searchParams }: Props) {
             <Pagination
               page={result.page}
               totalPages={result.totalPages}
-              basePath={category ? `/apps?category=${category}` : "/apps"}
+              basePath={`/apps${baseFilter}${sort === "views" ? `${baseFilter ? "&" : "?"}sort=views` : ""}`}
             />
           </>
         )}

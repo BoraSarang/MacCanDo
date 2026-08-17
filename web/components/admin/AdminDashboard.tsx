@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { logger } from "@/lib/logger";
 import SeriesManager from "./SeriesManager";
+import AdsManager from "./AdsManager";
 
 interface DailyRow {
   date: string;
@@ -44,7 +45,7 @@ interface PostStat {
   _count: { comments: number; downloadEvents: number };
 }
 
-type Tab = "summary" | "posts" | "comments" | "series";
+type Tab = "summary" | "posts" | "comments" | "series" | "ads";
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("summary");
@@ -109,9 +110,11 @@ export default function AdminDashboard() {
         {tabBtn("posts", "📝 게시글별 통계")}
         {tabBtn("comments", `💬 댓글 승인${pending.length ? ` (${pending.length})` : ""}`)}
         {tabBtn("series", "📚 시리즈")}
+        {tabBtn("ads", "📢 광고")}
       </div>
 
       {tab === "series" && <SeriesManager />}
+      {tab === "ads" && <AdsManager />}
 
       {tab === "summary" && summary && (
         <div>

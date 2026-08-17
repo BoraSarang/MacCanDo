@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { renderMarkdown } from "@/lib/markdown";
-import { getPostBySlug } from "@/lib/posts";
+import { getPostBySlug, getRelatedPosts, getPrevNextPosts } from "@/lib/posts";
 import { getUserApprovedCommentCount } from "@/lib/comments";
 import { auth } from "@/auth";
 import { logger } from "@/lib/logger";
@@ -60,6 +60,17 @@ export default async function PostPage({ params }: Props) {
 
   // 시리즈 컨텍스트 (하단 목록 — 발행 글만, 순서대로)
   const series = post.seriesId ? await getSeriesForPost(post.seriesId) : null;
+
+  // 관련 게시글 (태그 공유 → 카테고리 폴백) + 이전/다음글 (일반 글만) (T-11)
+  const [related, prevNext] = await Promise.all([
+    getRelatedPosts(
+      post.id,
+      post.tags.map((t) => t.tagId),
+      post.categories.map((c) => c.categoryId),
+      3
+    ),
+    getPrevNextPosts(slug),
+  ]);
 
   return (
     <article className="max-w-3xl mx-auto">
@@ -142,6 +153,55 @@ export default async function PostPage({ params }: Props) {
 
       {/* 시리즈 목록 (하단) */}
       <SeriesList series={series} currentId={post.id} />
+
+      {/* 이전글/다음글 — 일반 글만 (시리즈 글은 시리즈 목록이 역할) (T-11) */}
+      {prevNext && (prevNext.prev || prevNext.next) && (
+        <nav className="mt-10 grid grid-cols-2 gap-3 text-sm" aria-label="이전/다음 글">
+          {prevNext.prev ? (
+            <Link href={`/post/${prevNext.prev.slug}`} className="card p-4 hover:border-primary/50 hover:shadow-md transition-all">
+              <div className="text-xs text-text-muted mb-1">← 이전 글</div>
+              <div className="font-semibold line-clamp-2">{prevNext.prev.title}</div>
+            </Link>
+          ) : (
+            <div />
+          )}
+          {prevNext.next ? (
+            <Link href={`/post/${prevNext.next.slug}`} className="card p-4 text-right hover:border-primary/50 hover:shadow-md transition-all">
+              <div className="text-xs text-text-muted mb-1">다음 글 →</div>
+              <div className="font-semibold line-clamp-2">{prevNext.next.title}</div>
+            </Link>
+          ) : (
+            <div />
+          )}
+        </nav>
+      )}
+
+      {/* 관련 게시글 (T-11) */}
+      {related.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-lg font-bold mb-4">관련 게시글</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {related.map((r) => (
+              <Link key={r.id} href={`/post/${r.slug}`} className="group card overflow-hidden hover:border-primary/50 hover:shadow-md transition-all">
+                <div className="relative aspect-[16/8] bg-surface-hover">
+                  {r.thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={r.thumbnailUrl} alt={r.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-3xl font-bold text-primary/15">
+                      {r.title.slice(0, 1)}
+                    </div>
+                  )}
+                </div>
+                <div className="p-3">
+                  <div className="text-sm font-semibold line-clamp-2 group-hover:text-primary transition-colors">{r.title}</div>
+                  <div className="text-[11px] text-text-muted mt-1.5">조회 {r.viewCount.toLocaleString()}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 댓글 */}
       <CommentsSection slug={post.slug} />

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getPosts } from "@/lib/posts";
 import PostCard from "@/components/PostCard";
 import Pagination from "@/components/Pagination";
+import SortSelect from "@/components/SortSelect";
 
 export const revalidate = 60;
 
@@ -12,17 +13,21 @@ export const metadata: Metadata = {
 };
 
 interface Props {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; sort?: string }>;
 }
 
 export default async function TipsPage({ searchParams }: Props) {
-  const { page: pageStr } = await searchParams;
+  const { page: pageStr, sort: sortStr } = await searchParams;
   const page = pageStr ? Number(pageStr) : 1;
-  const result = await getPosts({ contentType: "TIP", page });
+  const sort = sortStr === "views" ? ("views" as const) : ("latest" as const);
+  const result = await getPosts({ contentType: "TIP", page, sort });
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">맥 팁</h1>
+      <div className="flex items-end justify-between mb-2">
+        <h1 className="text-2xl font-bold">맥 팁</h1>
+        <SortSelect value={sort} basePath="/tips" />
+      </div>
       <p className="text-sm text-text-muted mb-6">바로 써먹는 Mac 꿀팁 — 게시글 {result.total}개</p>
       {result.items.length === 0 ? (
         <p className="text-text-muted text-center py-10">아직 팁이 없습니다.</p>

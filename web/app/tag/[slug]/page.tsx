@@ -4,16 +4,27 @@ import { notFound } from "next/navigation";
 import { getPosts, getTags } from "@/lib/posts";
 import PostCard from "@/components/PostCard";
 import Pagination from "@/components/Pagination";
+import SortSelect from "@/components/SortSelect";
 
 export const revalidate = 60;
 
 interface Props {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; sort?: string }>;
+}
+
+// Next가 params를 디코딩하지 않는 케이스 대응 (한글 slug — %EC%95%A0%ED%94%8C 형태로 도착)
+function decodeSlug(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug: raw } = await params;
+  const slug = decodeSlug(raw);
   const tags = await getTags();
   const tag = tags.find((t) => t.slug === slug);
   return {
@@ -23,19 +34,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function TagPage({ params, searchParams }: Props) {
-  const { slug } = await params;
-  const { page: pageStr } = await searchParams;
+  const { slug: raw } = await params;
+  const slug = decodeSlug(raw);
+  const { page: pageStr, sort: sortStr } = await searchParams;
   const page = pageStr ? Number(pageStr) : 1;
+  const sort = sortStr === "views" ? ("views" as const) : ("latest" as const);
 
   const tags = await getTags();
   const tag = tags.find((t) => t.slug === slug);
   if (!tag) notFound();
 
-  const result = await getPosts({ tagSlug: slug, page });
+  const result = await getPosts({ tagSlug: slug, page, sort });
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">#{tag.name}</h1>
+      <div className="flex items-end justify-between mb-2">
+        <h1 className="text-2xl font-bold">#{tag.name}</h1>
+        <SortSelect value={sort} basePath={`/tag/${slug}`} />
+      </div>
       <p className="text-sm text-text-muted mb-6">게시글 {result.total}개</p>
       {result.items.length === 0 ? (
         <p className="text-text-muted text-center py-10">이 태그의 게시글이 없습니다.</p>
@@ -46,7 +62,7 @@ export default async function TagPage({ params, searchParams }: Props) {
               <PostCard key={p.id} post={p} />
             ))}
           </div>
-          <Pagination page={result.page} totalPages={result.totalPages} basePath={`/tag/${slug}`} />
+          <Pagination page={result.page} totalPages={result.totalPages} basePath={`/tag/${slug}${sort === "views" ? "?sort=views" : ""}`} />
         </>
       )}
     </div>

@@ -40,18 +40,50 @@ test.describe("맥 앱 허브 (역할 카테고리)", () => {
     await expect(page.locator("main a[href^='/post/']").first()).toBeVisible();
   });
 
-  test("Develop 필터 → 개발 글만 (2개) + 설명 노출", async ({ page }) => {
+  test("Develop 필터 → 개발 글만 (4개) + 설명 노출", async ({ page }) => {
     await page.goto("/apps?category=develop");
     await expect(page.getByText("Develop", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("코딩/터미널/AI 도구")).toBeVisible();
     const cards = page.locator("main a[href^='/post/']");
-    await expect(cards).toHaveCount(2);
+    await expect(cards).toHaveCount(4);
   });
 
   test("카드에 다중 카테고리 배지 표시", async ({ page }) => {
     await page.goto("/apps?category=work");
     const firstCard = page.locator("main a[href^='/post/']").first();
     await expect(firstCard.locator("a[href='/category/work']")).toBeVisible();
+  });
+
+  test("정렬 드롭다운 — 조회수순 전환 시 Homebrew 1위", async ({ page }) => {
+    await page.goto("/apps");
+    const sort = page.getByLabel("정렬");
+    await expect(sort).toBeVisible();
+    await sort.selectOption("조회수순");
+    await expect(page).toHaveURL(/sort=views/);
+    const first = page.locator("main a[href^='/post/']").first();
+    await expect(first).toContainText("Homebrew");
+  });
+});
+
+test.describe("홈 광고 슬롯 (시리즈 배너 + 추천)", () => {
+  test("시리즈 배너 4개 + 추천 게시글 (대형 1 + 소형 2)", async ({ page }) => {
+    await page.goto("/");
+    const banner = page.getByRole("heading", { name: "시리즈" });
+    await expect(banner).toBeVisible();
+    await expect(page.locator("main section").filter({ has: banner }).locator("a[href^='/series/']")).toHaveCount(4);
+
+    const feat = page.getByRole("heading", { name: "추천 게시글" });
+    await expect(feat).toBeVisible();
+    const featSection = page.locator("main section").filter({ has: feat });
+    await expect(featSection.locator("a[href^='/post/']").first()).toBeVisible();
+    await expect(featSection.locator("a[href^='/post/']")).toHaveCount(3);
+  });
+
+  test("추천 순서: 관리자 지정 글 우선 (Homebrew 1위)", async ({ page }) => {
+    await page.goto("/");
+    const feat = page.getByRole("heading", { name: "추천 게시글" });
+    const first = page.locator("main section").filter({ has: feat }).locator("a[href^='/post/']").first();
+    await expect(first).toContainText("Homebrew");
   });
 });
 
@@ -78,6 +110,23 @@ test.describe("맥 팁/맥 소식", () => {
   });
 });
 
+test.describe("글 상세 확장 (관련 게시글 + 이전/다음)", () => {
+  test("비시리즈 글: 관련 게시글 (카테고리 폴백)", async ({ page }) => {
+    await page.goto("/post/macos-tahoe-iphone-mirroring-liquid-glass");
+    await expect(page.getByRole("heading", { name: "관련 게시글" })).toBeVisible();
+    const related = page
+      .locator("main section")
+      .filter({ has: page.getByRole("heading", { name: "관련 게시글" }) })
+      .locator("a[href^='/post/']");
+    await expect(related).toHaveCount(3);
+  });
+
+  test("시리즈 글: 이전/다음 없음 (시리즈 목록이 역할)", async ({ page }) => {
+    await page.goto("/post/sample-homebrew-guide");
+    await expect(page.getByLabel("이전/다음 글")).toHaveCount(0);
+  });
+});
+
 test.describe("태그", () => {
   test("글 상세에 태그 노출 + 태그 모아보기", async ({ page }) => {
     await page.goto("/post/ai-coding-assistant-guide");
@@ -87,6 +136,13 @@ test.describe("태그", () => {
     await expect(page).toHaveURL(/\/tag\/ai/);
     await expect(page.getByRole("heading", { name: "#AI" })).toBeVisible();
     await expect(page.locator("main a[href^='/post/']")).toHaveCount(1);
+  });
+
+  test("한글 태그 slug 모아보기 (/tag/애플)", async ({ page }) => {
+    await page.goto("/post/macos-tahoe-iphone-mirroring-liquid-glass");
+    await page.getByRole("link", { name: "#애플" }).click();
+    await expect(page).toHaveURL(/\/tag\/%EC%95%A0%ED%94%8C/);
+    await expect(page.getByRole("heading", { name: "#애플" })).toBeVisible();
   });
 });
 

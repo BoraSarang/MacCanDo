@@ -22,6 +22,7 @@ export interface SeriesOverview {
   description: string | null;
   imageUrl: string | null;
   intro: string | null;
+  featuredOrder: number | null; // 홈 배너 순서 (T-11)
   posts: SeriesPost[];
 }
 
@@ -53,8 +54,17 @@ export async function getSeriesOverview(): Promise<SeriesOverview[]> {
       description: s.description,
       imageUrl: s.imageUrl,
       intro: s.intro,
+      featuredOrder: s.featuredOrder,
       posts: s.posts.map((p) => ({ ...p, seriesOrder: p.seriesOrder as number })),
     }));
+}
+
+// 홈 시리즈 배너 — 관리자 지정(featuredOrder) 우선, 나머지 최신순으로 채움 (T-11)
+export async function getSeriesBanner(count = 4): Promise<SeriesOverview[]> {
+  const all = await getSeriesOverview();
+  return all
+    .sort((a, b) => (a.featuredOrder ?? 999) - (b.featuredOrder ?? 999))
+    .slice(0, count);
 }
 
 // 개별 시리즈 (발행 글만) — /series/[id]
@@ -84,6 +94,7 @@ export async function getSeriesById(id: string): Promise<SeriesOverview | null> 
     description: series.description,
     imageUrl: series.imageUrl,
     intro: series.intro,
+    featuredOrder: series.featuredOrder,
     posts: series.posts.map((p) => ({ ...p, seriesOrder: p.seriesOrder as number })),
   };
 }
@@ -121,6 +132,7 @@ export interface AdminSeriesItem {
   description: string | null;
   imageUrl: string | null;
   intro: string | null;
+  featuredOrder: number | null; // 홈 배너 순서 (T-11)
   createdAt: Date;
   posts: {
     id: string;
@@ -157,6 +169,7 @@ export async function getAdminSeriesList(): Promise<AdminSeriesItem[]> {
     description: s.description,
     imageUrl: s.imageUrl,
     intro: s.intro,
+    featuredOrder: s.featuredOrder,
     createdAt: s.createdAt,
     posts: s.posts.map((p) => ({ ...p, seriesOrder: p.seriesOrder as number })),
   }));
@@ -183,12 +196,13 @@ export async function createSeries(title: string, description?: string | null, i
   return { ...series, posts: [] as { id: string; title: string; slug: string; status: PostStatus; seriesOrder: number; publishedAt: Date | null }[] };
 }
 
-export async function updateSeries(id: string, title?: string, description?: string | null, imageUrl?: string | null, intro?: string | null) {
-  const data: { title?: string; description?: string | null; imageUrl?: string | null; intro?: string | null } = {};
+export async function updateSeries(id: string, title?: string, description?: string | null, imageUrl?: string | null, intro?: string | null, featuredOrder?: number | null) {
+  const data: { title?: string; description?: string | null; imageUrl?: string | null; intro?: string | null; featuredOrder?: number | null } = {};
   if (title !== undefined) data.title = title.trim();
   if (description !== undefined) data.description = description?.trim() || null;
   if (imageUrl !== undefined) data.imageUrl = imageUrl?.trim() || null;
   if (intro !== undefined) data.intro = intro?.trim() || null;
+  if (featuredOrder !== undefined) data.featuredOrder = featuredOrder;
   const series = await db.series.update({ where: { id }, data });
   return { ...series, posts: [] as { id: string; title: string; slug: string; status: PostStatus; seriesOrder: number; publishedAt: Date | null }[] };
 }

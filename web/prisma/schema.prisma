@@ -129,6 +129,7 @@ model Post {
   seriesId     String?
   seriesOrder  Int? // 시리즈 내 순서 (1=1편, 2=2편...)
   viewCount    Int             @default(0)
+  featuredOrder Int? // 홈 추천 순서 (T-11, null=미지정)
   publishedAt  DateTime?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
@@ -160,6 +161,7 @@ model Series {
   description String?
   imageUrl    String? // 시리즈 커버 이미지 (T-09 확장)
   intro       String? // 취지 소개 (마크다운) — 상세 페이지 랜딩 (T-09 확장)
+  featuredOrder Int? // 홈 배너 순서 (T-11, null=미지정)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

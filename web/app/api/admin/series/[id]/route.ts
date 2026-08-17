@@ -10,12 +10,12 @@ export const PATCH = withApi(async (req, { params }: { params: Promise<{ id: str
     return apiError("E-WEB-AUTH-1001", 401, { method: "PATCH", path: "/api/admin/series/[id]" });
   }
   const { id } = await params;
-  const body = (await req.json()) as { title?: string; description?: string; imageUrl?: string; intro?: string };
+  const body = (await req.json()) as { title?: string; description?: string; imageUrl?: string; intro?: string; featuredOrder?: number | null };
   if (body.title !== undefined && !body.title.trim()) {
     return apiError("E-WEB-VALID-1002", 400, { method: "PATCH", path: "/api/admin/series/[id]" });
   }
   return apiOk(
-    await updateSeries(id, body.title, body.description, body.imageUrl, body.intro),
+    await updateSeries(id, body.title, body.description, body.imageUrl, body.intro, body.featuredOrder),
     { method: "PATCH", path: `/api/admin/series/${id}` }
   );
 }, "AdminSeriesUpdate");

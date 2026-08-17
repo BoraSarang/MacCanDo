@@ -36,12 +36,13 @@ export interface PostListParams {
   query?: string;
   page?: number;
   pageSize?: number;
+  sort?: "latest" | "views"; // T-11 정렬 (최신순/조회수순)
 }
 
 // 목록 (카테고리 필터 + pg_trgm 기반 검색 + 페이징) — 발행 글만
 // 정렬: 시리즈 글은 (시리즈 최신 편 발행일, seriesOrder) 기준으로 나란히, 일반 글은 publishedAt desc
 export async function getPosts(params: PostListParams = {}): Promise<PostListResult> {
-  const { categorySlug, contentType, tagSlug, query, page = 1, pageSize = 12 } = params;
+  const { categorySlug, contentType, tagSlug, query, page = 1, pageSize = 12, sort = "latest" } = params;
   const where: Prisma.PostWhereInput = {
     status: "PUBLISHED" as PostStatus,
     ...(categorySlug ? { categories: { some: { category: { slug: categorySlug } } } } : {}),
@@ -95,9 +96,11 @@ export async function getPosts(params: PostListParams = {}): Promise<PostListRes
     FROM "Post" p
     WHERE ${Prisma.join(conds, " AND ")}
     ORDER BY
-      CASE WHEN p."seriesId" IS NULL THEN p."publishedAt"
-           ELSE (SELECT MAX(p2."publishedAt") FROM "Post" p2 WHERE p2."seriesId" = p."seriesId" AND p2."status" = 'PUBLISHED') END DESC,
-      CASE WHEN p."seriesId" IS NULL THEN NULL ELSE p."seriesOrder" END ASC NULLS LAST
+      ${sort === "views"
+        ? Prisma.sql`p."viewCount" DESC, p."publishedAt" DESC`
+        : Prisma.sql`CASE WHEN p."seriesId" IS NULL THEN p."publishedAt"
+             ELSE (SELECT MAX(p2."publishedAt") FROM "Post" p2 WHERE p2."seriesId" = p."seriesId" AND p2."status" = 'PUBLISHED') END DESC,
+        CASE WHEN p."seriesId" IS NULL THEN NULL ELSE p."seriesOrder" END ASC NULLS LAST`}
     LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
   `);
 
@@ -122,6 +125,115 @@ export async function getPosts(params: PostListParams = {}): Promise<PostListRes
 // 최근 게시글 (홈)
 export async function getRecentPosts(count = 6) {
   return getPosts({ page: 1, pageSize: count });
+}
+
+// 홈 추천 게시글 — 관리자 지정(featuredOrder) 우선, 모자라면 조회수 top으로 채움 (T-11)
+export async function getFeaturedPosts(count = 3) {
+  const pick = {
+    id: true,
+    slug: true,
+    title: true,
+    excerpt: true,
+    thumbnailUrl: true,
+    publishedAt: true,
+    viewCount: true,
+    contentType: true,
+    categories: { include: { category: { select: { name: true, slug: true } } } },
+  } as const;
+  const featured = await db.post.findMany({
+    where: { status: "PUBLISHED", featuredOrder: { not: null } },
+    orderBy: [{ featuredOrder: "asc" }, { publishedAt: "desc" }],
+    take: count,
+    select: pick,
+  });
+  if (featured.length >= count) return featured;
+  const extra = await db.post.findMany({
+    where: {
+      status: "PUBLISHED",
+      featuredOrder: null,
+      ...(featured.length ? { id: { notIn: featured.map((f) => f.id) } } : {}),
+    },
+    orderBy: [{ viewCount: "desc" }, { publishedAt: "desc" }],
+    take: count - featured.length,
+    select: pick,
+  });
+  return [...featured, ...extra];
+}
+
+// 관련 게시글 — 같은 태그 공유 우선, 모자라면 같은 카테고리로 폴백 (T-11)
+export async function getRelatedPosts(postId: string, tagIds: string[], categoryIds: string[], count = 3) {
+  const pick = {
+    id: true,
+    slug: true,
+    title: true,
+    excerpt: true,
+    thumbnailUrl: true,
+    publishedAt: true,
+    viewCount: true,
+    contentType: true,
+    categories: { include: { category: { select: { name: true, slug: true } } } },
+  } as const;
+  const notSelf = { id: { not: postId } } as const;
+  const byTag = await db.post.findMany({
+    where: {
+      status: "PUBLISHED",
+      ...notSelf,
+      ...(tagIds.length ? { tags: { some: { tagId: { in: tagIds } } } } : { id: "__none__" }),
+    },
+    orderBy: { publishedAt: "desc" },
+    take: count,
+    select: pick,
+  });
+  if (byTag.length >= count) return byTag;
+  const byCat = await db.post.findMany({
+    where: {
+      status: "PUBLISHED",
+      ...notSelf,
+      ...(byTag.length ? { id: { notIn: byTag.map((p) => p.id) } } : {}),
+      ...(categoryIds.length ? { categories: { some: { categoryId: { in: categoryIds } } } } : { id: "__none__" }),
+    },
+    orderBy: { publishedAt: "desc" },
+    take: count - byTag.length,
+    select: pick,
+  });
+  return [...byTag, ...byCat];
+}
+
+// 이전글/다음글 — 발행일 기준 1편씩. 시리즈 글은 제외 (하단 시리즈 목록이 이전/다음 역할) (T-11)
+// 동일 발행일 글이 많으면 id 사전순으로 폴백 (데모 데이터처럼 bulk 발행 시에도 동작)
+export async function getPrevNextPosts(slug: string) {
+  const post = await db.post.findUnique({
+    where: { slug },
+    select: { id: true, seriesId: true, publishedAt: true },
+  });
+  if (!post || post.seriesId || !post.publishedAt) return null;
+  const [prev, next] = await Promise.all([
+    db.post.findFirst({
+      where: {
+        status: "PUBLISHED",
+        seriesId: null,
+        OR: [
+          { publishedAt: { lt: post.publishedAt } },
+          { publishedAt: post.publishedAt, id: { lt: post.id } },
+        ],
+      },
+      orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+      select: { slug: true, title: true },
+    }),
+    db.post.findFirst({
+      where: {
+        status: "PUBLISHED",
+        seriesId: null,
+        OR: [
+          { publishedAt: { gt: post.publishedAt } },
+          { publishedAt: post.publishedAt, id: { gt: post.id } },
+        ],
+      },
+      orderBy: [{ publishedAt: "asc" }, { id: "asc" }],
+      select: { slug: true, title: true },
+    }),
+  ]);
+  return { prev, next };
 }
 
 // 카테고리 (게시글 수 포함 — 발행 기준)
@@ -187,6 +299,7 @@ export interface PostInput {
   storeInfo?: Prisma.InputJsonValue | null;
   seoMeta?: Prisma.InputJsonValue | null;
   seriesId?: string | null; // 시리즈 소속 (1편, 2편... 순서는 시리즈 관리에서 결정)
+  featuredOrder?: number | null; // 홈 추천 순서 (T-11)
 }
 
 // 카테고리 참조(id 또는 slug) → id 배열 (다대다)
@@ -284,6 +397,7 @@ export async function createPost(input: PostInput) {
         storeInfo: input.storeInfo ?? undefined,
         seoMeta: input.seoMeta ?? undefined,
         seriesId: input.seriesId || null,
+        featuredOrder: input.featuredOrder ?? undefined,
         publishedAt: input.status === "PUBLISHED" ? new Date() : null,
         categories: await resolveCategoryIds(input.categoryIds),
         tags: await resolveTagIds(input.tags),
@@ -321,6 +435,7 @@ export async function updatePost(id: string, input: PostInput) {
         storeInfo: input.storeInfo ?? undefined,
         seoMeta: input.seoMeta ?? undefined,
         ...(input.seriesId !== undefined ? { seriesId: input.seriesId } : {}), // 미전달 시 기존 유지
+        ...(input.featuredOrder !== undefined ? { featuredOrder: input.featuredOrder } : {}), // T-11
         publishedAt:
           input.status === "PUBLISHED" && !existing.publishedAt
             ? new Date()

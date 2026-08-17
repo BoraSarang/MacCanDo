@@ -1,12 +1,20 @@
-// [FEATURE] 홈 — 최신 게시글 + 카테고리 소개
+// [FEATURE] 홈 — 시리즈 배너(광고 슬롯) → 추천 → 최근 게시글 → 역할별 탐색 (T-11)
 import Link from "next/link";
-import { getRecentPosts, getCategories } from "@/lib/posts";
+import { getRecentPosts, getCategories, getFeaturedPosts } from "@/lib/posts";
+import { getSeriesBanner } from "@/lib/series";
 import PostCard from "@/components/PostCard";
+import SeriesBanner from "@/components/SeriesBanner";
+import FeaturedPosts from "@/components/FeaturedPosts";
 
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [posts, categories] = await Promise.all([getRecentPosts(6), getCategories()]);
+  const [featured, series, posts, categories] = await Promise.all([
+    getFeaturedPosts(3),
+    getSeriesBanner(4),
+    getRecentPosts(6),
+    getCategories(),
+  ]);
 
   return (
     <div>
@@ -23,8 +31,33 @@ export default async function HomePage() {
         </p>
       </section>
 
-      {/* 카테고리 — 역할 기반 */}
+      {/* 시리즈 배너 — 광고 슬롯 (T-11) */}
+      <SeriesBanner series={series} />
+
+      {/* 추천 게시글 — 광고 슬롯 (T-11) */}
+      <FeaturedPosts posts={featured} />
+
+      {/* 최신 게시글 */}
       <section className="mb-10">
+        <div className="flex items-end justify-between mb-4">
+          <h2 className="text-xl font-bold">최근 게시글</h2>
+          <Link href="/apps" className="text-sm text-primary hover:underline">
+            모든 게시글 →
+          </Link>
+        </div>
+        {posts.items.length === 0 ? (
+          <p className="text-text-muted text-center py-10">아직 게시글이 없습니다.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {posts.items.map((p) => (
+              <PostCard key={p.id} post={p} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 카테고리 — 역할 기반 */}
+      <section>
         <h2 className="text-xl font-bold mb-4">역할별 탐색</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {categories.filter((c) => c.postCount > 0).map((c) => (
