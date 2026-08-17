@@ -79,7 +79,7 @@ test.describe("맥 앱 허브 (역할 카테고리)", () => {
 test.describe("홈 광고 슬롯 (시리즈 배너 + 추천)", () => {
   test("시리즈 배너 4개 + 추천 게시글 (대형 1 + 소형 2)", async ({ page }) => {
     await page.goto("/");
-    const banner = page.getByRole("heading", { name: "시리즈" });
+    const banner = page.getByRole("heading", { name: "시리즈", exact: true });
     await expect(banner).toBeVisible();
     await expect(page.locator("main section").filter({ has: banner }).locator("a[href^='/series/']")).toHaveCount(4);
 

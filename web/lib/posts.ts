@@ -36,13 +36,14 @@ export interface PostListParams {
   query?: string;
   page?: number;
   pageSize?: number;
+  skip?: number; // T-12~14: 홈 '최신 게시글'(최근의 나머지) 오프셋
   sort?: "latest" | "views"; // T-11 정렬 (최신순/조회수순)
 }
 
 // 목록 (카테고리 필터 + pg_trgm 기반 검색 + 페이징) — 발행 글만
 // 정렬: 시리즈 글은 (시리즈 최신 편 발행일, seriesOrder) 기준으로 나란히, 일반 글은 publishedAt desc
 export async function getPosts(params: PostListParams = {}): Promise<PostListResult> {
-  const { categorySlug, contentType, tagSlug, query, page = 1, pageSize = 12, sort = "latest" } = params;
+  const { categorySlug, contentType, tagSlug, query, page = 1, pageSize = 12, skip = 0, sort = "latest" } = params;
   const where: Prisma.PostWhereInput = {
     status: "PUBLISHED" as PostStatus,
     ...(categorySlug ? { categories: { some: { category: { slug: categorySlug } } } } : {}),
@@ -101,7 +102,7 @@ export async function getPosts(params: PostListParams = {}): Promise<PostListRes
         : Prisma.sql`CASE WHEN p."seriesId" IS NULL THEN p."publishedAt"
              ELSE (SELECT MAX(p2."publishedAt") FROM "Post" p2 WHERE p2."seriesId" = p."seriesId" AND p2."status" = 'PUBLISHED') END DESC,
         CASE WHEN p."seriesId" IS NULL THEN NULL ELSE p."seriesOrder" END ASC NULLS LAST`}
-    LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+    LIMIT ${pageSize} OFFSET ${skip + (page - 1) * pageSize}
   `);
 
   const mapped = items.map((p) => ({
@@ -123,8 +124,9 @@ export async function getPosts(params: PostListParams = {}): Promise<PostListRes
 }
 
 // 최근 게시글 (홈)
-export async function getRecentPosts(count = 6) {
-  return getPosts({ page: 1, pageSize: count });
+// 홈 최근 게시글 — count개. offset 지정 시 그 이후의 글 (홈 '최신 게시글' = 최근의 나머지)
+export async function getRecentPosts(count = 6, offset = 0) {
+  return getPosts({ page: 1, pageSize: count, skip: offset });
 }
 
 // 홈 추천 게시글 — 관리자 지정(featuredOrder) 우선, 모자라면 조회수 top으로 채움 (T-11)

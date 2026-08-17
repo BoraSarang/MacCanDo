@@ -48,7 +48,7 @@ export default async function SeriesDetailPage({ params }: { params: Promise<{ i
         </div>
         {series.intro && (
           <div
-            className="prose-sm text-text-secondary mt-4 leading-relaxed [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_h2]:font-bold [&_h3]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:text-text-primary"
+            className="prose-sm text-text-secondary mt-4 leading-relaxed dark:prose-invert [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_h2]:font-bold [&_h3]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:text-text-primary"
             dangerouslySetInnerHTML={{ __html: renderMarkdown(series.intro) }}
           />
         )}

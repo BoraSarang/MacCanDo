@@ -9,10 +9,11 @@ import FeaturedPosts from "@/components/FeaturedPosts";
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [featured, series, posts, categories] = await Promise.all([
+  const [featured, series, posts, restPosts, categories] = await Promise.all([
     getFeaturedPosts(3),
     getSeriesBanner(4),
     getRecentPosts(6),
+    getRecentPosts(6, 6), // '최신 게시글' = 최근 게시글 6개의 나머지
     getCategories(),
   ]);
 
@@ -57,7 +58,7 @@ export default async function HomePage() {
       </section>
 
       {/* 카테고리 — 역할 기반 (T-14: 빈 카테고리 포함 10개 전부) */}
-      <section className="mb-12">
+      <section className="mb-10">
         <h2 className="text-xl font-bold mb-4">역할별 탐색</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {categories.map((c) => (
@@ -75,6 +76,25 @@ export default async function HomePage() {
             </Link>
           ))}
         </div>
+      </section>
+
+      {/* 최신 게시글 — 최근 게시글(상단 6개)의 나머지 */}
+      <section className="mb-12">
+        <div className="flex items-end justify-between mb-4">
+          <h2 className="text-xl font-bold">최신 게시글</h2>
+          <Link href="/apps" className="text-sm text-primary hover:underline">
+            모든 게시글 →
+          </Link>
+        </div>
+        {restPosts.items.length === 0 ? (
+          <p className="text-text-muted text-center py-10">게시글이 더 없습니다.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {restPosts.items.map((p) => (
+              <PostCard key={p.id} post={p} />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

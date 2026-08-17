@@ -18,4 +18,22 @@ test.describe("글 상세", () => {
     await tether.click();
     await expect(page).toHaveURL(/\/post\/tetherlens/);
   });
+
+  test("다크모드: 본문 가독성 (prose-invert)", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/post/sample-homebrew-guide");
+    await expect(page.locator("html.dark")).toBeVisible();
+    const pColor = await page.locator(".prose p").first().evaluate((el) => getComputedStyle(el).color);
+    const bg = await page.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor);
+    const luminance = (rgb: string) => {
+      const m = rgb.match(/\d+/g);
+      if (!m) return 0;
+      const [r, g, b] = m.map(Number);
+      return 0.299 * r + 0.587 * g + 0.114 * b;
+    };
+    const bgLum = luminance(bg);
+    const textLum = luminance(pColor);
+    expect(bgLum).toBeLessThan(80); // 어두운 배경
+    expect(textLum).toBeGreaterThan(bgLum + 120); // 본문이 배경보다 충분히 밝음
+  });
 });
