@@ -37,6 +37,7 @@ struct Post: Decodable, Identifiable {
     let seoMeta: SeoMeta?
     let seriesId: String?
     let seriesOrder: Int?
+    let featuredOrder: Int? // 홈 추천 순서 (T-11, null=미지정)
 
     var isPublished: Bool { status == "PUBLISHED" }
 }
@@ -135,6 +136,7 @@ struct SeriesItem: Decodable, Identifiable {
     let imageUrl: String?
     let intro: String?
     let createdAt: String?
+    let featuredOrder: Int? // 홈 배너 순서 (T-11, null=미지정)
     let posts: [SeriesPost]
 }
 
@@ -165,6 +167,11 @@ struct SeriesUpdateBody: Encodable {
     var description: String?
     var imageUrl: String?
     var intro: String?
+}
+
+// 배너/추천 순서 지정 — nil이어도 키 필수 전송 (null = 해제)
+struct FeaturedOrderBody: Encodable {
+    let featuredOrder: Int?
 }
 
 struct PostIdsBody: Encodable {

@@ -7,6 +7,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case series = "시리즈"
     case comments = "댓글 승인"
     case stats = "통계"
+    case ads = "광고"
     case settings = "설정"
 
     var id: String { rawValue }
@@ -17,6 +18,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .series: return "books.vertical"
         case .comments: return "bubble.left.and.bubble.right"
         case .stats: return "chart.bar"
+        case .ads: return "megaphone"
         case .settings: return "gearshape"
         }
     }
@@ -39,6 +41,7 @@ struct ContentView: View {
             case .series: SeriesView()
             case .comments: CommentsView()
             case .stats: StatsView()
+            case .ads: AdsView()
             case .settings: SettingsView()
             }
         }

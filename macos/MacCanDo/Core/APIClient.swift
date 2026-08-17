@@ -378,6 +378,29 @@ enum APIClient {
         let _: APIEmptyData = try await request("api/admin/series/\(id)", method: "DELETE", token: token)
     }
 
+    // 홈 배너 지정/해제 — PATCH /api/admin/series/[id] (featuredOrder만 전송)
+    static func setSeriesFeatured(token: String?, id: String, order: Int?) async throws -> SeriesItem {
+        try await request(
+            "api/admin/series/\(id)",
+            method: "PATCH",
+            token: token,
+            body: FeaturedOrderBody(featuredOrder: order)
+        )
+    }
+
+    // 홈 추천 지정/해제 — PATCH /api/admin/posts/[id]/featured
+    struct FeaturedBody: Encodable {
+        let order: Int?
+    }
+    static func setPostFeatured(token: String?, id: String, order: Int?) async throws {
+        let _: APIEmptyData = try await request(
+            "api/admin/posts/\(id)/featured",
+            method: "PATCH",
+            token: token,
+            body: FeaturedBody(order: order)
+        )
+    }
+
     // 글 추가 — POST /api/admin/series/[id]/posts
     static func addPostsToSeries(token: String?, seriesId: String, postIds: [String]) async throws {
         let _: APIEmptyData = try await request(
