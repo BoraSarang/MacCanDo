@@ -62,4 +62,11 @@ test.describe("정적 페이지", () => {
     await page.getByRole("button", { name: "닫기" }).click();
     await expect(page.locator("#mobile-bar").getByRole("link", { name: "About" })).toHaveCount(0);
   });
+
+  test("TC-PAGE-005: 모바일 — 푸터 링크 숨김 (⋯ 메뉴로만 접근)", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/post/about");
+    const footerNav = page.getByRole("navigation", { name: "사이트 정보" });
+    await expect(footerNav).toBeHidden();
+  });
 });

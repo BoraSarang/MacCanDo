@@ -14,8 +14,9 @@ const PAGE_LINKS = [
 export default function Footer() {
   return (
     <footer className="border-t border-border py-6 text-center text-sm text-text-muted">
+      {/* 데스크톱 전용 링크 — 모바일은 하단 바 ⋯ 메뉴로 접근 (T-17) */}
       <nav
-        className="flex flex-col items-center gap-2 md:flex-row md:justify-center md:gap-6 md:mb-2 pb-4 md:pb-0"
+        className="hidden md:flex md:flex-row md:justify-center md:gap-6 md:mb-2 pb-4 md:pb-0"
         aria-label="사이트 정보"
       >
         {PAGE_LINKS.map((l) => (
