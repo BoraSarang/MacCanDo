@@ -24,12 +24,19 @@ test.describe("앱 카드", () => {
     await expect(home).toHaveAttribute("href", /iterm2\.com/);
   });
 
-  test("TC-APP-004: 기존 게이트 회귀 — 하단 📥는 비로그인 잠김 유지", async ({ page }) => {
-    await page.goto("/post/iterm2-tmux-oh-my-zsh");
+  test("TC-APP-004: 기존 게이트 회귀 — 게이트 링크 글은 비로그인 잠김 유지", async ({ page }) => {
+    await page.goto("/post/cleanmymac-x-mac-storage-cleanup-guide");
     const gate = page.getByText("다운로드 링크를 보려면 Google 로그인 후 댓글을 1개 이상 남겨주세요.");
     await expect(gate).toBeVisible();
-    // 게이트 다운로드 링크(앱 카드 아님)는 비공개
+    // 잠긴 상태: 게이트 다운로드 링크 비공개
     const gateSection = page.locator("section", { hasText: "📥 다운로드" });
     await expect(gateSection.locator("a[href*='/download/']")).toHaveCount(0);
+  });
+
+  test("TC-APP-005: 앱 카드만 있는 글 — 하단 📥 게이트 섹션 자체 미표시", async ({ page }) => {
+    await page.goto("/post/iterm2-tmux-oh-my-zsh");
+    await expect(page.locator("section", { hasText: "📥 다운로드" })).toHaveCount(0);
+    // 대신 앱 카드 다운로드는 공개
+    await expect(page.locator(".app-card .app-dl").first()).toBeVisible();
   });
 });

@@ -14,6 +14,9 @@ export async function checkDownloadGate(linkId: string, userId?: string) {
   if (!link) return { ok: false as const, error: "E-WEB-DB-1001" };
   if (link.post.status !== "PUBLISHED") return { ok: false as const, error: "E-WEB-DB-1001" };
 
+  // T-15: 앱 카드 링크(postAppId)는 공개 — 게이트 없이 통과
+  if (link.postAppId) return { ok: true as const, link };
+
   // 로그인 필수
   if (!userId) return { ok: false as const, error: "E-WEB-AUTH-1001" };
 

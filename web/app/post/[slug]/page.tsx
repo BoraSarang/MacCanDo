@@ -52,11 +52,13 @@ export default async function PostPage({ params }: Props) {
   if (!post) notFound();
 
   // 다운로드 게이트: 로그인 + 승인 댓글 1개 이상 시 링크 공개 (T-04)
+  // T-15: 앱 카드(postAppId) 링크는 제외 — 앱 카드 다운로드는 공개
+  const gateLinks = post.downloadLinks.filter((dl) => !dl.postAppId);
   const session = await auth();
   const commentCount = session?.user?.id
     ? await getUserApprovedCommentCount(session.user.id)
     : 0;
-  const gateUnlocked = (session?.user?.id ? commentCount >= 1 : false) && post.downloadLinks.length > 0;
+  const gateUnlocked = (session?.user?.id ? commentCount >= 1 : false) && gateLinks.length > 0;
   logger.info("PostDetail", `게이트 판정 (slug=${slug}, user=${session?.user?.id ?? "-"}, comments=${commentCount})`);
 
   // 시리즈 컨텍스트 (하단 목록 — 발행 글만, 순서대로)
@@ -133,14 +135,14 @@ export default async function PostPage({ params }: Props) {
         </div>
       )}
 
-      {/* 다운로드 링크 (게이트 — 댓글 1개 이상 + 로그인 시 공개) */}
-      {post.downloadLinks.length > 0 && (
+      {/* 다운로드 링크 (게이트 — 댓글 1개 이상 + 로그인 시 공개, 앱 카드 링크 제외) */}
+      {gateLinks.length > 0 && (
         <section className="mt-10 card p-6 border-primary/30 bg-primary-soft/50">
           <h2 className="font-bold text-lg mb-1">📥 다운로드</h2>
           {gateUnlocked ? (
             <>
               <p className="text-sm text-text-secondary mb-4">댓글 작성 감사합니다! 다운로드 링크가 공개되었습니다.</p>
-              {post.downloadLinks.map((dl) => (
+              {gateLinks.map((dl) => (
                 <Link
                   key={dl.id}
                   href={`/post/${post.slug}/download/${dl.id}`}
