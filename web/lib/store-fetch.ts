@@ -83,7 +83,11 @@ export async function lookupAppStore(url: string): Promise<StoreAppMeta | null> 
       results?: Array<Record<string, unknown>>;
     };
     const r = json.results?.[0];
-    if (json.resultCount === 0 || !r || r.kind !== "mac-software") return null;
+    // mac-software = 순수 macOS, software = macOS/iOS 겸용(Catalyst) — 둘 다 허용 (T-15)
+    if (json.resultCount === 0 || !r || (r.kind !== "mac-software" && r.kind !== "software")) {
+      logger.info("StoreFetch", `App Store 조회 실패 (kind=${String(r?.kind ?? "?")}, id=${appId})`);
+      return null;
+    }
     const languages = Array.isArray(r.languages) ? (r.languages as string[]) : [];
     logger.info("StoreFetch", `App Store 조회 성공: ${String(r.trackName ?? "")} (id=${appId})`);
     return {
@@ -102,7 +106,10 @@ export async function lookupAppStore(url: string): Promise<StoreAppMeta | null> 
       ratingCount:
         typeof r.userRatingCount === "number" ? Number(r.userRatingCount) : null,
       artworkUrl100: r.artworkUrl100 ? String(r.artworkUrl100) : null,
-      fileSizeBytes: typeof r.fileSizeBytes === "number" ? Number(r.fileSizeBytes) : null,
+      fileSizeBytes:
+        r.fileSizeBytes !== undefined && r.fileSizeBytes !== null
+          ? Number(r.fileSizeBytes) || null
+          : null,
       sellerUrl: r.sellerUrl ? String(r.sellerUrl) : null,
     };
   } catch (err) {
