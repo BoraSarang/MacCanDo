@@ -23,18 +23,19 @@ export default async function HomePage() {
         </p>
       </section>
 
-      {/* 카테고리 */}
+      {/* 카테고리 — 역할 기반 */}
       <section className="mb-10">
-        <h2 className="text-xl font-bold mb-4">카테고리</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <h2 className="text-xl font-bold mb-4">역할별 탐색</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {categories.filter((c) => c.postCount > 0).map((c) => (
             <Link
               key={c.slug}
               href={`/category/${c.slug}`}
-              className="card p-4 text-center hover:border-primary/50 hover:shadow-md transition-all"
+              className="card p-4 hover:border-primary/50 hover:shadow-md transition-all"
             >
               <div className="font-semibold">{c.name}</div>
-              <div className="text-xs text-text-muted mt-1">게시글 {c.postCount}개</div>
+              {c.description && <div className="text-xs text-text-muted mt-1">{c.description}</div>}
+              <div className="text-xs text-text-muted mt-2">게시글 {c.postCount}개</div>
             </Link>
           ))}
         </div>

@@ -8,11 +8,8 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const db = new PrismaClient({ adapter });
 
 async function main() {
-  const cat = await db.category.findFirst({ where: { slug: "utilities" } });
-  if (!cat) throw new Error("카테고리 없음: utilities");
-  if (!cat) {
-    // utilities 시드 존재 확인
-  }
+  const cat = await db.category.findFirst({ where: { slug: "system" } });
+  if (!cat) throw new Error("카테고리 없음: system");
 
   const existing = await db.post.findFirst({ where: { slug: "sample-cleanmymac-guide" } });
   if (existing) {
@@ -41,7 +38,8 @@ async function main() {
 > 정리는 한 달에 한 번 정도 실행하는 것이 좋습니다.
 
 - [공식 사이트](https://macpaw.com)`,
-      categoryId: cat.id,
+      contentType: "ARTICLE",
+      categories: { create: [{ categoryId: cat.id }] },
       status: "PUBLISHED",
       bodyFormat: "MD",
       publishedAt: new Date(),
@@ -69,7 +67,8 @@ Homebrew는 맥에서 가장 많이 쓰는 패키지 관리자입니다.
 - \`brew install <패키지>\`
 - \`brew search <키워드>\`
 - \`brew update\``,
-      categoryId: cat.id,
+      contentType: "ARTICLE",
+      categories: { create: [{ categoryId: cat.id }] },
       status: "PUBLISHED",
       bodyFormat: "MD",
       publishedAt: new Date(Date.now() - 86400000),

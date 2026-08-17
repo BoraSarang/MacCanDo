@@ -18,7 +18,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cat = cats.find((c) => c.slug === slug);
   return {
     title: cat ? cat.name : "카테고리",
-    description: `MacCanDo ${cat?.name ?? slug} 카테고리 게시글 목록`,
+    description: cat?.description
+      ? `MacCanDo ${cat.name} — ${cat.description} 게시글 목록`
+      : `MacCanDo ${cat?.name ?? slug} 카테고리 게시글 목록`,
   };
 }
 
@@ -35,7 +37,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">{cat.name}</h1>
+      <h1 className="text-2xl font-bold mb-2">{cat.name}</h1>
+      {cat.description && <p className="text-sm text-text-secondary mb-2">{cat.description}</p>}
       <p className="text-sm text-text-muted mb-6">게시글 {result.total}개</p>
 
       {result.items.length === 0 ? (

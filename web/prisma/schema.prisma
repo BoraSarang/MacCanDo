@@ -8,7 +8,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-
 }
 
 // ===== 사용자 (Google OAuth) =====
@@ -22,10 +21,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  comments        Comment[]
-  downloadEvents  DownloadEvent[]
-  accounts        Account[]
-  sessions        Session[]
+  comments       Comment[]
+  downloadEvents DownloadEvent[]
+  accounts       Account[]
+  sessions       Session[]
 }
 
 // ===== Auth.js 표준 모델 (PrismaAdapter 필수) =====
@@ -70,49 +69,88 @@ enum UserRole {
 
 // ===== 카테고리 (계층형) =====
 model Category {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   parentId  String?
-  slug      String     @unique
+slug      String     @unique
   name      String
+  description String?
   sort      Int        @default(0)
-  createdAt DateTime   @default(now())
+  createdAt DateTime @default(now())
 
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryTree")
-  posts    Post[]
+  parent   Category?      @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[]     @relation("CategoryTree")
+  posts    PostCategory[]
+}
+
+// ===== 카테고리 (역할 기반, 다대다) =====
+model PostCategory {
+  postId     String
+  categoryId String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+  @@index([categoryId])
+}
+
+// ===== 태그 (자유 생성, 다대다) =====
+model Tag {
+  id    String    @id @default(cuid())
+  name  String    @unique
+  slug  String    @unique
+  posts PostTag[]
+
+  createdAt DateTime @default(now())
+}
+
+model PostTag {
+  postId String
+  tagId  String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
 }
 
 // ===== 게시글 =====
 model Post {
-  id           String       @id @default(cuid())
-  categoryId   String?
+  id           String          @id @default(cuid())
   title        String
-  slug         String       @unique
-  bodyFormat   BodyFormat   @default(MD)
+  slug         String          @unique
+  bodyFormat   BodyFormat      @default(MD)
   body         String
   excerpt      String?
   thumbnailUrl String?
-  status       PostStatus   @default(DRAFT)
-  storeInfo    Json?        // { appId, appUrl, appName, price, rating }
-  seoMeta      Json?        // { title, description, tags[] }
+  status       PostStatus      @default(DRAFT)
+  contentType  PostContentType @default(ARTICLE) // ARTICLE=맥 앱/가이드, TIP=맥 팁, NEWS=맥 소식
+  storeInfo    Json? // { appId, appUrl, appName, price, rating }
+  seoMeta      Json? // { title, description, tags[] }
   seriesId     String?
-  seriesOrder  Int?         // 시리즈 내 순서 (1=1편, 2=2편...)
-  viewCount    Int          @default(0)
+  seriesOrder  Int? // 시리즈 내 순서 (1=1편, 2=2편...)
+  viewCount    Int             @default(0)
   publishedAt  DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
-  category       Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  series         Series?        @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  series         Series?         @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  categories     PostCategory[]
+  tags           PostTag[]
   comments       Comment[]
   downloadLinks  DownloadLink[]
   downloadEvents DownloadEvent[]
   dailyStats     DailyStat[]
   images         Image[]
 
-  @@index([categoryId, status])
+  @@index([contentType, status])
   @@index([publishedAt])
   @@index([seriesId, seriesOrder])
+}
+
+enum PostContentType {
+  ARTICLE
+  TIP
+  NEWS
 }
 
 // ===== 시리즈 =====
@@ -120,8 +158,8 @@ model Series {
   id          String   @id @default(cuid())
   title       String
   description String?
-  imageUrl    String?  // 시리즈 커버 이미지 (T-09 확장)
-  intro       String?  // 취지 소개 (마크다운) — 상세 페이지 랜딩 (T-09 확장)
+  imageUrl    String? // 시리즈 커버 이미지 (T-09 확장)
+  intro       String? // 취지 소개 (마크다운) — 상세 페이지 랜딩 (T-09 확장)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -134,7 +172,7 @@ enum BodyFormat {
 }
 
 enum PostStatus {
-  DRAFT    // 임시 저장 (배포 전)
+  DRAFT // 임시 저장 (배포 전)
   PUBLISHED // 배포됨 (공개)
 }
 
@@ -149,10 +187,10 @@ model Comment {
   ipAddress String?
   createdAt DateTime      @default(now())
 
-  post       Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  parent     Comment?  @relation("CommentReply", fields: [parentId], references: [id])
-  replies    Comment[] @relation("CommentReply")
+  post    Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent  Comment?  @relation("CommentReply", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReply")
 
   @@index([postId, status])
 }
@@ -174,7 +212,7 @@ model DownloadLink {
   sort       Int          @default(0)
   createdAt  DateTime     @default(now())
 
-  post   Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post   Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
   events DownloadEvent[]
 
   @@index([postId])
@@ -182,36 +220,36 @@ model DownloadLink {
 
 enum DownloadType {
   OFFICIAL // 공식 사이트
-  FREE     // 무료 링크 사이트
-  TORRENT  // 토렌트 사이트
+  FREE // 무료 링크 사이트
+  TORRENT // 토렌트 사이트
 }
 
 // ===== 다운로드 클릭 이벤트 (통계) =====
 model DownloadEvent {
-  id             String   @id @default(cuid())
-  postId         String?
-  linkId         String?
-  userId         String?
-  ipHash         String?
-  createdAt      DateTime @default(now())
+  id        String   @id @default(cuid())
+  postId    String?
+  linkId    String?
+  userId    String?
+  ipHash    String?
+  createdAt DateTime @default(now())
 
-  post Post?  @relation(fields: [postId], references: [id], onDelete: SetNull)
+  post Post?         @relation(fields: [postId], references: [id], onDelete: SetNull)
   link DownloadLink? @relation(fields: [linkId], references: [id], onDelete: SetNull)
-  user User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([postId, createdAt])
 }
 
 // ===== 일별 통계 (관리자 전용) =====
 model DailyStat {
-  id           String   @id @default(cuid())
-  date         DateTime @db.Date
-  postId       String?
-  views        Int      @default(0)
-  clicks       Int      @default(0)
-  comments     Int      @default(0)
-  newUsers     Int      @default(0)
-  createdAt    DateTime @default(now())
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  postId    String?
+  views     Int      @default(0)
+  clicks    Int      @default(0)
+  comments  Int      @default(0)
+  newUsers  Int      @default(0)
+  createdAt DateTime @default(now())
 
   post Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
 
@@ -239,8 +277,8 @@ model Backup {
   id         String       @id @default(cuid())
   type       BackupType
   status     BackupStatus @default(RUNNING)
-  fileKey    String?      // R2 객체 키 (온라인→로컬이면 로컬 경로)
-  meta       Json?        // { rowCounts, sizeBytes }
+  fileKey    String? // R2 객체 키 (온라인→로컬이면 로컬 경로)
+  meta       Json? // { rowCounts, sizeBytes }
   createdAt  DateTime     @default(now())
   finishedAt DateTime?
 }

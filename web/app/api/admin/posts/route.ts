@@ -16,7 +16,10 @@ export const GET = withApi(async (req) => {
   if (url.searchParams.get("all") === "1") {
     const posts = await db.post.findMany({
       orderBy: { updatedAt: "desc" },
-      include: { category: { select: { name: true, slug: true } } },
+      include: {
+        categories: { include: { category: { select: { name: true, slug: true } } } },
+        tags: { include: { tag: { select: { name: true, slug: true } } } },
+      },
     });
     return apiOk(posts);
   }

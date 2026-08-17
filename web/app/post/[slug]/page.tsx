@@ -64,15 +64,16 @@ export default async function PostPage({ params }: Props) {
   return (
     <article className="max-w-3xl mx-auto">
       <header className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-text-muted mb-3">
-          {post.category && (
+        <div className="flex items-center gap-2 text-sm text-text-muted mb-3 flex-wrap">
+          {post.categories.map((pc) => (
             <Link
-              href={`/category/${post.category.slug}`}
+              key={pc.category.slug}
+              href={`/category/${pc.category.slug}`}
               className="badge bg-primary-soft text-primary"
             >
-              {post.category.name}
+              {pc.category.name}
             </Link>
-          )}
+          ))}
           <span>{formatDate(post.publishedAt)}</span>
           <span>👁 {post.viewCount}</span>
         </div>
@@ -93,6 +94,21 @@ export default async function PostPage({ params }: Props) {
           }}
         />
       </div>
+
+      {/* 태그 */}
+      {post.tags.length > 0 && (
+        <div className="mt-8 flex flex-wrap gap-2">
+          {post.tags.map((pt) => (
+            <Link
+              key={pt.tag.slug}
+              href={`/tag/${pt.tag.slug}`}
+              className="text-sm text-primary hover:underline"
+            >
+              #{pt.tag.name}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* 다운로드 링크 (게이트 — 댓글 1개 이상 + 로그인 시 공개) */}
       {post.downloadLinks.length > 0 && (

@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 
 export type BackupPayload = {
+  version?: number;
   posts: {
     id?: string;
     title: string;
@@ -12,7 +13,9 @@ export type BackupPayload = {
     excerpt?: string | null;
     thumbnailUrl?: string | null;
     status?: string;
-    categorySlug?: string | null;
+    contentType?: string;
+    categorySlugs?: string[];
+    tags?: string[];
     viewCount?: number;
     publishedAt?: string | null;
     updatedAt?: string;
@@ -36,7 +39,10 @@ export type BackupPayload = {
 export async function backupAll() {
   const [posts, categories, comments] = await Promise.all([
     db.post.findMany({
-      include: { category: { select: { slug: true, name: true } } },
+      include: {
+        categories: { include: { category: { select: { slug: true, name: true } } } },
+        tags: { include: { tag: { select: { slug: true, name: true } } } },
+      },
       orderBy: { updatedAt: "desc" },
     }),
     db.category.findMany(),
@@ -49,7 +55,7 @@ export async function backupAll() {
   return {
     exportedAt: new Date().toISOString(),
     app: "MacCanDo",
-    version: 1,
+    version: 2,
     categories: categories.map((c) => ({ id: c.id, slug: c.slug, name: c.name })),
     posts: posts.map((p) => ({
       id: p.id,
@@ -60,7 +66,9 @@ export async function backupAll() {
       excerpt: p.excerpt,
       thumbnailUrl: p.thumbnailUrl,
       status: p.status,
-      categorySlug: p.category?.slug ?? null,
+      contentType: p.contentType,
+      categorySlugs: p.categories.map((pc) => pc.category.slug),
+      tags: p.tags.map((pt) => pt.tag.name),
       viewCount: p.viewCount,
       publishedAt: p.publishedAt?.toISOString() ?? null,
       createdAt: p.createdAt.toISOString(),
@@ -99,9 +107,9 @@ export async function restoreBackup(payload: BackupPayload) {
       slugToId.set(p.slug, existing.id);
       continue;
     }
-    const category = p.categorySlug
-      ? await db.category.findUnique({ where: { slug: p.categorySlug } })
-      : null;
+    const categoryIds = (p.categorySlugs ?? [])
+      .map((slug) => payload.categories.find((c) => c.slug === slug)?.id ?? slug)
+      .filter(Boolean);
     const data = {
       title: p.title,
       slug: p.slug,
@@ -110,7 +118,7 @@ export async function restoreBackup(payload: BackupPayload) {
       excerpt: p.excerpt ?? null,
       thumbnailUrl: p.thumbnailUrl ?? null,
       status: (p.status as "DRAFT" | "PUBLISHED") ?? "DRAFT",
-      categoryId: category?.id ?? null,
+      contentType: (p.contentType as "ARTICLE" | "TIP" | "NEWS") ?? "ARTICLE",
       viewCount: p.viewCount ?? 0,
       publishedAt: p.publishedAt ? new Date(p.publishedAt) : null,
       updatedAt: p.updatedAt ? new Date(p.updatedAt) : new Date(),
@@ -120,6 +128,23 @@ export async function restoreBackup(payload: BackupPayload) {
       update: data,
       create: { ...data, id: p.id } as never,
     });
+    // 카테고리 연결 (다대다 — 덤프 기준으로 재구성)
+    if (p.categorySlugs && p.categorySlugs.length > 0) {
+      await db.postCategory.deleteMany({ where: { postId: saved.id } });
+      for (const slug of p.categorySlugs) {
+        const cat = await db.category.findUnique({ where: { slug } });
+        if (cat) await db.postCategory.create({ data: { postId: saved.id, categoryId: cat.id } });
+      }
+    }
+    // 태그 연결 (자유 생성)
+    if (p.tags && p.tags.length > 0) {
+      await db.postTag.deleteMany({ where: { postId: saved.id } });
+      for (const name of p.tags) {
+        const tagSlug = name.toLowerCase().replace(/[^a-z0-9가-힣]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+        const tag = await db.tag.upsert({ where: { slug: tagSlug }, update: {}, create: { name, slug: tagSlug } });
+        await db.postTag.create({ data: { postId: saved.id, tagId: tag.id } });
+      }
+    }
     slugToId.set(p.slug, saved.id);
     stats.posts++;
   }

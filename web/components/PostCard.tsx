@@ -21,14 +21,11 @@ export default function PostCard({ post }: { post: PostListItem }) {
       )}
       <div className="p-4">
         <div className="flex items-center gap-2 text-xs text-text-muted mb-2">
-          {post.category && (
-            <Link
-              href={`/category/${post.category.slug}`}
-              className="badge bg-primary-soft text-primary"
-            >
-              {post.category.name}
+          {post.categories.slice(0, 2).map((c) => (
+            <Link key={c.slug} href={`/category/${c.slug}`} className="badge bg-primary-soft text-primary">
+              {c.name}
             </Link>
-          )}
+          ))}
           <span>{formatDate(post.publishedAt)}</span>
         </div>
         <h3 className="font-semibold text-lg leading-snug mb-1 line-clamp-2">{post.title}</h3>

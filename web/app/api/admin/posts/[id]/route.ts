@@ -14,7 +14,10 @@ export const GET = withApi(async (_req, ctx: { params: Promise<{ id: string }> }
   const { id } = await ctx.params;
   const post = await db.post.findUnique({
     where: { id },
-    include: { category: { select: { name: true, slug: true } } },
+    include: {
+      categories: { include: { category: { select: { name: true, slug: true } } } },
+      tags: { include: { tag: { select: { name: true, slug: true } } } },
+    },
   });
   if (!post) {
     return apiError("E-WEB-POST-1003", 404, { method: "GET", path: `/api/admin/posts/${id}` });
