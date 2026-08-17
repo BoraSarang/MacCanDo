@@ -13,7 +13,7 @@ struct AssistantView: View {
     @State private var errorMessage: String?
     @State private var cacheHit = false
     @State private var viewMode = "원문"
-    @State private var section = "참고 자료" // T-23: 참고 자료 | 맥 소식
+    // T-57 수정: 맥 소식은 사이드바 독립 탭(T-46)으로 분리 — 도우미 창의 segmented 제거
     @State private var savedEntries: [ReferenceEntry] = [] // T-26: 로컬 저장 리스트
     @State private var selectedID: String?
 
@@ -23,24 +23,11 @@ struct AssistantView: View {
                 Label("AI 도우미", systemImage: "wand.and.stars")
                     .font(.title3.bold())
                 Spacer()
-                Text(section == "맥 소식" ? "RSS 수집 + AI 요약 리포트 — 참고용" : "참고용 자료 — 복사해서 글에 활용하세요")
+                Text("참고용 자료 — 복사해서 글에 활용하세요")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Picker("", selection: $section) {
-                Text("참고 자료").tag("참고 자료")
-                Text("맥 소식").tag("맥 소식")
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 240)
-            .onChange(of: section) { _ in
-                DebugLogger.info("Feature", "AI 도우미 탭 전환: \(section)")
-            }
-            if section == "맥 소식" {
-                MacNewsView()
-            } else {
-                referenceView
-            }
+            referenceView
             Spacer()
         }
         .padding(20)

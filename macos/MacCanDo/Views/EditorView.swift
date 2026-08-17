@@ -689,14 +689,24 @@ struct EditorView: View {
                 EditorTextView(text: $content)
                     .frame(minWidth: 320)
                 if showPreview {
-                    ScrollView {
-                        PreviewWebView(html: previewHTML, scrollRestoreY: previewScrollY) { y in
-                            previewScrollY = y
-                        }
-                        .frame(minWidth: 300, minHeight: 560)
+                    // T-57 수정: WKWebView는 자체 스크롤 보유 — ScrollView로 감싸면
+                    // 리사이즈 시 내부 레이아웃이 고정되어 미리보기가 늘어나지 않는 문제 수정
+                    PreviewWebView(html: previewHTML, scrollRestoreY: previewScrollY) { y in
+                        previewScrollY = y
                     }
+                    .frame(minWidth: 300)
                     // T-48: 다크모드 — 흰색 하드코딩 제거 (웹 프리뷰 배경은 CSS 미디어 쿼리 대응)
                     .background(Color(nsColor: .textBackgroundColor))
+                    .background(
+                        // T-57: 리사이즈 검증용 — 미리보기 영역 크기 로그
+                        GeometryReader { geo in
+                            Color.clear
+                                .onAppear { DebugLogger.info("Preview", "미리보기 영역 \(Int(geo.size.width))×\(Int(geo.size.height))") }
+                                .onChange(of: geo.size) { _, s in
+                                    DebugLogger.info("Preview", "미리보기 리사이즈 → \(Int(s.width))×\(Int(s.height))")
+                                }
+                        }
+                    )
                 }
                 if showInspector {
                     inspectorView
@@ -1397,7 +1407,7 @@ struct EditorView: View {
     private var imageGenSheet: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("AI 커버 이미지 생성").font(.headline)
+                Text("AI 커버 이미지 생성").font(.title3.bold())
                 Spacer()
                 Text(GeminiService.imageGenProvider.label).font(.caption2).foregroundStyle(.secondary)
             }
@@ -1832,7 +1842,7 @@ struct ImagePickerSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(mode == .cover ? "커버 이미지 선택" : "이미지 삽입").font(.headline)
+                Text(mode == .cover ? "커버 이미지 선택" : "이미지 삽입").font(.title3.bold())
                 Spacer()
                 Button("닫기") { dismiss() }.controlSize(.small)
             }
@@ -1840,9 +1850,12 @@ struct ImagePickerSheet: View {
             // 상단: 파일 선택 / URL 입력
             HStack(spacing: 8) {
                 Button("파일 선택…") { pickImageFile() }
+                    .buttonStyle(.bordered)
+                    .help("로컬 이미지 업로드 (최대 5MB)")
                     .disabled(busy)
                 TextField("https://.../이미지.png", text: $urlInput)
                     .textFieldStyle(.roundedBorder)
+                    .onSubmit { insertURLImage() }
                 Button("URL로 삽입") { insertURLImage() }
                     .disabled(urlInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || busy)
             }
@@ -1878,21 +1891,13 @@ struct ImagePickerSheet: View {
                     ProgressView("이미지 목록 불러오는 중…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let errorMessage {
-                    VStack(spacing: 10) {
-                        Text(errorMessage).foregroundStyle(Color.dsWarning)
-                        Button("다시 시도") { Task { await load() } }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    ErrorState(message: errorMessage) { Task { await load() } }
                 } else if images.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 36))
-                            .foregroundStyle(.secondary)
-                        Text("업로드된 이미지가 없습니다\n'파일 선택…'으로 첫 이미지를 올려 보세요")
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    EmptyState(
+                        icon: "photo.on.rectangle.angled",
+                        title: "업로드된 이미지가 없습니다",
+                        subtitle: "위 '파일 선택…'으로 첫 이미지를 올려 보세요"
+                    )
                 } else {
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
@@ -1975,7 +1980,7 @@ struct ImagePickerSheet: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 if let caption = item.caption, !caption.isEmpty {
-                    Text("💬 \(caption)")
+                    Label(caption, systemImage: "text.bubble")
                         .font(.caption2)
                         .foregroundStyle(Color.dsTextSecondary)
                         .lineLimit(1)
@@ -1983,7 +1988,7 @@ struct ImagePickerSheet: View {
                 HStack(spacing: 4) {
                     Text(item.sizeLabel)
                     if let post = item.postTitle {
-                        Text("· 📄 \(post)")
+                        Label(post, systemImage: "doc.text")
                             .lineLimit(1)
                     }
                 }

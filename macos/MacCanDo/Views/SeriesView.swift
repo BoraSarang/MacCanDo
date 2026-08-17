@@ -8,7 +8,7 @@ struct SeriesView: View {
 
     @State private var data: AdminSeriesData?
     @State private var selectedSeriesId: String?
-    @State private var isLoading = false
+    @State private var isLoading = true // T-57 수정: false면 초기 빈 뷰가 mount되지 않아 .task 미실행 → 시리즈 화면 안 뜸
     @State private var errorMessage: String?
     @State private var showCreate = false
     @State private var showEdit = false
@@ -36,52 +36,63 @@ struct SeriesView: View {
             } else if let errorMessage, data == nil {
                 ErrorState(message: errorMessage) { Task { await load() } }
             } else if let data {
-                NavigationSplitView {
-                    seriesList(data)
-                        .navigationSplitViewColumnWidth(min: 150, ideal: 170, max: 240)
-                        .navigationTitle("시리즈")
-                        .toolbar {
-                            // T-50: 하단 버튼 바 제거 → 툴바 (macOS 표준)
-                            ToolbarItemGroup(placement: .primaryAction) {
-                                Button {
-                                    newTitle = ""
-                                    newDescription = ""
-                                    newImageUrl = ""
-                                    newIntro = ""
-                                    generatedImagePreview = nil
-                                    showCreate = true
-                                } label: {
-                                    Label("새 시리즈", systemImage: "plus")
-                                }
-                                .keyboardShortcut("n", modifiers: .command) // ⌘N
-                                .help("새 시리즈 (⌘N)")
-                                .disabled(isLoading)
-                                Button {
-                                    guard let s = selectedSeries else { return }
-                                    newTitle = s.title
-                                    newDescription = s.description ?? ""
-                                    newImageUrl = s.imageUrl ?? ""
-                                    newIntro = s.intro ?? ""
-                                    generatedImagePreview = nil
-                                    showEdit = true
-                                } label: {
-                                    Label("편집", systemImage: "pencil")
-                                }
-                                .keyboardShortcut("e", modifiers: .command) // ⌘E
-                                .help("이름/설명/커버/취지 수정 (⌘E)")
-                                .disabled(selectedSeries == nil || isLoading)
-                                Button {
-                                    showDeleteConfirm = true
-                                } label: {
-                                    Label("삭제", systemImage: "trash")
-                                }
-                                .keyboardShortcut(.delete, modifiers: .command) // ⌘⌫
-                                .help("시리즈 삭제 (글은 유지) (⌘⌫)")
-                                .disabled(selectedSeries == nil || isLoading)
+                // T-50 수정: ContentView의 NavigationSplitView 내부에 중첩 NavigationSplitView를
+                // 두면 detail 렌더가 lazy 처리되어 화면이 나타나지 않는 버그 → NavigationStack + HSplitView 2열로 복구
+                NavigationStack {
+                    HSplitView {
+                        seriesList(data)
+                            .frame(minWidth: 150, idealWidth: 170, maxWidth: 240)
+                        detail(data)
+                            .frame(minWidth: 480)
+                    }
+                    .toolbar {
+                        // T-50: 하단 버튼 바 제거 → 툴바 (macOS 표준)
+                        ToolbarItemGroup(placement: .primaryAction) {
+                            Button {
+                                newTitle = ""
+                                newDescription = ""
+                                newImageUrl = ""
+                                newIntro = ""
+                                generatedImagePreview = nil
+                                showCreate = true
+                            } label: {
+                                Label("새 시리즈", systemImage: "plus")
                             }
+                            .keyboardShortcut("n", modifiers: .command) // ⌘N
+                            .help("새 시리즈 (⌘N)")
+                            .disabled(isLoading)
+                            Button {
+                                guard let s = selectedSeries else { return }
+                                newTitle = s.title
+                                newDescription = s.description ?? ""
+                                newImageUrl = s.imageUrl ?? ""
+                                newIntro = s.intro ?? ""
+                                generatedImagePreview = nil
+                                showEdit = true
+                            } label: {
+                                Label("편집", systemImage: "pencil")
+                            }
+                            .keyboardShortcut("e", modifiers: .command) // ⌘E
+                            .help("이름/설명/커버/취지 수정 (⌘E)")
+                            .disabled(selectedSeries == nil || isLoading)
+                            Button {
+                                showDeleteConfirm = true
+                            } label: {
+                                Label("삭제", systemImage: "trash")
+                            }
+                            .keyboardShortcut(.delete, modifiers: .command) // ⌘⌫
+                            .help("시리즈 삭제 (글은 유지) (⌘⌫)")
+                            .disabled(selectedSeries == nil || isLoading)
+                            Button {
+                                showAddPosts = true
+                            } label: {
+                                Label("글 추가", systemImage: "text.badge.plus")
+                            }
+                            .keyboardShortcut("+", modifiers: .command) // ⌘+
+                            .help("시리즈에 글 추가 (⌘+)")
+                            .disabled(selectedSeries == nil)
                         }
-                } detail: {
-                    detail(data)
+                    }
                 }
             }
         }
@@ -217,19 +228,6 @@ struct SeriesView: View {
             }
         }
         .navigationTitle(selectedSeries?.title ?? "시리즈")
-        .toolbar {
-            // T-50: 글 추가 (⌘+) — 검색 + 체크박스 시트
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showAddPosts = true
-                } label: {
-                    Label("글 추가", systemImage: "plus")
-                }
-                .keyboardShortcut("+", modifiers: .command) // ⌘+
-                .help("시리즈에 글 추가 (⌘+)")
-                .disabled(selectedSeries == nil)
-            }
-        }
     }
 
     // ---------- 시리즈 폼 (생성/수정) ----------

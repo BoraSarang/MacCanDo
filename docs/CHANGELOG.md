@@ -1,3 +1,12 @@
+## v2.7.1-T57fix (2026-08-18) — [macos] 시리즈 화면 복구 + 도우미 탭 정리 + 미리보기 리사이즈 + 시트 UX
+
+- T-57 수정 1 (시리즈 동작 안 됨): ContentView(NavigationSplitView) detail 안 중첩 NavigationSplitView가 렌더되지 않는 문제 → NavigationStack + HSplitView 2열로 복구. + isLoading 초기값 false→true (빈 뷰 mount 불가 → .task 미실행이 근본 원인, Posts/Comments와 통일)
+- T-57 수정 2 (AI 도우미 UI 불일치): 맥 소식이 사이드바 독립 탭(T-46)으로 승격됐는데 도우미 창에 남아 있던 "참고 자료|맥 소식" segmented 제거 — 참고 자료 전용으로 정리
+- T-57 수정 3 (미리보기 리사이즈): WKWebView를 ScrollView로 감싸면 내부 레이아웃이 고정되어 창 리사이즈 미반영 → ScrollView 제거 (WKWebView 자체 스크롤), GeometryReader로 리사이즈 검증 로그 (416×690 등 확인)
+- T-57 수정 4 (에디터 시트 UX): 시트 헤더 .headline→.title3.bold() 통일 (SEO/커버/앱카드/마크다운/이미지), 이미지 목록 이모지(💬📄)→SF Symbol, ErrorState/EmptyState 컴포넌트 적용, 파일 선택 버튼 .bordered, URL 필드 Return 제출
+- UI 직접 검증: AX 접근성 트리 덤프로 사이드바 7탭·시리즈 5개 목록/상세/툴바 4버튼·글 추가 시트 9개·AI 도우미(참고 자료 3건)·에디터 헤더/포맷 바/Inspector/미리보기/시트 5종(이미지·SEO·커버·앱카드·마크다운) 확인
+- 배포: Release 빌드 → ~/Applications/MacCanDo.app (빌드 12, v1.0.0)
+
 ## v2.7.0-T44~T57 (2026-08-18) — [macos] 전면 HIG 표준화: 공통 컴포넌트·에디터·목록·설정
 
 - T-44: 공통 컴포넌트 신규 (ErrorState/EmptyState/StatusBar/StatusBadge) + 디자인 토큰 실적용 (6개 뷰 시스템 색 → ds*)
