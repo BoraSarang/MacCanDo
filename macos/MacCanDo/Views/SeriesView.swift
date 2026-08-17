@@ -14,6 +14,8 @@ struct SeriesView: View {
     @State private var showDeleteConfirm = false
     @State private var newTitle = ""
     @State private var newDescription = ""
+    @State private var newImageUrl = ""
+    @State private var newIntro = ""
     @State private var picked: Set<String> = []
     @State private var searchText = ""
     @State private var searchTask: Task<Void, Never>?
@@ -57,19 +59,11 @@ struct SeriesView: View {
                 await searchLoose(newValue)
             }
         }
-        .alert("새 시리즈", isPresented: $showCreate) {
-            TextField("시리즈 제목 (예: CleanMyMac 완벽 가이드)", text: $newTitle)
-            TextField("설명 (선택)", text: $newDescription)
-            Button("만들기") { Task { await create() } }
-            Button("취소", role: .cancel) {}
-        } message: {
-            Text("시리즈를 만들고 나서 글을 추가하세요.")
+        .sheet(isPresented: $showCreate) {
+            seriesForm(isCreate: true)
         }
-        .alert("시리즈 수정", isPresented: $showEdit) {
-            TextField("시리즈 제목", text: $newTitle)
-            TextField("설명 (선택)", text: $newDescription)
-            Button("저장") { Task { await update() } }
-            Button("취소", role: .cancel) {}
+        .sheet(isPresented: $showEdit) {
+            seriesForm(isCreate: false)
         }
         .confirmationDialog(
             "시리즈 '\(selectedSeries?.title ?? "")'를 삭제할까요? (글은 유지됩니다)",
@@ -82,6 +76,42 @@ struct SeriesView: View {
     }
 
     // ---------- 좌: 시리즈 목록 ----------
+
+    private func seriesForm(isCreate: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(isCreate ? "새 시리즈" : "시리즈 수정")
+                .font(.title3.bold())
+            TextField("시리즈 제목", text: $newTitle)
+                .textFieldStyle(.roundedBorder)
+            TextField("설명 (선택)", text: $newDescription)
+                .textFieldStyle(.roundedBorder)
+            TextField("커버 이미지 URL (선택, /uploads/… 또는 https://…)", text: $newImageUrl)
+                .textFieldStyle(.roundedBorder)
+            Text("취지 소개 (선택, 마크다운 — 상세 페이지 상단에 표시)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextEditor(text: $newIntro)
+                .font(.body)
+                .frame(minHeight: 110)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.3)))
+            HStack {
+                Spacer()
+                Button("취소") {
+                    if isCreate { showCreate = false } else { showEdit = false }
+                }
+                .keyboardShortcut(.cancelAction)
+                Button(isCreate ? "만들기" : "저장") {
+                    Task {
+                        if isCreate { await create() } else { await update() }
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 460)
+    }
 
     private func seriesList(_ data: AdminSeriesData) -> some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -101,6 +131,8 @@ struct SeriesView: View {
                 Button {
                     newTitle = ""
                     newDescription = ""
+                    newImageUrl = ""
+                    newIntro = ""
                     showCreate = true
                 } label: {
                     Image(systemName: "plus")
@@ -111,11 +143,13 @@ struct SeriesView: View {
                     guard let s = selectedSeries else { return }
                     newTitle = s.title
                     newDescription = s.description ?? ""
+                    newImageUrl = s.imageUrl ?? ""
+                    newIntro = s.intro ?? ""
                     showEdit = true
                 } label: {
                     Image(systemName: "pencil")
                 }
-                .help("이름/설명 수정")
+                .help("이름/설명/커버/취지 수정")
                 .disabled(selectedSeries == nil || isLoading)
                 Button {
                     showDeleteConfirm = true
@@ -142,12 +176,31 @@ struct SeriesView: View {
             if let s = selectedSeries {
                 // 헤더 (상단 정렬)
                 VStack(alignment: .leading, spacing: 3) {
+                    if let url = s.imageUrl, let u = URL(string: url) {
+                        AsyncImage(url: u) { img in
+                            img.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        }
+                        .frame(height: 130)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(.bottom, 4)
+                    }
                     Text("📚 \(s.title)")
                         .font(.title3.bold())
                     if let desc = s.description, !desc.isEmpty {
                         Text(desc)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+                    if let intro = s.intro, !intro.isEmpty {
+                        Text(intro)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                            .padding(.top, 2)
                     }
                 }
                 .padding(.horizontal, 14)
@@ -309,8 +362,15 @@ struct SeriesView: View {
         guard !title.isEmpty else { return }
         isLoading = true
         do {
-            let s = try await APIClient.createSeries(token: auth.token, title: title, description: newDescription.isEmpty ? nil : newDescription)
+            let s = try await APIClient.createSeries(
+                token: auth.token,
+                title: title,
+                description: newDescription.isEmpty ? nil : newDescription,
+                imageUrl: newImageUrl.isEmpty ? nil : newImageUrl,
+                intro: newIntro.isEmpty ? nil : newIntro
+            )
             selectedSeriesId = s.id
+            showCreate = false
             await load()
             DebugLogger.info("Series", "시리즈 생성 (\(title))")
         } catch {
@@ -331,8 +391,11 @@ struct SeriesView: View {
                 token: auth.token,
                 id: s.id,
                 title: title,
-                description: newDescription.isEmpty ? nil : newDescription
+                description: newDescription.isEmpty ? nil : newDescription,
+                imageUrl: newImageUrl.isEmpty ? nil : newImageUrl,
+                intro: newIntro.isEmpty ? nil : newIntro
             )
+            showEdit = false
             await load()
             DebugLogger.info("Series", "시리즈 수정 (\(s.id))")
         } catch {

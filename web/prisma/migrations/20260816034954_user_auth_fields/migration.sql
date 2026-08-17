@@ -5,7 +5,7 @@
 
 */
 -- DropIndex
-DROP INDEX "Post_title_trgm_idx";
+DROP INDEX IF EXISTS "Post_title_trgm_idx";
 
 -- AlterTable
 ALTER TABLE "User" DROP COLUMN "avatar",

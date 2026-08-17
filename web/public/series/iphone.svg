@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="320" viewBox="0 0 800 320">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="320" fill="url(#g)"/>
+  <text x="48" y="180" font-family="-apple-system, sans-serif" font-size="52" font-weight="700" fill="#ffffff" opacity="0.95">맥과 아이폰 연동</text>
+  <text x="50" y="228" font-family="-apple-system, sans-serif" font-size="24" fill="#ede9fe">연속성, 에어드롭, 클립보드 — 하나처럼 쓰기</text>
+</svg>

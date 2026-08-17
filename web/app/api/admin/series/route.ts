@@ -22,10 +22,10 @@ export const POST = withApi(async (req) => {
   if (!(await getAdminUser(req))) {
     return apiError("E-WEB-AUTH-1001", 401, { method: "POST", path: "/api/admin/series" });
   }
-  const body = (await req.json()) as { title?: string; description?: string };
+  const body = (await req.json()) as { title?: string; description?: string; imageUrl?: string; intro?: string };
   if (!body.title?.trim()) {
     return apiError("E-WEB-VALID-1002", 400, { method: "POST", path: "/api/admin/series" });
   }
-  const series = await createSeries(body.title, body.description ?? null);
+  const series = await createSeries(body.title, body.description ?? null, body.imageUrl ?? null, body.intro ?? null);
   return apiOk(series, { method: "POST", path: "/api/admin/series" });
 }, "AdminSeriesCreate");

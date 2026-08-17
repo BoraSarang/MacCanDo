@@ -116,6 +116,8 @@ struct SeriesItem: Decodable, Identifiable {
     let id: String
     let title: String
     let description: String?
+    let imageUrl: String?
+    let intro: String?
     let createdAt: String?
     let posts: [SeriesPost]
 }
@@ -138,11 +140,15 @@ struct LoosePostItem: Decodable, Identifiable {
 struct SeriesCreateBody: Encodable {
     let title: String
     let description: String?
+    let imageUrl: String?
+    let intro: String?
 }
 
 struct SeriesUpdateBody: Encodable {
     var title: String?
     var description: String?
+    var imageUrl: String?
+    var intro: String?
 }
 
 struct PostIdsBody: Encodable {

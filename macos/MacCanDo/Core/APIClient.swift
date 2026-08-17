@@ -354,22 +354,22 @@ enum APIClient {
     }
 
     // 생성 — POST /api/admin/series
-    static func createSeries(token: String?, title: String, description: String?) async throws -> SeriesItem {
+    static func createSeries(token: String?, title: String, description: String?, imageUrl: String? = nil, intro: String? = nil) async throws -> SeriesItem {
         try await request(
             "api/admin/series",
             method: "POST",
             token: token,
-            body: SeriesCreateBody(title: title, description: description)
+            body: SeriesCreateBody(title: title, description: description, imageUrl: imageUrl, intro: intro)
         )
     }
 
-    // 이름/설명 변경 — PATCH /api/admin/series/[id]
-    static func updateSeries(token: String?, id: String, title: String?, description: String?) async throws -> SeriesItem {
+    // 이름/설명/커버/취지 변경 — PATCH /api/admin/series/[id]
+    static func updateSeries(token: String?, id: String, title: String?, description: String?, imageUrl: String? = nil, intro: String? = nil) async throws -> SeriesItem {
         try await request(
             "api/admin/series/\(id)",
             method: "PATCH",
             token: token,
-            body: SeriesUpdateBody(title: title, description: description)
+            body: SeriesUpdateBody(title: title, description: description, imageUrl: imageUrl, intro: intro)
         )
     }
 

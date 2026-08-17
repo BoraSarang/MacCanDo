@@ -10,14 +10,14 @@ export const PATCH = withApi(async (req, { params }: { params: Promise<{ id: str
     return apiError("E-WEB-AUTH-1001", 401, { method: "PATCH", path: "/api/admin/series/[id]" });
   }
   const { id } = await params;
-  const body = (await req.json()) as { title?: string; description?: string };
+  const body = (await req.json()) as { title?: string; description?: string; imageUrl?: string; intro?: string };
   if (body.title !== undefined && !body.title.trim()) {
     return apiError("E-WEB-VALID-1002", 400, { method: "PATCH", path: "/api/admin/series/[id]" });
   }
-  return apiOk(await updateSeries(id, body.title, body.description), {
-    method: "PATCH",
-    path: `/api/admin/series/${id}`,
-  });
+  return apiOk(
+    await updateSeries(id, body.title, body.description ?? null, body.imageUrl ?? null, body.intro ?? null),
+    { method: "PATCH", path: `/api/admin/series/${id}` }
+  );
 }, "AdminSeriesUpdate");
 
 export const DELETE = withApi(async (req, { params }: { params: Promise<{ id: string }> }) => {
