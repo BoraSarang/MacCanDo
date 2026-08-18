@@ -50,7 +50,9 @@ enum APIClient {
         }
 
         DebugLogger.debug("API", "→ \(method) \(path)")
+        let start = ContinuousClock.now // T-61: [PERF] API 지연 측정
         let (data, resp) = try await URLSession.shared.data(for: req)
+        let elapsedMs = Double(start.duration(to: .now).components.attoseconds / 1_000_000_000_000) / 1000 // → ms
         guard let http = resp as? HTTPURLResponse else {
             throw APIError(code: "E-MAC-NET-1001", message: "네트워크 응답 오류", status: -1)
         }
@@ -65,6 +67,10 @@ enum APIClient {
             throw APIError(code: "E-MAC-NET-1001", message: "데이터 없음", status: http.statusCode)
         }
         DebugLogger.debug("API", "← \(http.statusCode) \(path)")
+        // T-61: [PERF] 1초 초과 지연만 기록 (폴링 노이즈 방지, 표준 7.5 — p95 목표 제한)
+        if elapsedMs > 1000 {
+            DebugLogger.perf("API", "\(path) \(Int(elapsedMs))ms (>1000ms)")
+        }
         return data
     }
 

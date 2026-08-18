@@ -29,6 +29,7 @@
 
 | 번호 | 작업 | 플랫폼 | 상태 |
 |------|------|--------|------|
+| T-61 | macOS PERF/CACHE 점검 (bd MacCanDo-hx2 ③) — [PERF] 레벨 + Cold start 측정 + API 지연 로그 | macos | ✅ 2026-08-18 (Cold start 346ms) |
 | T-60 | 글 상세 페이지 SSG 정적화 (게이트/조회수 클라이언트 전환 — bd MacCanDo-hx2) | web | ✅ 2026-08-18 (TTFB 2957→55ms) |
 | T-59 | 일별 통계 기록 누락 수정 (bumpDailyStat 4훅 — bd MacCanDo-c80) | web | ✅ 2026-08-18 |
 | T-05b | 디자인 시스템 (토큰 3계층 + 다크모드 + 컴포넌트 적용) | web | ✅ 2026-08-16 |

@@ -1,3 +1,12 @@
+## v2.9.2 (2026-08-18) — [macos] PERF 로그 표준 적용 (T-61, bd MacCanDo-hx2 ③)
+
+- DebugLogger에 [PERF] 레벨 추가 (`LogLevel.perf`, `DebugLogger.perf`) — 표준 규격 7.5 (성능 지표)
+- Cold start 측정: AppDelegate 생성 시각 기준 → didFinishLaunching 경과 [PERF] 로그 — 실측 **346ms (예산 1500ms 통과)**
+- API 지연: APIClient request 응답 >1s 시 [PERF] 로그 (폴링 노이즈 방지 — 1초 초과만 기록)
+- CACHE 점검 결과: [CACHE] 로그는 GeminiService hit=true/false 코드 존재, 로그 16건 hit=false 확인 — 저장 정상, hit 0은 구조적(글당 1회 생성, 재생성 버튼은 forceRefresh 우회 의도). 캐시 동작 결함 없음
+- ERROR 점검: api/admin/stats 500 E-WEB-NET-1001 (서버 중지 시점 일시적) + 맞춤법 검사 1건 — 코드 결함 아님
+- 빌드 18, Debug 빌드 검증 + [PERF] 로그 파일 기록 확인
+
 ## v2.9.1 (2026-08-18) — [web] 글 상세 페이지 SSG 정적화 (T-60, bd MacCanDo-hx2)
 
 - 원인: `/post/[slug]`가 ƒ(Dynamic) — auth() 쿠키 게이트 + 조회수 DB write가 페이지 렌더링에 포함 → TTFB 2957ms (로컬 프로덕션 실측)

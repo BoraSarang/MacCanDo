@@ -7,6 +7,7 @@ import os
 enum LogLevel: String {
     case debug = "DEBUG"
     case info = "INFO"
+    case perf = "PERF"
     case warn = "WARN"
     case error = "ERROR"
 }
@@ -55,6 +56,8 @@ final class DebugLogger: ObservableObject {
 
     static func debug(_ module: String, _ msg: String) { shared.log(.debug, module, msg) }
     static func info(_ module: String, _ msg: String) { shared.log(.info, module, msg) }
+    // [PERF] 레벨 — 성능 지표 (Cold start, API 지연 등, 표준 규격 7.5)
+    static func perf(_ module: String, _ msg: String) { shared.log(.perf, module, msg) }
     static func warn(_ module: String, _ msg: String) { shared.log(.warn, module, msg) }
     static func error(_ module: String, _ msg: String) { shared.log(.error, module, msg) }
 

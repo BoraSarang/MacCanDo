@@ -6,7 +6,13 @@ import SwiftUI
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    // T-61: Cold start 기준 — AppDelegate 생성 시각 (프로세스 시작 직후, didFinishLaunching보다 이름)
+    private let delegateStartUptime = ProcessInfo.processInfo.systemUptime
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // T-61: [PERF] 콜드 스타트 — delegate 생성 → didFinishLaunching (예산 ≤1.5s)
+        let elapsedMs = (ProcessInfo.processInfo.systemUptime - delegateStartUptime) * 1000
+        DebugLogger.perf("App", String(format: "Cold start delegate→앱 시작 %.0fms (예산 1500ms)", elapsedMs))
         // 이미 실행 중인 인스턴스가 있으면 앞으로 가져오고 새 프로세스 종료
         guard let bundleID = Bundle.main.bundleIdentifier else { return }
         let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
