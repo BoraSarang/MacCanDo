@@ -10,4 +10,4 @@
 7. **오프라인 큐**: 해당 없음 (web 정적/SSR, 큐 미사용)
 8. **E2E/k6**: 해당 없음 (웹 E2E는 playwright 미구성 — Lighthouse + a11y 덤프 + 콘솔 0으로 대체)
 9. **T-59 추가 (v2.9)**: bd MacCanDo-c80 닫음 — lib/stats.ts(bumpDailyStat/isSameUtcDay) 신규 + 훅 4곳(조회/다운로드/댓글/auth signIn). 복합 unique where는 postId null 불허 → findFirst+create/update. dev 검증 daily [{2026-08-18, views:2}]. PLAN_v2.9_web.md 작성
-10. **T-60 추가 (v2.9.1)**: bd MacCanDo-hx2 PERF 검증 — /post/[slug] ƒ→● SSG (ISR 60s). 게이트(GateCheck)+조회수(PostViewCounter) 클라이언트 전환, API view/mine 2개 신규, incrementPostView 추출. TTFB 2957→55ms (-98%), FCP 112ms, CLS 0. TC-60 5건 통과 (SSG/TTFB/잠금문구/307차단/조회수46·daily 8). 트레이스 47MB 삭제 + perf.json 저장. PLAN_v2.9.1_web.md 작성
+10. **T-60 추가 (v2.9.1)**: bd MacCanDo-hx2 PERF 검증 — /post/[slug] ƒ→● SSG (ISR 60s). 게이트(GateCheck)+조회수(PostViewCounter) 클라이언트 전환, API view/mine 2개 신규, incrementPostView 추출. TTFB 2957→55ms (-98%), FCP 112ms, CLS 0. TC-60 5건 통과 (SSG/TTFB/잠금문구/307차단/조회수46·daily 8). 트레이스 47MB 삭제 + perf.json 저장. PLAN_v2.9.1_web.md 작성. 커밋 2bef2fa push + Vercel 배포(web-jengnb752). bd hx2에 노트 기록 (E2E CI + macOS PERF/CACHE는 남음)
