@@ -13,3 +13,11 @@
 10. **T-60 추가 (v2.9.1)**: bd MacCanDo-hx2 PERF 검증 — /post/[slug] ƒ→● SSG (ISR 60s). 게이트(GateCheck)+조회수(PostViewCounter) 클라이언트 전환, API view/mine 2개 신규, incrementPostView 추출. TTFB 2957→55ms (-98%), FCP 112ms, CLS 0. TC-60 5건 통과 (SSG/TTFB/잠금문구/307차단/조회수46·daily 8). 트레이스 47MB 삭제 + perf.json 저장. PLAN_v2.9.1_web.md 작성. 커밋 2bef2fa push + Vercel 배포(web-jengnb752). bd hx2에 노트 기록 (E2E CI + macOS PERF/CACHE는 남음)
 11. **T-61 추가 (v2.9.2)**: macOS DebugLogger [PERF] 레벨 신설 — Cold start 346ms (예산 1.5s), APIClient >1s [PERF] 로그. CACHE 점검: hit=false 16건 (저장 정상, hit 0 구조적). 커밋 66385e9
 12. **T-62 추가 (v2.9.3)**: Playwright E2E — @playwright/test + channel chrome(시스템 크롬, 다운로드 0), 스모크 4건 4/4 (13.3s), GH Actions e2e.yml (main push, web/**). **GitHub 시크릿 DATABASE_URL 등록 전엔 CI 실패함** — 사용자 액션 필요. bd MacCanDo-hx2 close. 커밋 83921c8
+13. **T-63 추가 (v2.10)**: 소스 리팩토링 (bd MacCanDo-27c close) — 커밋 3개 (20028d2/18ca4be/cb379ec)
+    - P1 안전성: E-WEB-POST-1001~1003 json 추가(코드 문자열 그대로 노출되던 버그), SeriesManager/AdsManager reload catch, macOS EditorView URL 강제언래핑 크래시 2건
+    - P2 데드코드: getPendingComments/extractAppId/seed_pages.ts, dumpLogs/SEOSuggestion.json/WindowSize.main/generatedCoverProvider/rethrow + 토큰 4종
+    - P3 web: getPostMetaBySlug(중복 쿼리 2회→1회), uploads 4핸들러 withApi, debug/logs apiOk, BodyFormat/PostContentType Prisma enum, SyncPost export
+    - P4 macOS: SQLiteStore.swift 베이스(3중복), GeminiService withRetry/extractJSON/sha256, WebHelpers.swift(stripHTML+UA 2중복)
+    - P5: ErrorMessages.swift + error_message_ko.json 번들 리소스(pbxproj 등록) + E-MAC 키 13개, 하드코딩 13곳 교체, 색상 토큰화 34곳(사용자 전부 승인) + onChange 경고 4건
+    - 검증: web tsc 0에러+build+E2E 4/4(11.6s), macos BUILD SUCCEEDED 경고 0, 앱 스모크(글 22/시리즈 5), 스크린샷 docs/screenshots/macos/v2.10_p5.png (텍스트 전용 모델 — 코드 검증 대체)
+    - 남은 이슈: cyf(로고 디자인), 0q1(운영 배포), T-08 R2(보류), GitHub 시크릿 DATABASE_URL 등록(CI 전)
