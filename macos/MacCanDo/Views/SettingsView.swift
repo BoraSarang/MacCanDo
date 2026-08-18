@@ -144,7 +144,7 @@ struct SettingsView: View {
                     if !imageGenMessage.isEmpty {
                         Text(imageGenMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
                     }
-                    Text("시리즈 커버/글 썸네일의 AI 이미지 생성 공급자입니다. '자동'이면 Gemini 실패 시 무료 Pollinations로 폴백됩니다 (무료 티어 쿼터 종료 대비).")
+                    Text("시리즈 커버/글 썸네일의 AI 이미지 생성 공급자입니다. '자동'이면 Gemini를 사용합니다.")
                         .font(.dsCaption)
                         .foregroundStyle(.secondary)
                     // T-22: OpenRouter (Flux) 키 — 이미지 생성 공급자 선택과 연결

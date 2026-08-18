@@ -1,3 +1,10 @@
+## v2.7.5 (2026-08-18) — [macos] Pollinations 무료 이미지 생성 제거 + DebugPanel HIG 적용
+
+- 무료 이미지 생성(Pollinations) 완전 제거: ImageGenProvider case 제거(자동=Gemini), auto 폴백 로직·callPollinations·encodePrompt 삭제, 설정 설명/에디터 폴백 경고 문구 정리 — Gemini(또는 OpenRouter) 전용
+- DebugPanel HIG 적용: 검은 배경 하드코딩 → textBackgroundColor(다크/라이트 대응), 이모지(🐛📌⚠️)→SF Symbol(ladybug/pin/exclamationmark.triangle), 하드코딩 RGB → ds토큰(dsBlue/dsSuccess/dsDanger/dsWarning/dsAmber/dsText/dsTextMuted), 폰트 .dsMono/.dsCaption, 헤더 버튼 .bordered+.controlSize(.small) + 선택 복사 disabled 처리
+- DebugPanel 표시 검증: frame=(620,558,560,384) 정상, 스크린샷 픽셀 분석으로 패널 렌더 확인 (배경 30,30,30 + 로그 흰 텍스트)
+- 배포: ~/Applications/MacCanDo.app (빌드 16)
+
 ## v2.7.4-spellfix (2026-08-18) — [macos] 맞춤법 검사 에러 표시 수정
 
 - APIError가 LocalizedError를 채택하지 않아 error.localizedDescription이 "작업을 완료할 수 없습니다.(MacCanDo.APIError 오류 1.)"로만 표시되던 문제 수정 — errorDescription = message로 실제 원인(에러코드/상태) 표시

@@ -37,13 +37,13 @@ struct DebugPanelView: View {
             }
         }
         .frame(minWidth: 560, minHeight: 360)
-        .background(Color.black.opacity(0.92))
+        .background(Color(nsColor: .textBackgroundColor))
     }
 
     // MARK: - 헤더
 
     private var header: some View {
-        HStack {
+        HStack(spacing: 8) {
             Picker("", selection: $tab) {
                 ForEach(DebugTab.allCases, id: \.self) { t in
                     Text(t.rawValue).tag(t)
@@ -56,20 +56,30 @@ struct DebugPanelView: View {
             }
             Spacer()
             if tab == .app {
-                Text("🐛 [\(logger.logs.count)]")
-                    .font(.caption.bold())
-                    .foregroundColor(.white)
-                Button("📌 \(isAutoScroll ? "ON" : "OFF")") { isAutoScroll.toggle() }
-                    .buttonStyle(.plain).foregroundColor(.white).help("자동 스크롤 토글")
+                Label("\(logger.logs.count)", systemImage: "ladybug")
+                    .font(.dsCaption.bold())
+                    .foregroundStyle(Color.dsTextSecondary)
+                Button {
+                    isAutoScroll.toggle()
+                } label: {
+                    Label(isAutoScroll ? "자동 스크롤 켜짐" : "자동 스크롤 꺼짐", systemImage: isAutoScroll ? "pin.fill" : "pin.slash")
+                        .labelStyle(.titleAndIcon)
+                }
+                .controlSize(.small)
+                .buttonStyle(.bordered)
+                .help("자동 스크롤 토글")
                 Button("선택 복사\(selection.isEmpty ? "" : " (\(selection.count))")") { copySelection() }
-                    .buttonStyle(.plain)
-                    .foregroundColor(selection.isEmpty ? Color(red: 0.72, green: 0.72, blue: 0.75) : Color.white)
-                    .font(selection.isEmpty ? .caption : .caption.bold())
+                    .controlSize(.small)
+                    .buttonStyle(.bordered)
+                    .disabled(selection.isEmpty)
                     .help("선택한 줄만 에이전트 포맷으로 복사")
                 Button("전체 복사") { copyAll() }
-                    .buttonStyle(.plain).foregroundColor(.white).help("전체 로그를 에이전트 포맷으로 복사")
+                    .controlSize(.small)
+                    .buttonStyle(.bordered)
+                    .help("전체 로그를 에이전트 포맷으로 복사")
                 Button("클리어") { clear() }
-                    .buttonStyle(.plain).foregroundColor(.white)
+                    .controlSize(.small)
+                    .buttonStyle(.bordered)
             } else {
                 HStack(spacing: 6) {
                     Picker("", selection: $vm.serverLevel) {
@@ -85,15 +95,18 @@ struct DebugPanelView: View {
                     }
                 }
                 Text("[\(vm.serverLogs.count)]")
-                    .font(.caption.bold()).foregroundColor(.white)
+                    .font(.dsCaption.bold())
+                    .foregroundStyle(Color.dsTextSecondary)
                 Button("새로고침") { Task { await vm.refreshServerLogs() } }
-                    .buttonStyle(.plain).foregroundColor(.white)
+                    .controlSize(.small)
+                    .buttonStyle(.bordered)
                 Button("전체 복사") { copyServerLogs() }
-                    .buttonStyle(.plain).foregroundColor(.white)
+                    .controlSize(.small)
+                    .buttonStyle(.bordered)
             }
         }
-        .padding(8)
-        .background(Color.black.opacity(0.8))
+        .padding(10)
+        .background(.bar)
     }
 
     // MARK: - 앱 로그 리스트
@@ -104,11 +117,12 @@ struct DebugPanelView: View {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     ForEach(logger.logs) { log in
                         Text(log.formatted)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(textColor(for: log))
-                            .padding(.horizontal, 4)
+                            .font(.dsMono)
+                            .foregroundStyle(textColor(for: log))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(selection.contains(log.id) ? Color.blue.opacity(0.35) : Color.clear)
+                            .background(selection.contains(log.id) ? Color.accentColor.opacity(0.3) : Color.clear)
                             .contentShape(Rectangle())
                             .onTapGesture { handleTap(log.id) }
                             .simultaneousGesture(
@@ -150,16 +164,16 @@ struct DebugPanelView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     if let err = vm.serverError {
-                        Text("⚠️ \(err)")
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(.red)
+                        Label(err, systemImage: "exclamationmark.triangle")
+                            .font(.dsCaption)
+                            .foregroundStyle(Color.dsDanger)
                             .padding(4)
                     }
                     ForEach(vm.serverLogs) { entry in
                         Text(entry.text)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(serverColor(entry.level))
-                            .padding(.horizontal, 4)
+                            .font(.dsMono)
+                            .foregroundStyle(serverColor(entry.level))
+                            .padding(.horizontal, 6)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                             .id(entry.id)
@@ -227,23 +241,23 @@ struct DebugPanelView: View {
     // MARK: - 색상
 
     private func textColor(for log: DebugLogEntry) -> Color {
-        if log.message.hasPrefix("API→") { return Color(red: 0.45, green: 0.75, blue: 0.99) }
-        if log.message.hasPrefix("API←") { return Color(red: 0.55, green: 0.92, blue: 0.60) }
+        if log.message.hasPrefix("API→") { return Color.dsBlue }
+        if log.message.hasPrefix("API←") { return Color.dsSuccess }
         switch log.level {
-        case .error: return Color(red: 1.0, green: 0.42, blue: 0.42)
-        case .warn: return Color(red: 1.0, green: 0.83, blue: 0.26)
-        case .debug: return Color(red: 0.62, green: 0.62, blue: 0.66)
-        default: return Color.white
+        case .error: return Color.dsDanger
+        case .warn: return Color.dsWarning
+        case .debug: return Color.dsTextMuted
+        default: return Color.dsText
         }
     }
 
     private func serverColor(_ level: String) -> Color {
         switch level {
-        case "ERROR": return Color(red: 1.0, green: 0.42, blue: 0.42)
-        case "WARN": return Color(red: 1.0, green: 0.83, blue: 0.26)
-        case "PERF": return Color(red: 1.0, green: 0.55, blue: 0.35)
-        case "CACHE": return Color(red: 0.60, green: 0.85, blue: 1.0)
-        default: return Color.white
+        case "ERROR": return Color.dsDanger
+        case "WARN": return Color.dsWarning
+        case "PERF": return Color.dsAmber
+        case "CACHE": return Color.dsBlue
+        default: return Color.dsText
         }
     }
 }
@@ -270,8 +284,10 @@ final class DebugPanelVM: ObservableObject {
             p.center()
             p.orderFrontRegardless()
             panel = p
+            DebugLogger.info("DebugPanel", "패널 표시됨 frame=\(p.frame) screen=\(NSScreen.main?.frame ?? .zero)")
         } else {
             panel?.orderFrontRegardless()
+            DebugLogger.info("DebugPanel", "패널 재표시 frame=\(panel?.frame ?? .zero)")
         }
         DebugLogger.info("DebugPanel", "패널 표시됨")
     }

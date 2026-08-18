@@ -175,20 +175,17 @@ enum GeminiService {
     // ---------- AI 이미지 생성 (시리즈 커버/썸네일, T-19) ----------
 
     // 이미지 생성 공급자 설정 (UserDefaults "imageGenProvider")
-    // auto: Gemini(최신) → 실패 시 Pollinations(무료) 폴백 / gemini: Gemini만 / pollinations: Pollinations만
-    // openrouter: Flux (OpenRouter 키, 품질 우수)
+    // auto: Gemini(최신) / gemini: Gemini만 / openrouter: Flux (OpenRouter 키, 품질 우수)
     enum ImageGenProvider: String, CaseIterable, Identifiable {
         case auto = "auto"
         case gemini = "gemini"
-        case pollinations = "pollinations"
         case openrouter = "openrouter"
 
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .auto: return "자동 (Gemini → 무료 폴백)"
+            case .auto: return "자동 (Gemini)"
             case .gemini: return "Gemini (유료/무료 쿼터)"
-            case .pollinations: return "Pollinations (무료, 키 불필요)"
             case .openrouter: return "OpenRouter 이미지 (키 필요)"
             }
         }
@@ -219,13 +216,10 @@ enum GeminiService {
     static let imageModels: [String] = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"]
 
     // 프롬프트 → 16:9 이미지 생성 (base64 inlineData 디코드)
-    // 공급자 체인: 설정값에 따라 Gemini(3.1 → 2.5 폴백) → Pollinations(무료) 자동 폴백 / Flux(OpenRouter)
-    // 반환: (이미지 Data, 사용 공급자 "gemini"|"pollinations"|"flux")
+    // 공급자 체인: 설정값에 따라 Gemini(3.1 → 2.5 폴백) 또는 Flux(OpenRouter)
+    // 반환: (이미지 Data, 사용 공급자 "gemini"|"flux")
     static func generateImage(prompt: String) async throws -> (data: Data, provider: String) {
         let mode = imageGenProvider
-        if mode == .pollinations {
-            return try await callPollinations(prompt: prompt)
-        }
         if mode == .openrouter {
             return try await callFlux(prompt: prompt)
         }
@@ -242,10 +236,7 @@ enum GeminiService {
             }
             throw APIError(code: "E-MAC-AI-1005", message: "이미지 생성 모델을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.", status: 404)
         } catch {
-            if mode == .gemini { throw error } // Gemini만 — 폴백 없음
-            // auto — 무료 티어 쿼터(429)/오류 시 Pollinations 폴백
-            DebugLogger.warn("Gemini", "Gemini 이미지 생성 실패 — Pollinations(무료) 폴백")
-            return try await callPollinations(prompt: prompt)
+            throw error // 폴백 없음 — Gemini 실패는 그대로 전파
         }
     }
 
@@ -317,32 +308,6 @@ enum GeminiService {
         return Data(base64Encoded: String(uri[comma.upperBound...]))
     }
 
-    // Pollinations — 무료 이미지 생성 (API 키 불필요, 1024x576 16:9)
-    // 경고: 무료 서비스는 프롬프트를 정확히 따르지 않아 요청 내용과 다른 이미지가 나올 수 있음
-    private static func callPollinations(prompt: String) async throws -> (data: Data, provider: String) {
-        guard let encoded = encodePrompt(prompt),
-              let url = URL(string: "https://image.pollinations.ai/prompt/\(encoded)?width=1024&height=576&nologo=true") else {
-            throw APIError(code: "E-MAC-AI-1005", message: "이미지 생성 요청 URL 오류", status: -1)
-        }
-        var req = URLRequest(url: url)
-        req.timeoutInterval = 120
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
-            throw APIError(code: "E-MAC-AI-1005", message: "무료 이미지 생성 실패 (HTTP \(code)). 잠시 후 다시 시도해 주세요.", status: code)
-        }
-        DebugLogger.info("Gemini", "[FEATURE] AI 이미지 생성 완료 provider=Pollinations bytes=\(data.count)")
-        return (data, "pollinations")
-    }
-
-    // RFC 3986 unreserved 문자만 남기고 전부 인코딩 — urlQueryAllowed는 ? & = + 를
-    // 인코딩하지 않아 프롬프트에 특수문자('?', '&')가 있으면 URL 구조가 깨져 404 발생
-    private static func encodePrompt(_ prompt: String) -> String? {
-        var allowed = CharacterSet.alphanumerics
-        allowed.insert(charactersIn: "-._~")
-        return prompt.addingPercentEncoding(withAllowedCharacters: allowed)
-    }
-
     private static func callImageGen(model: String, prompt: String) async throws -> Data {
         guard let key = UserDefaults.standard.string(forKey: "geminiKey"), !key.isEmpty else {
             throw APIError(code: "E-MAC-SET-1001", message: "Gemini API 키가 설정되지 않았습니다. 설정에서 입력하세요.", status: -1)
@@ -384,7 +349,7 @@ enum GeminiService {
         return imageData
     }
 
-    // 생성 이미지 바이트 → 확장자 판별 (Pollinations=JPEG, Gemini=PNG) — 업로드 mimeType 대응
+    // 생성 이미지 바이트 → 확장자 판별 (JPEG/PNG/WebP/GIF) — 업로드 mimeType 대응
     static func imageExtension(for data: Data) -> String {
         if data.count > 3, data[0] == 0xFF, data[1] == 0xD8, data[2] == 0xFF { return "jpg" }
         if data.count > 4, data[0] == 0x89, data[1] == 0x50, data[2] == 0x4E, data[3] == 0x47 { return "png" }

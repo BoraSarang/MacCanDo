@@ -189,7 +189,7 @@ struct EditorView: View {
     @State private var imageGenPromptText = ""
     @State private var generatingCoverImage = false
     @State private var generatedCoverImageData: Data?
-    @State private var generatedCoverProvider: String? // "gemini" | "pollinations" — 폴백 경고 표시용
+    @State private var generatedCoverProvider: String? // "gemini" | "flux" — 공급자 표시용
     @State private var lookedUpAppUrls: Set<String> = [] // [app:URL] App Store 조회 시도 완료 URL (반복 방지)
     @State private var coverImageError: String?
     @State private var insertURL = ""
@@ -1469,12 +1469,6 @@ struct EditorView: View {
                         .overlay(Text("생성 결과가 여기에 표시됩니다").font(.caption).foregroundStyle(.secondary))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-            }
-            // 무료 폴백 경고 — Pollinations는 프롬프트를 정확히 따르지 않아 엉뚱한 이미지가 나올 수 있음
-            if generatedCoverImageData != nil, generatedCoverProvider == "pollinations" {
-                Label("무료 생성 이미지 — 요청 내용과 다를 수 있습니다. Gemini 유료 키를 설정하면 정확한 이미지가 생성됩니다.", systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(Color.dsWarning)
             }
             if let err = coverImageError {
                 Text(err).font(.caption).foregroundStyle(Color.dsDanger)
