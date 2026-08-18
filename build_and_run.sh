@@ -36,7 +36,15 @@ case "$MODE" in
           echo "[BUILD] 빌드 번호: $BV (버전 1.0.0)"
           (cd macos && xcodegen generate && xcodebuild -project MacCanDo.xcodeproj -scheme MacCanDo -configuration Debug build MARKETING_VERSION=1.0.0 CURRENT_PROJECT_VERSION=$BV)
           APP=$(find ~/Library/Developer/Xcode/DerivedData -name "MacCanDo.app" -path "*Debug*" 2>/dev/null | head -1)
-          echo "[BUILD] macos 빌드 성공 — 실행: open $APP"
+          DEST="$HOME/Applications/MacCanDo.app"
+          mkdir -p "$HOME/Applications"
+          pkill -x MacCanDo 2>/dev/null || true
+          sleep 1
+          rm -rf "$DEST"
+          ditto "$APP" "$DEST"
+          mdimport "$DEST" >/dev/null 2>&1 || true
+          echo "[BUILD] macos 빌드 성공 — $HOME/Applications 에 복사됨"
+          open "$DEST"
         else
           echo "[BUILD] macos/ 디렉토리가 없습니다. T-06에서 생성 예정."
         fi

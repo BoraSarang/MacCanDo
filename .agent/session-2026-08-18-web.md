@@ -21,3 +21,6 @@
     - P5: ErrorMessages.swift + error_message_ko.json 번들 리소스(pbxproj 등록) + E-MAC 키 13개, 하드코딩 13곳 교체, 색상 토큰화 34곳(사용자 전부 승인) + onChange 경고 4건
     - 검증: web tsc 0에러+build+E2E 4/4(11.6s), macos BUILD SUCCEEDED 경고 0, 앱 스모크(글 22/시리즈 5), 스크린샷 docs/screenshots/macos/v2.10_p5.png (텍스트 전용 모델 — 코드 검증 대체)
     - 남은 이슈: cyf(로고 디자인), 0q1(운영 배포), T-08 R2(보류), GitHub 시크릿 DATABASE_URL 등록(CI 전)
+
+14. **T-63 마무리 + 로고/아이콘 (v2.10.1, bd cyf close)**: 체크 배지(B안) 채택 — Gemini 이미지 쿼터 429로 SVG 수동 제작. web 파비콘 3종+OG(1200x630)+layout openGraph 등록, macOS AppIcon.icns 교체. build_and_run.sh debug macos에 ~/Applications 자동 배포(ditto+mdimport+open) 추가. 검증: web build+E2E 4/4, macos BUILD SUCCEEDED. 커밋 bc74dec/1f74e0d.
+15. **부수 작업**: ~/Applications/MacCanDo.app이 구버전(09:23)이라 새 로고 미반영 — 새 빌드 icns 복사 + 캐시 리셋으로 해결. (참고: EveryWebtoon 프로젝트에서 앱 이름 로컬라이즈 시도 — macOS 26.6.1 Finder/Dock 표시 이름 경로가 새 등록 번들의 .strings 로컬라이즈 미지원으로 보임, Xcode 전환 빌드로 해결 가능성 기록)
