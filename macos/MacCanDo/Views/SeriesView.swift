@@ -310,7 +310,7 @@ struct SeriesView: View {
                     TextEditor(text: $promptText)
                         .font(.body)
                         .frame(minHeight: 70)
-                        .overlay(RoundedRectangle(cornerRadius: Radius.sm).stroke(Color.gray.opacity(0.3)))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.sm).stroke(Color.dsSurfaceHover))
                     HStack {
                         Spacer()
                         Button("취소") { showPromptEditor = false }.keyboardShortcut(.cancelAction)
@@ -329,7 +329,7 @@ struct SeriesView: View {
             TextEditor(text: $newIntro)
                 .font(.body)
                 .frame(minHeight: 110)
-                .overlay(RoundedRectangle(cornerRadius: Radius.sm).stroke(Color.gray.opacity(0.3)))
+                .overlay(RoundedRectangle(cornerRadius: Radius.sm).stroke(Color.dsSurfaceHover))
             HStack {
                 Spacer()
                 Button("취소") {
@@ -562,7 +562,7 @@ struct AddPostsSheet: View {
                     HStack(spacing: 10) {
                         Image(systemName: picked.contains(p.id) ? "checkmark.circle.fill" : "circle")
                             .font(.title3)
-                            .foregroundStyle(picked.contains(p.id) ? Color.dsPrimary : Color.secondary)
+                            .foregroundStyle(picked.contains(p.id) ? Color.dsPrimary : Color.dsTextSecondary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(p.title)
                                 .font(.dsBody.weight(.medium))

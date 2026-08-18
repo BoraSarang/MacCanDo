@@ -216,7 +216,7 @@ struct ContentView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
-            .background(Capsule().fill(Color.secondary.opacity(0.2)))
+            .background(Capsule().fill(Color.dsSurfaceHover))
             .help("대기 항목 수")
     }
 

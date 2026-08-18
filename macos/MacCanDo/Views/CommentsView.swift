@@ -90,7 +90,7 @@ struct CommentsView: View {
                     AsyncImage(url: url) { img in
                         img.resizable().scaledToFill()
                     } placeholder: {
-                        Circle().fill(Color.gray.opacity(0.2))
+                        Circle().fill(Color.dsSurface)
                     }
                     .frame(width: 22, height: 22)
                     .clipShape(Circle())

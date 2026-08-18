@@ -37,7 +37,7 @@ struct DebugPanelView: View {
             }
         }
         .frame(minWidth: 560, minHeight: 360)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(Color.dsSurface)
     }
 
     // MARK: - 헤더
@@ -51,7 +51,7 @@ struct DebugPanelView: View {
             }
             .pickerStyle(.segmented)
             .frame(width: 180)
-            .onChange(of: tab) { _ in
+            .onChange(of: tab) {
                 if tab == .server { Task { await vm.refreshServerLogs() } }
             }
             Spacer()
@@ -90,7 +90,7 @@ struct DebugPanelView: View {
                     }
                     .pickerStyle(.menu)
                     .frame(width: 90)
-                    .onChange(of: vm.serverLevel) { _ in
+                    .onChange(of: vm.serverLevel) {
                         Task { await vm.refreshServerLogs() }
                     }
                 }
@@ -122,7 +122,7 @@ struct DebugPanelView: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(selection.contains(log.id) ? Color.accentColor.opacity(0.3) : Color.clear)
+                            .background(selection.contains(log.id) ? Color.dsAccent.opacity(0.3) : Color.clear)
                             .contentShape(Rectangle())
                             .onTapGesture { handleTap(log.id) }
                             .simultaneousGesture(
@@ -149,7 +149,7 @@ struct DebugPanelView: View {
             }
             .coordinateSpace(name: "logArea")
             .onPreferenceChange(RowFrameKey.self) { rowFrames.merge($0) { _, new in new } }
-            .onChange(of: logger.logs.count) { _ in
+            .onChange(of: logger.logs.count) {
                 if isAutoScroll && !logger.isAutoScrollPaused {
                     proxy.scrollTo(logger.logs.last?.id, anchor: .bottom)
                 }
@@ -181,7 +181,7 @@ struct DebugPanelView: View {
                 }
             }
             .coordinateSpace(name: "serverLogArea")
-            .onChange(of: vm.serverLogs.count) { _ in
+            .onChange(of: vm.serverLogs.count) {
                 if isAutoScroll && !logger.isAutoScrollPaused {
                     proxy.scrollTo(vm.serverLogs.last?.id, anchor: .bottom)
                 }

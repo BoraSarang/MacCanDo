@@ -194,7 +194,7 @@ struct MacNewsView: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: item.rating == "추천" ? "star.fill" : "minus")
                 .font(.caption)
-                .foregroundStyle(item.rating == "추천" ? Color.dsWarning : Color.secondary)
+                .foregroundStyle(item.rating == "추천" ? Color.dsWarning : Color.dsTextSecondary)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)

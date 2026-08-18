@@ -73,7 +73,7 @@ struct CommandPaletteView: View {
                                 ForEach(Array(results.enumerated()), id: \.element.id) { idx, entry in
                                     row(entry)
                                         .contentShape(Rectangle())
-                                        .background(idx == selectedIndex ? Color.accentColor : Color.clear)
+                                        .background(idx == selectedIndex ? Color.dsAccent : Color.clear)
                                         .clipShape(RoundedRectangle(cornerRadius: 6))
                                         .onTapGesture { run(entry) }
                                         .id(idx)
@@ -154,7 +154,7 @@ struct CommandPaletteView: View {
         HStack(spacing: 10) {
             Image(systemName: icon(entry))
                 .frame(width: 18)
-                .foregroundStyle(selected ? Color.white : Color.accentColor)
+                .foregroundStyle(selected ? Color.white : Color.dsAccent)
             switch entry {
             case .screen(let s):
                 Text(s.rawValue)
@@ -169,7 +169,7 @@ struct CommandPaletteView: View {
                         .lineLimit(1)
                     Text(p.slug + (p.isPublished ? "" : " · 초안"))
                         .font(.caption)
-                        .foregroundStyle(selected ? Color.white.opacity(0.8) : Color.secondary)
+                        .foregroundStyle(selected ? Color.white.opacity(0.8) : Color.dsTextSecondary)
                         .lineLimit(1)
                 }
             }
@@ -180,7 +180,7 @@ struct CommandPaletteView: View {
                     .foregroundStyle(.white.opacity(0.9))
             }
         }
-        .foregroundStyle(selected ? Color.white : Color.primary)
+        .foregroundStyle(selected ? Color.white : Color.dsText)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
     }

@@ -101,7 +101,7 @@ struct AdsView: View {
                     systemImage: s.featuredOrder != nil ? "star.fill" : "star"
                 )
                 .font(.caption.bold())
-                .foregroundStyle(s.featuredOrder != nil ? Color.dsWarning : Color.secondary)
+                .foregroundStyle(s.featuredOrder != nil ? Color.dsWarning : Color.dsTextSecondary)
             }
             .buttonStyle(.bordered)
             .disabled(busyID == "s-\(s.id)")
@@ -142,7 +142,7 @@ struct AdsView: View {
                     systemImage: p.featuredOrder != nil ? "star.fill" : "star"
                 )
                 .font(.caption.bold())
-                .foregroundStyle(p.featuredOrder != nil ? Color.dsWarning : Color.secondary)
+                .foregroundStyle(p.featuredOrder != nil ? Color.dsWarning : Color.dsTextSecondary)
             }
             .buttonStyle(.bordered)
             .disabled(busyID == "p-\(p.id)")

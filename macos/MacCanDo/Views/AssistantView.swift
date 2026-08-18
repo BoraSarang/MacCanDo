@@ -112,7 +112,7 @@ struct AssistantView: View {
                         AssistantPreview(html: assistantHTML(result))
                     }
                 }
-                .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color(nsColor: .textBackgroundColor)))
+                .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color.dsSurface))
                 .clipShape(RoundedRectangle(cornerRadius: Radius.md))
             } else {
                 VStack(spacing: 12) {
@@ -164,7 +164,7 @@ struct AssistantView: View {
         .frame(width: 200)
         .frame(maxHeight: .infinity)
         .padding(6)
-        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color(nsColor: .controlBackgroundColor)))
+        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color.dsSurface))
     }
 
     private func savedRow(_ entry: ReferenceEntry) -> some View {
@@ -203,7 +203,7 @@ struct AssistantView: View {
             .help("삭제")
         }
         .padding(4)
-        .background(RoundedRectangle(cornerRadius: 6).fill(selectedID == entry.id ? Color.accentColor.opacity(0.15) : Color.clear))
+        .background(RoundedRectangle(cornerRadius: 6).fill(selectedID == entry.id ? Color.dsAccent.opacity(0.15) : Color.clear))
     }
 
     // 저장된 항목 선택 → AI 재호출 없이 DB 결과 표시

@@ -318,7 +318,7 @@ struct EditorView: View {
                         AsyncImage(url: url) { img in
                             img.resizable().scaledToFit()
                         } placeholder: {
-                            Color.gray.opacity(0.2)
+                            Color.dsSurface
                         }
                         .frame(width: 48, height: 48)
                         .cornerRadius(8)
@@ -431,7 +431,7 @@ struct EditorView: View {
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10).padding(.vertical, 4)
-                    .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                    .background(Capsule().fill(Color.dsAccent.opacity(0.12)))
                     .help("Markdown 형식으로 작성됩니다")
                 Spacer()
                 Button {
@@ -564,10 +564,10 @@ struct EditorView: View {
                                 .font(.caption)
                                 .padding(.horizontal, 8).padding(.vertical, 3)
                                 .background(
-                                    Capsule().fill(selectedCategoryIds.contains(c.id) ? Color.accentColor.opacity(0.2) : Color.clear)
+                                    Capsule().fill(selectedCategoryIds.contains(c.id) ? Color.dsAccent.opacity(0.2) : Color.clear)
                                 )
-                                .overlay(Capsule().strokeBorder(selectedCategoryIds.contains(c.id) ? Color.accentColor : Color.secondary.opacity(0.4), lineWidth: 1))
-                                .foregroundStyle(selectedCategoryIds.contains(c.id) ? Color.primary : Color.secondary)
+                                .overlay(Capsule().strokeBorder(selectedCategoryIds.contains(c.id) ? Color.dsAccent : Color.dsTextSecondary.opacity(0.4), lineWidth: 1))
+                                .foregroundStyle(selectedCategoryIds.contains(c.id) ? Color.dsText : Color.dsTextSecondary)
                         }
                         .buttonStyle(.plain)
                         .help("카테고리 중복 선택 가능")
@@ -618,7 +618,7 @@ struct EditorView: View {
                     AsyncImage(url: url) { img in
                         img.resizable().scaledToFill()
                     } placeholder: {
-                        Rectangle().fill(Color.gray.opacity(0.15))
+                        Rectangle().fill(Color.dsSurface)
                     }
                     .frame(maxWidth: .infinity, maxHeight: 80, alignment: .top)
                     .clipped()
@@ -696,7 +696,7 @@ struct EditorView: View {
                     }
                     .frame(minWidth: 300, maxWidth: .infinity)
                     // T-48: 다크모드 — 흰색 하드코딩 제거 (웹 프리뷰 배경은 CSS 미디어 쿼리 대응)
-                    .background(Color(nsColor: .textBackgroundColor))
+                    .background(Color.dsSurface)
                     .background(
                         // T-57: 리사이즈 검증용 — 미리보기 영역 크기 로그
                         GeometryReader { geo in
@@ -817,7 +817,7 @@ struct EditorView: View {
                                     .help("원문을 수정문으로 교체")
                             }
                             .padding(8)
-                            .background(RoundedRectangle(cornerRadius: Radius.sm).fill(Color(nsColor: .controlBackgroundColor)))
+                            .background(RoundedRectangle(cornerRadius: Radius.sm).fill(Color.dsSurface))
                         }
                     }
                 }
@@ -1418,7 +1418,7 @@ struct EditorView: View {
             TextEditor(text: $imageGenPromptText)
                 .font(.body)
                 .frame(minHeight: 80)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.3)))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.dsSurfaceHover))
             HStack {
                 Button("초기화") { imageGenPromptText = coverImagePrompt() }
                     .buttonStyle(.link)
@@ -1448,7 +1448,7 @@ struct EditorView: View {
                         .scaledToFit()
                         .frame(maxWidth: .infinity)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.dsSurfaceHover))
                 } else if let cover = absoluteImageURL(thumbnailUrl) {
                     // 저장된 커버 이미지 표시 (아직 새로 생성 안 한 상태)
                     VStack(alignment: .leading, spacing: 6) {
@@ -1459,11 +1459,11 @@ struct EditorView: View {
                             ProgressView().frame(maxWidth: .infinity, minHeight: 120)
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.dsSurfaceHover))
                     }
                 } else {
                     Rectangle()
-                        .fill(Color.gray.opacity(0.08))
+                        .fill(Color.dsSurface)
                         .frame(maxWidth: .infinity, minHeight: 200)
                         .overlay(Text("생성 결과가 여기에 표시됩니다").font(.caption).foregroundStyle(.secondary))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -1610,7 +1610,7 @@ struct EditorView: View {
                     TextEditor(text: $thumbPromptText)
                         .font(.body)
                         .frame(minHeight: 60)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.3)))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.dsSurfaceHover))
                     HStack {
                         Spacer()
                         Button("취소") { showThumbPrompt = false }.keyboardShortcut(.cancelAction)
@@ -1625,7 +1625,7 @@ struct EditorView: View {
             }
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color(nsColor: .controlBackgroundColor)))
+        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color.dsSurface))
         .onAppear {
             if let s = suggested, !s.isEmpty {
                 seoImageInput = s
@@ -1690,7 +1690,7 @@ struct EditorView: View {
         .textSelection(.enabled)
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color(nsColor: .controlBackgroundColor)))
+        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color.dsSurface))
     }
 
     private func seoRow(_ label: String, _ value: String?) -> some View {
@@ -1702,7 +1702,7 @@ struct EditorView: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color(nsColor: .controlBackgroundColor)))
+        .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color.dsSurface))
     }
 }
 
@@ -1793,7 +1793,7 @@ struct MarkdownHelpSheet: View {
             Text(code).font(.system(size: 11, design: .monospaced))
                 .textSelection(.enabled)
                 .padding(.horizontal, 8).padding(.vertical, 3)
-                .background(Color.accentColor.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: 4))
+                .background(Color.dsAccent.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: 4))
         }
     }
 
@@ -1962,7 +1962,7 @@ struct ImagePickerSheet: View {
                 AsyncImage(url: fullURL) { img in
                     img.resizable().scaledToFill()
                 } placeholder: {
-                    Rectangle().fill(Color.gray.opacity(0.15))
+                    Rectangle().fill(Color.dsSurface)
                         .overlay(ProgressView().controlSize(.small))
                 }
                 .frame(height: 90)
@@ -1989,7 +1989,7 @@ struct ImagePickerSheet: View {
                 .foregroundStyle(.tertiary)
             }
             .padding(8)
-            .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color(nsColor: .controlBackgroundColor)))
+            .background(RoundedRectangle(cornerRadius: Radius.md).fill(Color.dsSurface))
             .overlay(alignment: .topTrailing) {
                 HStack(spacing: 2) {
                     Button {

@@ -230,14 +230,14 @@ struct PostsView: View {
                     AsyncImage(url: url) { img in
                         img.resizable().aspectRatio(contentMode: .fill)
                     } placeholder: {
-                        Color.gray.opacity(0.15)
+                        Color.dsSurface
                     }
                     .frame(width: 144, height: 80)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
                 } else {
                     RoundedRectangle(cornerRadius: Radius.sm)
-                        .fill(Color.gray.opacity(0.1))
+                        .fill(Color.dsSurface)
                         .frame(width: 144, height: 80)
                         .overlay(
                             Image(systemName: "photo")

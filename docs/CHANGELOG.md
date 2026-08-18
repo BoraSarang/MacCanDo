@@ -6,6 +6,13 @@
 - 하드코딩 에러 문자열 교체: EditorView saveState/업로드 11곳, AdsView 1곳, SettingsView 1곳 → ErrorMessages.message()
 - 루트 json ↔ web/lib/json 키 동기화 (44/42키)
 
+### P5-① 색상 토큰화 (사용자 승인 — 전부)
+- Color(nsColor: textBackground/controlBackground) 9곳 → Color.dsSurface
+- Color.accentColor 7곳 → Color.dsAccent (브랜드 퍼플 고정 — 웹과 일관)
+- Color.primary/secondary 8곳 → dsText/dsTextSecondary, gray.opacity 11곳 → dsSurface/dsSurfaceHover
+- DebugPanel onChange deprecation 4건 수정 (macOS 14 2파라미터 클로저) — 빌드 경고 0
+- 시각 검증: 스크린샷 저장 (docs/screenshots/macos/v2.10_p5.png) — 텍스트 전용 모델은 코드 검증(하드코딩 0건/토큰 67곳)으로 대체
+
 
 ### P1 안전성
 - web: error_message_ko.json에 E-WEB-POST-1001~1003 추가 (기존엔 코드 문자열 그대로 노출되던 버그) — 루트+web/lib 동기화
