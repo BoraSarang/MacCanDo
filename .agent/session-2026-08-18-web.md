@@ -9,3 +9,4 @@
 6. **문서 업데이트**: docs/CHANGELOG.md(v2.8 추가), docs/TODO.md(T-58 ✅), docs/screenshots/web/v2.8_* (스크린샷 2 + a11y 덤프 1 + lighthouse 리포트)
 7. **오프라인 큐**: 해당 없음 (web 정적/SSR, 큐 미사용)
 8. **E2E/k6**: 해당 없음 (웹 E2E는 playwright 미구성 — Lighthouse + a11y 덤프 + 콘솔 0으로 대체)
+9. **T-59 추가 (v2.9)**: bd MacCanDo-c80 닫음 — lib/stats.ts(bumpDailyStat/isSameUtcDay) 신규 + 훅 4곳(조회/다운로드/댓글/auth signIn). 복합 unique where는 postId null 불허 → findFirst+create/update. dev 검증 daily [{2026-08-18, views:2}]. PLAN_v2.9_web.md 작성

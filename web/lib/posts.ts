@@ -7,6 +7,7 @@ import { trackImageUsage } from "./image";
 import { logger } from "./logger";
 import { lookupAppStore } from "./store-fetch";
 import { fetchOgMetadata } from "./og-fetch"; // T-31: 일반 웹사이트 앱 카드 og 메타 채우기
+import { bumpDailyStat } from "./stats"; // T-59: 일별 통계
 
 // ---------- 공개 (T-03) ----------
 
@@ -302,6 +303,7 @@ export async function getPostBySlug(slug: string, incrementView = true) {
     db.post
       .update({ where: { id: post.id }, data: { viewCount: { increment: 1 } } })
       .catch((e) => logger.warn("Post", `조회수 증가 실패: ${e}`));
+    bumpDailyStat("views"); // T-59: 일별 통계
   }
   return post;
 }

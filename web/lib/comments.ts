@@ -3,6 +3,7 @@
 // 승인 모드: 첫 댓글은 PENDING — 관리자(macOS 앱) 승인 후 공개
 import { db } from "./db";
 import { logger } from "./logger";
+import { bumpDailyStat } from "./stats"; // T-59: 일별 통계
 
 export const COMMENT_RATE_LIMIT = 5; // 10분 내 5개
 export const COMMENT_RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -64,6 +65,7 @@ export async function createComment(input: CreateCommentInput) {
   });
 
   logger.info("Comment", `생성 (id=${comment.id}, post=${postId}, user=${userId})`);
+  bumpDailyStat("comments"); // T-59: 일별 통계 (PENDING 포함 — 활동 추세)
   return { comment };
 }
 

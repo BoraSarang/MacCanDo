@@ -1,3 +1,12 @@
+## v2.9 (2026-08-18) — [web] 일별 통계 기록 수정 (bd MacCanDo-c80)
+
+- 원인: `GET /api/admin/stats`의 `data.daily`가 항상 `[]` — DailyStat 테이블에 데이터를 기록하는 코드가 전무 (조회수/다운로드/댓글/신규 유저 이벤트에 upsert 누락, 테이블·unique 인덱스는 init 마이그레이션에 존재)
+- `lib/stats.ts` 신규: `bumpDailyStat(field)` 헬퍼 — UTC 오늘 0시 전역(postId=null) 레코드 findFirst+create/update (복합 unique where는 postId null 비허용이라 upsert 불가), 실패 시 조용히 무시(logger.warn — 주 흐름 방해 금지) + `isSameUtcDay` 유틸
+- 훅 4곳: 조회 `lib/posts.ts`(viewCount 증가 옆, PAGE 제외 로직 동일), 다운로드 `lib/downloads.ts`(clickCount 증가 뒤), 댓글 `lib/comments.ts`(생성 후 — PENDING 포함 활동 추세), 신규 유저 `auth.ts` signIn 콜백(PrismaAdapter 생성 후 email findUnique → createdAt이 오늘이면 newUsers 집계)
+- 백필 없음: 과거 조회수를 임의 분산하지 않음 (daily는 이벤트 시점부터 누적, totalViews는 기존 집계 유지)
+- 검증 (TC-59-1): dev 서버에서 게시글 조회 API 2회 → `/api/admin/stats` daily `[{date: 2026-08-18, views: 2, clicks: 0, comments: 0, newUsers: 0}]` 확인, 조회수 39→40 증감 정상
+- 스키마 변경 없음 (마이그레이션 불필요), 신규 에러코드 없음
+
 ## v2.8 (2026-08-18) — [web] 웹 리디자인 파이프라인 (frontend-design → apple-design → emil-design-eng → web-design-guidelines)
 
 - 디자인 브리프: "⌘ 커맨드 키" 세계관 시그니처 확립 — 히어로 ⌘ 키캡(.keycap: 표면 그라데이션 + 3px 하단 테두리 + 8px radius) + spring 스태거 진입(Hero.tsx), 헤더 로고 키캡 뱃지

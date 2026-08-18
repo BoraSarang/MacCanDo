@@ -4,6 +4,7 @@
 import { createHash } from "crypto";
 import { db } from "./db";
 import { logger } from "./logger";
+import { bumpDailyStat } from "./stats"; // T-59: 일별 통계
 
 // 다운로드 게이트 판정
 export async function checkDownloadGate(linkId: string, userId?: string) {
@@ -54,6 +55,8 @@ export async function recordDownloadEvent(input: {
     where: { id: input.linkId },
     data: { clickCount: { increment: 1 } },
   });
+
+  bumpDailyStat("clicks"); // T-59: 일별 통계
 
   logger.info("Download", `클릭 기록 (link=${input.linkId}, post=${input.postId}, user=${input.userId ?? "-"})`);
   return event;

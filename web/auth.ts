@@ -2,8 +2,9 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prismaBase } from "@/lib/db";
+import { db, prismaBase } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { bumpDailyStat, isSameUtcDay } from "@/lib/stats"; // T-59: 일별 통계
 
 declare module "next-auth" {
   interface Session {
@@ -36,6 +37,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ user }) {
       logger.info("Auth", `로그인: ${user.email ?? user.id}`);
+      // T-59: 신규 유저 감지 — PrismaAdapter가 user 생성 후 호출되므로
+      // createdAt이 오늘(UTC)이면 오늘 신규 가입으로 집계
+      if (user.email) {
+        const existing = await db.user.findUnique({ where: { email: user.email } }).catch(() => null);
+        if (existing && isSameUtcDay(existing.createdAt, new Date())) {
+          bumpDailyStat("newUsers");
+        }
+      }
       return true;
     },
     async jwt({ token, user }) {
