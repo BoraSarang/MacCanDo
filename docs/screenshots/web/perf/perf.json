@@ -1,0 +1,13 @@
+{
+  "date": "2026-08-18",
+  "mode": "local production build (next start -p 3001)",
+  "platform": "web",
+  "pages": {
+    "/": { "ttfb_ms": 56, "fcp_ms": 124, "load_ms": 132, "cls": 0, "transfer_kb": 13 },
+    "/post/notepad-exe": { "ttfb_ms": 55, "fcp_ms": 112, "load_ms": 91, "cls": 0, "transfer_kb": 9 }
+  },
+  "before": { "/post/[slug]": "ƒ dynamic — TTFB 2957ms (auth 게이트 + 조회수 write)" },
+  "after": { "/post/[slug]": "● SSG + ISR 60s — TTFB 55ms (-98%)" },
+  "improvement": "T-60: 게이트/조회수 클라이언트 전환 (GateCheck/PostViewCounter), generateStaticParams 추가",
+  "budget": "Web TTFB 목표 < 300ms — 통과"
+}

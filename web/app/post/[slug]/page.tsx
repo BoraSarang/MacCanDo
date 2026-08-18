@@ -1,12 +1,11 @@
-// [FEATURE] 게시글 상세 — T-03 (MD/HTML 렌더링, 조회수, 다운로드 게이트 링크 표시)
+// [FEATURE] 게시글 상세 — T-03 (MD/HTML 렌더링, 다운로드 게이트 링크 표시)
+// T-60: SSG 정적화 — 조회수(PostViewCounter)/게이트(GateCheck)는 클라이언트에서 기록·판정
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { renderMarkdown, type AppCardData } from "@/lib/markdown";
 import { getPostBySlug, getRelatedPosts, getPrevNextPosts } from "@/lib/posts";
-import { getUserApprovedCommentCount } from "@/lib/comments";
-import { auth } from "@/auth";
-import { logger } from "@/lib/logger";
+import { db } from "@/lib/db"; // T-60: generateStaticParams
 import { BodyFormat } from "@/app/generated/prisma/client";
 import CommentsSection from "@/components/CommentsSection";
 import SeriesList from "@/components/SeriesList";
@@ -14,8 +13,19 @@ import PostBody from "@/components/PostBody";
 import WelcomeBanner from "@/components/WelcomeBanner";
 import { getSeriesForPost } from "@/lib/series";
 import { EyeIcon } from "@/components/Icons";
+import GateCheck from "./GateCheck";
+import PostViewCounter from "./PostViewCounter";
 
 export const revalidate = 60;
+
+// T-60: SSG 대상 등록 — 발행된 글 전체 (ISR 60s)
+export async function generateStaticParams() {
+  const posts = await db.post.findMany({
+    where: { status: "PUBLISHED" },
+    select: { slug: true },
+  });
+  return posts.map((p) => ({ slug: p.slug }));
+}
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -50,7 +60,8 @@ function formatDate(d: Date | null) {
 
 export default async function PostPage({ params }: Props) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  // T-60: SSG 정적화 — 조회수/게이트는 클라이언트에서 기록·판정
+  const post = await getPostBySlug(slug, false);
   if (!post) notFound();
 
   // T-17: 정적 페이지(PAGE) — 게시글 전용 UI(카테고리/조회수/썸네일/댓글/시리즈/관련글) 숨김
@@ -59,11 +70,6 @@ export default async function PostPage({ params }: Props) {
   // 다운로드 게이트: 로그인 + 승인 댓글 1개 이상 시 링크 공개 (T-04)
   // T-15: 앱 카드(postAppId) 링크는 제외 — 앱 카드 다운로드는 공개
   const gateLinks = isPage ? [] : post.downloadLinks.filter((dl) => !dl.postAppId);
-  const session = isPage ? null : await auth();
-  const commentCount =
-    !isPage && session?.user?.id ? await getUserApprovedCommentCount(session.user.id) : 0;
-  const gateUnlocked = isPage ? false : (session?.user?.id ? commentCount >= 1 : false) && gateLinks.length > 0;
-  if (!isPage) logger.info("PostDetail", `게이트 판정 (slug=${slug}, user=${session?.user?.id ?? "-"}, comments=${commentCount})`);
 
   // 시리즈 컨텍스트 (하단 목록 — 발행 글만, 순서대로)
   const series = !isPage && post.seriesId ? await getSeriesForPost(post.seriesId) : null;
@@ -145,34 +151,12 @@ export default async function PostPage({ params }: Props) {
         </div>
       )}
 
-      {/* 다운로드 링크 (게이트 — 댓글 1개 이상 + 로그인 시 공개, 앱 카드 링크 제외) */}
+      {/* 다운로드 링크 (게이트 — 댓글 1개 이상 + 로그인 시 공개, 앱 카드 링크 제외) — T-60: 클라이언트 판정 */}
       {!isPage && gateLinks.length > 0 && (
-        <section className="mt-10 card p-6 border-primary/30 bg-primary-soft/50">
-          <h2 className="font-bold text-lg mb-1">다운로드</h2>
-          {gateUnlocked ? (
-            <>
-              <p className="text-sm text-text-secondary mb-4">댓글 작성 감사합니다! 다운로드 링크가 공개되었습니다.</p>
-              {gateLinks.map((dl) => (
-                <Link
-                  key={dl.id}
-                  href={`/post/${post.slug}/download/${dl.id}`}
-                  className="block border border-border-strong bg-bg rounded-lg px-4 py-3 mb-2 hover:border-primary/50 hover:shadow-sm transition-all"
-                >
-                  <span className="font-semibold">{dl.label}</span>
-                  <span className="text-xs text-text-muted ml-2">
-                    ({dl.type === "OFFICIAL" ? "파일" : "웹 페이지"})
-                  </span>
-                </Link>
-              ))}
-            </>
-          ) : (
-            <p className="text-sm text-text-secondary mb-4">
-              {session?.user
-                ? "다운로드 링크를 보려면 댓글을 1개 이상 남겨주세요. (관리자 승인 후 공개됩니다)"
-                : "다운로드 링크를 보려면 Google 로그인 후 댓글을 1개 이상 남겨주세요."}
-            </p>
-          )}
-        </section>
+        <GateCheck
+          slug={post.slug}
+          links={gateLinks.map((dl) => ({ id: dl.id, label: dl.label, type: dl.type }))}
+        />
       )}
 
       {/* 시리즈 목록 (하단) */}
@@ -229,6 +213,9 @@ export default async function PostPage({ params }: Props) {
 
       {/* 댓글 — 정적 페이지는 비활성 (T-17) */}
       {!isPage && <CommentsSection slug={post.slug} />}
+
+      {/* T-60: 조회수 기록 (SSG — 클라이언트 1회) */}
+      <PostViewCounter slug={post.slug} isPage={isPage} />
     </article>
   );
 }

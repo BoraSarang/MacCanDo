@@ -300,12 +300,17 @@ export async function getPostBySlug(slug: string, incrementView = true) {
 
   // T-17: 정적 페이지(PAGE)는 조회수 미집계
   if (incrementView && post.contentType !== "PAGE") {
-    db.post
-      .update({ where: { id: post.id }, data: { viewCount: { increment: 1 } } })
-      .catch((e) => logger.warn("Post", `조회수 증가 실패: ${e}`));
-    bumpDailyStat("views"); // T-59: 일별 통계
+    incrementPostView(post.slug).catch(() => {});
   }
   return post;
+}
+
+// T-60: 조회수 기록 (SSG 페이지에서 클라이언트 → POST /api/posts/[slug]/view)
+export async function incrementPostView(slug: string): Promise<void> {
+  const target = await db.post.findFirst({ where: { slug, status: "PUBLISHED" }, select: { id: true, contentType: true } });
+  if (!target || target.contentType === "PAGE") return; // T-17: 정적 페이지 미집계
+  await db.post.update({ where: { id: target.id }, data: { viewCount: { increment: 1 } } });
+  bumpDailyStat("views"); // T-59: 일별 통계
 }
 
 // ---------- 관리 (T-07) ----------

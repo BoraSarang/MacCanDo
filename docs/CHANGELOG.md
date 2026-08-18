@@ -1,3 +1,14 @@
+## v2.9.1 (2026-08-18) — [web] 글 상세 페이지 SSG 정적화 (T-60, bd MacCanDo-hx2)
+
+- 원인: `/post/[slug]`가 ƒ(Dynamic) — auth() 쿠키 게이트 + 조회수 DB write가 페이지 렌더링에 포함 → TTFB 2957ms (로컬 프로덕션 실측)
+- 수정: 페이지는 읽기만(getPostBySlug(slug, false)) + `generateStaticParams`(발행 글 전체) → ● SSG + ISR 60s
+- 게이트 클라이언트 전환: `GateCheck.tsx` 신규 — session + `GET /api/posts/[slug]/mine`(본인 승인 댓글 수)로 잠금/공개 판정, 기존 마크업 이동. 최종 다운로드는 `/post/[slug]/download/[dlId]` 서버가 checkDownloadGate 재검증 — 보안 강도 동일 (검증: 미로그인 307 → ?gate=blocked)
+- 조회수 클라이언트 기록: `PostViewCounter.tsx` 신규 — 마운트 1회 `POST /api/posts/[slug]/view` (ref 가드, StrictMode 안전, PAGE 제외). lib/posts.ts `incrementPostView(slug)` 추출(기존 증가 로직과 DRY) + bumpDailyStat("views") 유지
+- 신규 API: POST `/api/posts/[slug]/view`(조회수+일별통계), GET `/api/posts/[slug]/mine`(게이트 판정, 미로그인 401)
+- 댓글(CommentsSection)은 이미 "use client" — SSG 후에도 실시간 fetch 유지, 영향 없음
+- 성능 결과 (로컬 프로덕션): TTFB 2957→55ms (-98%), FCP 112ms, load 91ms, CLS 0 — 성능 예산(<300ms) 통과, docs/screenshots/web/perf/perf.json 저장
+- 검증: TC-60-1 SSG ● 확인 / TC-60-2 TTFB 55ms / TC-60-3 미로그인 "Google 로그인 후 댓글" 잠금 문구 / TC-60-4 다운로드 307 차단 / TC-60-5 조회수 46·daily views 8 반영
+
 ## v2.9 (2026-08-18) — [web] 일별 통계 기록 수정 (bd MacCanDo-c80)
 
 - 원인: `GET /api/admin/stats`의 `data.daily`가 항상 `[]` — DailyStat 테이블에 데이터를 기록하는 코드가 전무 (조회수/다운로드/댓글/신규 유저 이벤트에 upsert 누락, 테이블·unique 인덱스는 init 마이그레이션에 존재)
