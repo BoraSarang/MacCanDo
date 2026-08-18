@@ -29,6 +29,7 @@
 
 | 번호 | 작업 | 플랫폼 | 상태 |
 |------|------|--------|------|
+| T-62 | Playwright E2E 스모크 + CI 등록 (bd MacCanDo-hx2 ②) | web | ✅ 2026-08-18 (4/4 통과, CI 워크플로 — 시크릿 등록 필요) |
 | T-61 | macOS PERF/CACHE 점검 (bd MacCanDo-hx2 ③) — [PERF] 레벨 + Cold start 측정 + API 지연 로그 | macos | ✅ 2026-08-18 (Cold start 346ms) |
 | T-60 | 글 상세 페이지 SSG 정적화 (게이트/조회수 클라이언트 전환 — bd MacCanDo-hx2) | web | ✅ 2026-08-18 (TTFB 2957→55ms) |
 | T-59 | 일별 통계 기록 누락 수정 (bumpDailyStat 4훅 — bd MacCanDo-c80) | web | ✅ 2026-08-18 |

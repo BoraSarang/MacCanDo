@@ -1,3 +1,12 @@
+## v2.9.3 (2026-08-18) — [web] Playwright E2E 스모크 테스트 + CI (T-62, bd MacCanDo-hx2 ②)
+
+- @playwright/test 도입 (표준 7.7) — 시스템 Chrome 사용(`channel: chrome`)으로 브라우저 다운로드 회피 (AGENTS 1장 9번)
+- playwright.config.ts: 로컬은 기존 dev 서버 재사용(reuseExistingServer), CI는 build+start 기동, trace retain-on-failure
+- 스모크 4건 (tests/e2e/smoke.spec.ts): 홈 히어로+카드 / 상세+게이트 잠금 문구 / 검색 / 카테고리 — **로컬 4/4 통과 (13.3s)**
+- GitHub Actions (.github/workflows/e2e.yml): main push(web 변경) 시 — system Chrome(setup-chrome) + npm ci + `npx playwright test`
+- **주의: CI 실행 전 GitHub 저장소에 `DATABASE_URL` 시크릿 등록 필요** (Neon 연결 — 읽기 위주 스모크, 조회수 POST 1회 영향만)
+- 테스트 산출물 .gitignore 기존 규칙 확인 (test-results/, playwright-report/ 무시)
+
 ## v2.9.2 (2026-08-18) — [macos] PERF 로그 표준 적용 (T-61, bd MacCanDo-hx2 ③)
 
 - DebugLogger에 [PERF] 레벨 추가 (`LogLevel.perf`, `DebugLogger.perf`) — 표준 규격 7.5 (성능 지표)
