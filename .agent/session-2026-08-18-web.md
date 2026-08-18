@@ -11,3 +11,5 @@
 8. **E2E/k6**: 해당 없음 (웹 E2E는 playwright 미구성 — Lighthouse + a11y 덤프 + 콘솔 0으로 대체)
 9. **T-59 추가 (v2.9)**: bd MacCanDo-c80 닫음 — lib/stats.ts(bumpDailyStat/isSameUtcDay) 신규 + 훅 4곳(조회/다운로드/댓글/auth signIn). 복합 unique where는 postId null 불허 → findFirst+create/update. dev 검증 daily [{2026-08-18, views:2}]. PLAN_v2.9_web.md 작성
 10. **T-60 추가 (v2.9.1)**: bd MacCanDo-hx2 PERF 검증 — /post/[slug] ƒ→● SSG (ISR 60s). 게이트(GateCheck)+조회수(PostViewCounter) 클라이언트 전환, API view/mine 2개 신규, incrementPostView 추출. TTFB 2957→55ms (-98%), FCP 112ms, CLS 0. TC-60 5건 통과 (SSG/TTFB/잠금문구/307차단/조회수46·daily 8). 트레이스 47MB 삭제 + perf.json 저장. PLAN_v2.9.1_web.md 작성. 커밋 2bef2fa push + Vercel 배포(web-jengnb752). bd hx2에 노트 기록 (E2E CI + macOS PERF/CACHE는 남음)
+11. **T-61 추가 (v2.9.2)**: macOS DebugLogger [PERF] 레벨 신설 — Cold start 346ms (예산 1.5s), APIClient >1s [PERF] 로그. CACHE 점검: hit=false 16건 (저장 정상, hit 0 구조적). 커밋 66385e9
+12. **T-62 추가 (v2.9.3)**: Playwright E2E — @playwright/test + channel chrome(시스템 크롬, 다운로드 0), 스모크 4건 4/4 (13.3s), GH Actions e2e.yml (main push, web/**). **GitHub 시크릿 DATABASE_URL 등록 전엔 CI 실패함** — 사용자 액션 필요. bd MacCanDo-hx2 close. 커밋 83921c8
