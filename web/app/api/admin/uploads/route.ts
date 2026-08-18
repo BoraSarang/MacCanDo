@@ -6,7 +6,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { getAdminUser } from "@/lib/admin";
-import { apiError, apiOk } from "@/lib/api";
+import { withApi, apiError, apiOk } from "@/lib/api";
 import { logger } from "@/lib/logger";
 import { listImages, createImage, deleteImage, updateImageCaption } from "@/lib/image";
 
@@ -20,8 +20,9 @@ const ALLOWED = new Map<string, string>([
 ]);
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
-export async function POST(req: Request) {
-  const pathname = "/api/admin/uploads";
+const pathname = "/api/admin/uploads";
+
+export const POST = withApi(async (req: Request) => {
   if (!(await getAdminUser(req))) {
     return apiError("E-WEB-AUTH-1001", 401, { method: "POST", path: pathname });
   }
@@ -57,11 +58,10 @@ export async function POST(req: Request) {
     logger.error("Upload", `저장 실패: ${err instanceof Error ? err.message : err}`);
     return apiError("E-WEB-NET-1001", 500, { method: "POST", path: pathname });
   }
-}
+}, "AdminUploads");
 
 // 이미지 목록 (파일↔DB sync 후 반환)
-export async function GET(req: Request) {
-  const pathname = "/api/admin/uploads";
+export const GET = withApi(async (req: Request) => {
   if (!(await getAdminUser(req))) {
     return apiError("E-WEB-AUTH-1001", 401, { method: "GET", path: pathname });
   }
@@ -73,11 +73,10 @@ export async function GET(req: Request) {
     logger.error("Upload", `목록 조회 실패: ${err instanceof Error ? err.message : err}`);
     return apiError("E-WEB-NET-1001", 500, { method: "GET", path: pathname });
   }
-}
+}, "AdminUploads");
 
 // 이미지 삭제 (파일 + DB, 경로 트래버설 방지)
-export async function DELETE(req: Request) {
-  const pathname = "/api/admin/uploads";
+export const DELETE = withApi(async (req: Request) => {
   if (!(await getAdminUser(req))) {
     return apiError("E-WEB-AUTH-1001", 401, { method: "DELETE", path: pathname });
   }
@@ -92,11 +91,10 @@ export async function DELETE(req: Request) {
   }
   logger.info("Upload", `이미지 삭제 완료 (${name})`);
   return apiOk({ deleted: name }, { method: "DELETE", path: pathname });
-}
+}, "AdminUploads");
 
 // 캡션 수정
-export async function PATCH(req: Request) {
-  const pathname = "/api/admin/uploads";
+export const PATCH = withApi(async (req: Request) => {
   if (!(await getAdminUser(req))) {
     return apiError("E-WEB-AUTH-1001", 401, { method: "PATCH", path: pathname });
   }
@@ -117,4 +115,4 @@ export async function PATCH(req: Request) {
   } catch {
     return apiError("E-WEB-UPLOAD-1003", 404, { method: "PATCH", path: pathname });
   }
-}
+}, "AdminUploads");

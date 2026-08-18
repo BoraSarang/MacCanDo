@@ -44,24 +44,19 @@ extension Color {
 // ---- Spacing (4px 그리드) ----
 enum Spacing {
     static let xxs: CGFloat = 4
-    static let xs: CGFloat = 8
-    static let sm: CGFloat = 12
     static let md: CGFloat = 16
     static let lg: CGFloat = 24
-    static let xl: CGFloat = 32
 }
 
 // ---- Radius ----
 enum Radius {
     static let sm: CGFloat = 8
     static let md: CGFloat = 12
-    static let lg: CGFloat = 16
 }
 
 // ---- Typography ----
 extension Font {
     static let dsTitle = Font.system(size: 20, weight: .bold)
-    static let dsHeading = Font.system(size: 16, weight: .semibold)
     static let dsBody = Font.system(size: 13)
     static let dsCaption = Font.system(size: 11)
     static let dsMono = Font.system(size: 12, design: .monospaced)

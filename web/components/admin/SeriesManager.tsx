@@ -39,13 +39,17 @@ export default function SeriesManager() {
   const [picked, setPicked] = useState<string[]>([]);
 
   const reload = useCallback(async () => {
-    const r = await fetch("/api/admin/series");
-    const j = await r.json();
-    if (j.ok) {
-      setSeries(j.data.series);
-      setLoosePosts(j.data.loosePosts);
-      setSelectedId((prev) => (prev && j.data.series.some((s: SeriesItem) => s.id === prev) ? prev : j.data.series[0]?.id ?? null));
-    } else {
+    try {
+      const r = await fetch("/api/admin/series");
+      const j = await r.json();
+      if (j.ok) {
+        setSeries(j.data.series);
+        setLoosePosts(j.data.loosePosts);
+        setSelectedId((prev) => (prev && j.data.series.some((s: SeriesItem) => s.id === prev) ? prev : j.data.series[0]?.id ?? null));
+      } else {
+        setError("시리즈 목록을 불러오지 못했습니다.");
+      }
+    } catch {
       setError("시리즈 목록을 불러오지 못했습니다.");
     }
   }, []);

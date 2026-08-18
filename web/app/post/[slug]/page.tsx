@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { renderMarkdown, type AppCardData } from "@/lib/markdown";
-import { getPostBySlug, getRelatedPosts, getPrevNextPosts } from "@/lib/posts";
+import { getPostMetaBySlug, getPostBySlug, getRelatedPosts, getPrevNextPosts } from "@/lib/posts";
 import { db } from "@/lib/db"; // T-60: generateStaticParams
 import { BodyFormat } from "@/app/generated/prisma/client";
 import CommentsSection from "@/components/CommentsSection";
@@ -33,7 +33,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const post = await getPostBySlug(slug, false);
+  const post = await getPostMetaBySlug(slug);
   if (!post) return { title: "게시글 없음" };
   // AI SEO(seoMeta) 값이 있으면 우선 사용 — 없으면 기본(제목/설명) 폴백
   const seo = (post.seoMeta ?? null) as { title?: string; description?: string; tags?: string[]; image?: string } | null;

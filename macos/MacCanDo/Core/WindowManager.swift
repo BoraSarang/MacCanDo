@@ -6,7 +6,6 @@ import AppKit
 
 // T-47: 창 크기 표준 상수 (v2.7.0 — Phase E 창 크기 상수화)
 enum WindowSize {
-    static let main = NSSize(width: 1100, height: 720)
     static let editor = NSSize(width: 1000, height: 640)
     static let assistant = NSSize(width: 900, height: 600)
 }

@@ -27,13 +27,17 @@ export default function AdsManager() {
   const [busy, setBusy] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const [sr, pr] = await Promise.all([fetch("/api/admin/series"), fetch("/api/admin/posts?all=1")]);
-    const sj = await sr.json();
-    const pj = await pr.json();
-    if (sj.ok && pj.ok) {
-      setSeries(sj.data.series);
-      setPosts(pj.data);
-    } else {
+    try {
+      const [sr, pr] = await Promise.all([fetch("/api/admin/series"), fetch("/api/admin/posts?all=1")]);
+      const sj = await sr.json();
+      const pj = await pr.json();
+      if (sj.ok && pj.ok) {
+        setSeries(sj.data.series);
+        setPosts(pj.data);
+      } else {
+        setError("광고 목록을 불러오지 못했습니다.");
+      }
+    } catch {
       setError("광고 목록을 불러오지 못했습니다.");
     }
   }, []);

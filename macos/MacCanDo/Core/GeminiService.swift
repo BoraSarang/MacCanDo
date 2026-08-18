@@ -11,15 +11,6 @@ struct SEOSuggestion: Codable {
     let keywords: [String]?
     let image: String?
 
-    var json: String {
-        var parts: [String] = []
-        if let title { parts.append("title: \(title)") }
-        if let slug { parts.append("slug: \(slug)") }
-        if let excerpt { parts.append("excerpt: \(excerpt)") }
-        if let keywords { parts.append("keywords: \(keywords.joined(separator: ", "))") }
-        if let image { parts.append("image: \(image)") }
-        return parts.joined(separator: "\n")
-    }
 }
 
 // T-27: 한글 맞춤법 검사 — 원문/수정문/이유 (개별 적용 버튼용)
@@ -89,7 +80,7 @@ enum GeminiService {
         }
 
         recordCacheMiss()
-        let suggestion = try await callWithRetry(prompt: prompt)
+        let suggestion = try await withRetry { try await callGemini(prompt: prompt) }
 
         // 캐시 저장
         let key = cacheKey(title: title, body: body, slug: slug, images: imageCandidates)
@@ -101,11 +92,14 @@ enum GeminiService {
         return suggestion
     }
 
-    // 입력 → SHA256 캐시 키
-    private static func cacheKey(title: String, body: String, slug: String?, images: [String]) -> String {
-        let raw = "\(title)|\(slug ?? "")|\(body)|\(images.joined(separator: ","))"
+    // 입력 → SHA256 캐시 키 (prefix: 용도 구분 — T-63 P4)
+    private static func sha256(_ raw: String, prefix: String = "") -> String {
         let digest = SHA256.hash(data: Data(raw.utf8))
-        return digest.map { String(format: "%02x", $0) }.joined()
+        return prefix + digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func cacheKey(title: String, body: String, slug: String?, images: [String]) -> String {
+        sha256("\(title)|\(slug ?? "")|\(body)|\(images.joined(separator: ","))")
     }
 
     private static func recordCacheHit() {
@@ -122,7 +116,8 @@ enum GeminiService {
         (UserDefaults.standard.integer(forKey: "seoCacheHits"), UserDefaults.standard.integer(forKey: "seoCacheMisses"))
     }
 
-    private static func callWithRetry(prompt: String) async throws -> SEOSuggestion {
+    // 503(일시 과부하)만 3회 재시도 — callGemini/callGeminiText 공용 (T-63 P4)
+    private static func withRetry<T>(_ op: () async throws -> T) async throws -> T {
         var lastError: APIError?
         for attempt in 0..<3 {
             if attempt > 0 {
@@ -130,10 +125,10 @@ enum GeminiService {
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
             }
             do {
-                return try await callGemini(prompt: prompt)
+                return try await op()
             } catch let e as APIError {
                 lastError = e
-                if e.status != 503 { throw e }  // 503(일시 과부하)만 재시도
+                if e.status != 503 { throw e }  // 503만 재시도
             }
         }
         throw lastError ?? APIError(code: "E-MAC-AI-1001", message: "Gemini 일시 오류 (503). 잠시 후 다시 시도해 주세요.", status: 503)
@@ -165,7 +160,7 @@ enum GeminiService {
         문서:
         \(text)
         """
-        let raw = try await callTextWithRetry(prompt: prompt)
+        let raw = try await withRetry { try await callGeminiText(prompt: prompt) }
         guard let data = extractJSONArray(from: raw) else {
             throw APIError(code: "E-MAC-AI-1003", message: "AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
         }
@@ -235,8 +230,6 @@ enum GeminiService {
                 }
             }
             throw APIError(code: "E-MAC-AI-1005", message: "이미지 생성 모델을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.", status: 404)
-        } catch {
-            throw error // 폴백 없음 — Gemini 실패는 그대로 전파
         }
     }
 
@@ -513,7 +506,7 @@ enum GeminiService {
             return (cached, true)
         }
         recordCacheMiss()
-        let text = try await callTextWithRetry(prompt: prompt)
+        let text = try await withRetry { try await callGeminiText(prompt: prompt) }
         DraftStore.saveSEOCache(key: key, suggestionJSON: text)
         DebugLogger.info("Gemini", "[CACHE] Guide hit=false 저장 (캐시 \(DraftStore.seoCacheCount())건)")
         return (text, false)
@@ -528,7 +521,7 @@ enum GeminiService {
         }
         var req = URLRequest(url: url)
         req.timeoutInterval = 15
-        req.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+        req.setValue(WebHelpers.safariUserAgent, forHTTPHeaderField: "User-Agent")
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
@@ -537,44 +530,13 @@ enum GeminiService {
         guard let html = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .utf16) else {
             throw APIError(code: "E-MAC-AI-1004", message: "웹사이트 내용을 읽을 수 없습니다.", status: -1)
         }
-        return stripHTML(html)
-    }
-
-    private static func stripHTML(_ html: String) -> String {
-        var t = html
-        t = t.replacingOccurrences(of: #"<script[^>]*>.*?</script>"#, with: " ", options: .regularExpression)
-        t = t.replacingOccurrences(of: #"<style[^>]*>.*?</style>"#, with: " ", options: .regularExpression)
-        t = t.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
-        t = t.replacingOccurrences(of: #"&nbsp;"#, with: " ")
-        t = t.replacingOccurrences(of: #"&amp;"#, with: "&")
-        t = t.replacingOccurrences(of: #"&lt;"#, with: "<")
-        t = t.replacingOccurrences(of: #"&gt;"#, with: ">")
-        t = t.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-        return t.trimmingCharacters(in: .whitespacesAndNewlines)
+        return WebHelpers.stripHTML(html)
     }
 
     private static func guideCacheKey(query: String, compareWith: String?, urlContent: String?) -> String {
-        let raw = "guide:\(query)|\(compareWith ?? "")|\(urlContent?.prefix(1500) ?? "")"
-        let digest = SHA256.hash(data: Data(raw.utf8))
-        return "g" + digest.map { String(format: "%02x", $0) }.joined()
+        sha256("guide:\(query)|\(compareWith ?? "")|\(urlContent?.prefix(1500) ?? "")", prefix: "g")
     }
 
-    private static func callTextWithRetry(prompt: String) async throws -> String {
-        var lastError: APIError?
-        for attempt in 0..<3 {
-            if attempt > 0 {
-                DebugLogger.warn("Gemini", "503 재시도 (\(attempt + 1)/3)")
-                try? await Task.sleep(nanoseconds: 1_500_000_000)
-            }
-            do {
-                return try await callGeminiText(prompt: prompt)
-            } catch let e as APIError {
-                lastError = e
-                if e.status != 503 { throw e }  // 503(일시 과부하)만 재시도
-            }
-        }
-        throw lastError ?? APIError(code: "E-MAC-AI-1001", message: "Gemini 일시 오류 (503). 잠시 후 다시 시도해 주세요.", status: 503)
-    }
 
     // ---------- 맥 소식 일괄 요약 (T-23) ----------
     // RSS 원시 항목 → JSON 배열 [{"title","summary","rating"}] — 요약 2줄 + 소재 추천도
@@ -639,27 +601,18 @@ enum GeminiService {
         return result
     }
 
-    // ```json ... ``` 또는 순수 JSON 배열 추출
-    private static func extractJSONArray(from text: String) -> Data? {
+    // ```json ... ``` 또는 순수 JSON 추출 (객체/배열 공용 — T-63 P4)
+    private static func extractJSON(from text: String, open: Character, close: Character) -> Data? {
         var t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.hasPrefix("```") {
             t = t.replacingOccurrences(of: "```json", with: "")
             t = t.replacingOccurrences(of: "```", with: "")
             t = t.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        guard let start = t.firstIndex(of: "["), let end = t.lastIndex(of: "]") else { return nil }
+        guard let start = t.firstIndex(of: open), let end = t.lastIndex(of: close) else { return nil }
         return String(t[start...end]).data(using: .utf8)
     }
 
-    // ```json ... ``` 또는 순수 JSON 추출
-    private static func extractJSON(from text: String) -> Data? {
-        var t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if t.hasPrefix("```") {
-            t = t.replacingOccurrences(of: "```json", with: "")
-            t = t.replacingOccurrences(of: "```", with: "")
-            t = t.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        guard let start = t.firstIndex(of: "{"), let end = t.lastIndex(of: "}") else { return nil }
-        return String(t[start...end]).data(using: .utf8)
-    }
+    private static func extractJSON(from text: String) -> Data? { extractJSON(from: text, open: "{", close: "}") }
+    private static func extractJSONArray(from text: String) -> Data? { extractJSON(from: text, open: "[", close: "]") }
 }

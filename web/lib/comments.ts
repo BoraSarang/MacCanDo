@@ -65,7 +65,7 @@ export async function createComment(input: CreateCommentInput) {
   });
 
   logger.info("Comment", `생성 (id=${comment.id}, post=${postId}, user=${userId})`);
-  bumpDailyStat("comments"); // T-59: 일별 통계 (PENDING 포함 — 활동 추세)
+  void bumpDailyStat("comments"); // T-59: 일별 통계 (PENDING 포함 — 활동 추세)
   return { comment };
 }
 

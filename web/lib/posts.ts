@@ -1,7 +1,7 @@
 // [FEATURE] 게시글 로직 — T-03(공개 목록/상세/검색) + T-07(관리 CRUD)
 // 공개: getPosts / getRecentPosts / getCategories / getPostBySlug
 // 관리: createPost / updatePost / deletePost (macOS 에디터 → /api/admin/posts)
-import { Prisma, PostStatus, PostContentType } from "@/app/generated/prisma/client";
+import { Prisma, PostStatus, PostContentType, BodyFormat } from "@/app/generated/prisma/client";
 import { db } from "./db";
 import { trackImageUsage } from "./image";
 import { logger } from "./logger";
@@ -284,6 +284,16 @@ export async function getTags() {
   return tags.map((t) => ({ id: t.id, slug: t.slug, name: t.name, postCount: t._count.posts }));
 }
 
+// generateMetadata 전용 경량 조회 (T-63 P3: 무거운 include 쿼리 2회 → select 축소)
+export async function getPostMetaBySlug(slug: string) {
+  const post = await db.post.findUnique({
+    where: { slug },
+    select: { title: true, excerpt: true, thumbnailUrl: true, seoMeta: true, contentType: true, status: true },
+  });
+  if (!post || post.status !== "PUBLISHED") return null;
+  return post;
+}
+
 // 상세 (조회수 증가 옵션 — generateMetadata에서는 incrementView=false)
 export async function getPostBySlug(slug: string, incrementView = true) {
   const post = await db.post.findUnique({
@@ -314,8 +324,6 @@ export async function incrementPostView(slug: string): Promise<void> {
 }
 
 // ---------- 관리 (T-07) ----------
-
-export type BodyFormat = "MD" | "HTML";
 
 // T-15: 앱 카드 입력 (macOS 에디터 → 글 저장 시 함께 전송)
 export interface PostAppInput {

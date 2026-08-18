@@ -3,14 +3,15 @@
 // slug 없으면 title 기반 자동 생성 (uniqueSlug)
 import { db } from "@/lib/db";
 import { makeSlug } from "@/lib/posts";
+import { BodyFormat, PostStatus } from "@/app/generated/prisma/client";
 
-type SyncPost = {
+export type SyncPost = {
   localPostId?: string | null;
   title: string;
   slug?: string | null;
   body: string;
-  bodyFormat?: string;
-  status?: string;
+  bodyFormat?: BodyFormat;
+  status?: PostStatus;
   updatedAt?: string;
 };
 

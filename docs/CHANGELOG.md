@@ -1,3 +1,29 @@
+## v2.10 (2026-08-18) — [web+macos] 소스 리팩토링 (T-63, bd MacCanDo-27c)
+
+### P1 안전성
+- web: error_message_ko.json에 E-WEB-POST-1001~1003 추가 (기존엔 코드 문자열 그대로 노출되던 버그) — 루트+web/lib 동기화
+- web: admin SeriesManager/AdsManager reload try-catch (unhandled rejection 방지)
+- macos: EditorView imageCell URL 강제언래핑 크래시 제거 (guard let + 절대/상대 분기), SettingsView 토큰 안내 URL 강제언래핑 제거
+
+### P2 데드 코드
+- web: getPendingComments, extractAppId, seed_pages.ts 삭제 (import 0건 검증)
+- macos: dumpLogs, SEOSuggestion.json, WindowSize.main, generatedCoverProvider(set만), generateImage 무의미 rethrow + 미사용 토큰(Spacing.xs/sm/xl, Radius.lg, Font.dsHeading)
+
+### P3 web 구조
+- getPostMetaBySlug 분리 — generateMetadata 경량 select (무거운 include 쿼리 2회→1회)
+- /api/admin/uploads 4개 핸들러 withApi 래핑 (path 하드코딩 10회→1회)
+- /api/debug/logs apiOk 통일 (NextResponse.json 직접 사용 제거)
+- BodyFormat 자체 타입 제거 → Prisma enum, contentType 리터럴 → PostContentType enum
+- SyncPost export + bulk route 인라인 타입 재사용, bumpDailyStat fire-and-forget void 명시
+
+### P4 macOS 구조
+- SQLiteStore 공용 베이스 신규 — DraftStore/ReferenceStore/MacNewsStore 보일러플레이트(경로/open/exec/SQLITE_TRANSIENT) 통합
+- GeminiService: withRetry 제네릭(재시도 2중복→1), extractJSON(open/close) 통합, sha256(prefix) 통합, WebHelpers 신규(stripHTML+UA 상수 2중복 제거)
+
+### 검증
+- web: tsc 0에러 + build 성공 + Playwright 4/4 (11.6s)
+- macos: build_and_run.sh debug macos BUILD SUCCEEDED
+
 ## v2.9.3 (2026-08-18) — [web] Playwright E2E 스모크 테스트 + CI (T-62, bd MacCanDo-hx2 ②)
 
 - @playwright/test 도입 (표준 7.7) — 시스템 Chrome 사용(`channel: chrome`)으로 브라우저 다운로드 회피 (AGENTS 1장 9번)

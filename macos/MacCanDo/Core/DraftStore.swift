@@ -4,9 +4,6 @@
 import Foundation
 import SQLite3
 
-// C 매크로 SQLITE_TRANSIENT — Swift에서 직접 정의
-private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-
 struct DraftRecord {
     var postId: String?   // nil = 새 글
     var title: String
@@ -24,19 +21,10 @@ enum DraftStore {
     // T-26: 새 글 초안은 단일 슬롯 — 자동저장할 때마다 항상 같은 행 갱신 (초안 = 하나의 글)
     static let newPostKey = "draft_new"
 
-    private static var dbPath: String {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("MacCanDo", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("drafts.sqlite").path
-    }
+    private static var dbPath: String { SQLiteStore.dbPath("drafts.sqlite") }
 
     static func open() {
-        guard db == nil else { return }
-        guard sqlite3_open(dbPath, &db) == SQLITE_OK else {
-            DebugLogger.error("Draft", "SQLite 열기 실패 (\(dbPath))")
-            return
-        }
+        guard SQLiteStore.open(dbPath, into: &db, context: "Draft") else { return }
         let sql = """
         CREATE TABLE IF NOT EXISTS drafts (
           post_id TEXT PRIMARY KEY,
@@ -48,20 +36,11 @@ enum DraftStore {
           saved_at REAL NOT NULL
         );
         """
-        var err: UnsafeMutablePointer<CChar>?
-        sqlite3_exec(db, sql, nil, nil, &err)
-        if err != nil {
-            DebugLogger.error("Draft", "테이블 생성 실패: \(String(cString: err!))")
-            sqlite3_free(err)
-        }
-        // v1→v2 마이그레이션: slug 컬럼 추가 (T-08)
-        if sqlite3_exec(db, "ALTER TABLE drafts ADD COLUMN slug TEXT;", nil, nil, nil) != SQLITE_OK {
-            // 이미 존재하면 무시
-        }
+        SQLiteStore.exec(db, sql: sql, context: "Draft")
+        // v1→v2 마이그레이션: slug 컬럼 추가 (T-08) — 이미 존재하면 무시
+        SQLiteStore.exec(db, sql: "ALTER TABLE drafts ADD COLUMN slug TEXT;", context: "Draft", silent: true)
         // v2→v3 마이그레이션: seo_meta 컬럼 추가 (T-08 보강)
-        if sqlite3_exec(db, "ALTER TABLE drafts ADD COLUMN seo_meta TEXT;", nil, nil, nil) != SQLITE_OK {
-            // 이미 존재하면 무시
-        }
+        SQLiteStore.exec(db, sql: "ALTER TABLE drafts ADD COLUMN seo_meta TEXT;", context: "Draft", silent: true)
         // v3→v4 마이그레이션 (T-26): "__new__" + 기존 "draft_<uuid>" 초안들 → 단일 "draft_new" 슬롯으로 병합
         // (가장 최근 초안 1건만 draft_new로 승격, 나머지 삭제 — 이후 새 키 생성 없음이라 1회로 충분)
         if sqlite3_exec(db, "SELECT COUNT(*) FROM drafts WHERE post_id = '__new__' OR (post_id LIKE 'draft_%' AND post_id != 'draft_new');", nil, nil, nil) == SQLITE_OK {
@@ -76,9 +55,8 @@ enum DraftStore {
               status=excluded.status, slug=excluded.slug, seo_meta=excluded.seo_meta, saved_at=excluded.saved_at;
             DELETE FROM drafts WHERE post_id = '__new__' OR (post_id LIKE 'draft_%' AND post_id != 'draft_new');
             """
-            if sqlite3_exec(db, mergeSQL, nil, nil, &err) != SQLITE_OK {
-                DebugLogger.error("Draft", "draft_new 병합 실패: \(String(cString: err!))")
-                sqlite3_free(err)
+            if !SQLiteStore.exec(db, sql: mergeSQL, context: "Draft") {
+                DebugLogger.error("Draft", "draft_new 병합 실패")
             }
         }
         // AI SEO 캐시 테이블 (LRU — 최대 100건, T-08)
@@ -89,10 +67,7 @@ enum DraftStore {
           saved_at REAL NOT NULL
         );
         """
-        if sqlite3_exec(db, cacheSQL, nil, nil, &err) != SQLITE_OK {
-            DebugLogger.error("Draft", "seo_cache 생성 실패: \(String(cString: err!))")
-            sqlite3_free(err)
-        }
+        SQLiteStore.exec(db, sql: cacheSQL, context: "Draft")
         DebugLogger.info("Draft", "SQLite 초기화 완료 (\(dbPath))")
     }
 

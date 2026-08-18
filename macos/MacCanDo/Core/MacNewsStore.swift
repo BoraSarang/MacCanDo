@@ -4,8 +4,6 @@
 import Foundation
 import SQLite3
 
-// C 매크로 SQLITE_TRANSIENT — Swift에서 직접 정의 (DraftStore의 private과 별개)
-private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
 // RSS 항목 (요약 전)
 struct RawNewsItem {
@@ -73,20 +71,10 @@ enum MacNewsStore {
         ("맥쓰는사람들", "https://macnews.tistory.com/feed")
     ]
 
-    private static var dbPath: String {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("MacCanDo", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("news.sqlite").path
-    }
+    private static var dbPath: String { SQLiteStore.dbPath("news.sqlite") }
 
     static func open() {
-        guard db == nil else { return }
-        guard sqlite3_open(dbPath, &db) == SQLITE_OK else {
-            DebugLogger.error("News", "SQLite 열기 실패 (\(dbPath))")
-            return
-        }
-        var err: UnsafeMutablePointer<CChar>?
+        guard SQLiteStore.open(dbPath, into: &db, context: "News") else { return }
         let sql = """
         CREATE TABLE IF NOT EXISTS news_sources (
           id TEXT PRIMARY KEY,
@@ -100,10 +88,7 @@ enum MacNewsStore {
           items_json TEXT NOT NULL
         );
         """
-        if sqlite3_exec(db, sql, nil, nil, &err) != SQLITE_OK {
-            DebugLogger.error("News", "테이블 생성 실패: \(String(cString: err!))")
-            sqlite3_free(err)
-        }
+        SQLiteStore.exec(db, sql: sql, context: "News")
         seedDefaultSourcesIfNeeded()
         DebugLogger.info("News", "SQLite 초기화 완료 (\(dbPath))")
     }
@@ -312,7 +297,7 @@ private final class RSSParserDelegate: NSObject, XMLParserDelegate {
         default: break
         }
         if elementName == "item" || elementName == "entry" {
-            let cleanTitle = stripTags(currentTitle)
+            let cleanTitle = WebHelpers.stripHTML(currentTitle)
             if !cleanTitle.isEmpty, !currentLink.isEmpty {
                 items.append(RawNewsItem(title: cleanTitle, url: currentLink, source: sourceName, published: currentPubDate))
             }
@@ -320,12 +305,6 @@ private final class RSSParserDelegate: NSObject, XMLParserDelegate {
         }
     }
 
-    private func stripTags(_ s: String) -> String {
-        var t = s
-        t = t.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
-        t = t.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-        return t.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 }
 
 // ---------- 수집 파이프라인 ----------
@@ -337,7 +316,7 @@ enum NewsCollector {
         }
         var req = URLRequest(url: url)
         req.timeoutInterval = 15
-        req.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+        req.setValue(WebHelpers.safariUserAgent, forHTTPHeaderField: "User-Agent")
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             let code = (resp as? HTTPURLResponse)?.statusCode ?? -1

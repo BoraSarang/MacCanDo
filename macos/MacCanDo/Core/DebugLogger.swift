@@ -79,15 +79,12 @@ final class DebugLogger: ObservableObject {
         if FileManager.default.fileExists(atPath: fileURL.path) {
             if let fh = try? FileHandle(forWritingTo: fileURL) {
                 defer { try? fh.close() }
-                try? fh.seekToEnd()
-                try? fh.write(contentsOf: data)
+                _ = try? fh.seekToEnd()
+                _ = try? fh.write(contentsOf: data)
             }
         } else {
             try? data.write(to: fileURL)
         }
     }
 
-    func dumpLogs() -> String {
-        return (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
-    }
 }

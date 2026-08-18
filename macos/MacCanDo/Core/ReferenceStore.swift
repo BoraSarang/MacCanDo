@@ -3,9 +3,6 @@
 import Foundation
 import SQLite3
 
-// C 매크로 SQLITE_TRANSIENT — Swift에서 직접 정의 (MacNewsStore와 동일 패턴)
-private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-
 struct ReferenceEntry: Identifiable {
     let id: String
     let query: String
@@ -17,20 +14,10 @@ struct ReferenceEntry: Identifiable {
 enum ReferenceStore {
     private static var db: OpaquePointer?
 
-    private static var dbPath: String {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("MacCanDo", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("references.sqlite").path
-    }
+    private static var dbPath: String { SQLiteStore.dbPath("references.sqlite") }
 
     static func open() {
-        guard db == nil else { return }
-        guard sqlite3_open(dbPath, &db) == SQLITE_OK else {
-            DebugLogger.error("Reference", "SQLite 열기 실패 (\(dbPath))")
-            return
-        }
-        var err: UnsafeMutablePointer<CChar>?
+        guard SQLiteStore.open(dbPath, into: &db, context: "Reference") else { return }
         let sql = """
         CREATE TABLE IF NOT EXISTS reference_entries (
           id TEXT PRIMARY KEY,
@@ -41,10 +28,7 @@ enum ReferenceStore {
           UNIQUE(query, compare_with)
         );
         """
-        if sqlite3_exec(db, sql, nil, nil, &err) != SQLITE_OK {
-            DebugLogger.error("Reference", "테이블 생성 실패: \(String(cString: err!))")
-            sqlite3_free(err)
-        }
+        SQLiteStore.exec(db, sql: sql, context: "Reference")
         DebugLogger.info("Reference", "SQLite 초기화 완료 (\(dbPath))")
     }
 

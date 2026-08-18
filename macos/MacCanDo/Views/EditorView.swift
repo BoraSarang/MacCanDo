@@ -189,7 +189,6 @@ struct EditorView: View {
     @State private var imageGenPromptText = ""
     @State private var generatingCoverImage = false
     @State private var generatedCoverImageData: Data?
-    @State private var generatedCoverProvider: String? // "gemini" | "flux" — 공급자 표시용
     @State private var lookedUpAppUrls: Set<String> = [] // [app:URL] App Store 조회 시도 완료 URL (반복 방지)
     @State private var coverImageError: String?
     @State private var insertURL = ""
@@ -1516,7 +1515,6 @@ struct EditorView: View {
             DebugLogger.info("Editor", "[FEATURE] AI 커버 이미지 생성 시작 provider=\(GeminiService.imageGenProvider.rawValue) prompt=\(String(prompt.prefix(60)))…")
             let (imageData, provider) = try await GeminiService.generateImage(prompt: prompt)
             generatedCoverImageData = imageData
-            generatedCoverProvider = provider
             DebugLogger.info("Editor", "[FEATURE] AI 커버 이미지 생성 완료 provider=\(provider) bytes=\(imageData.count)")
         } catch {
             let e = error as? APIError
@@ -1544,7 +1542,6 @@ struct EditorView: View {
                 seoMeta?.appliedAt = ISO8601DateFormatter().string(from: Date())
             }
             generatedCoverImageData = nil
-            generatedCoverProvider = nil
             showCoverImagePrompt = false
             saveState = "커버 이미지 적용됨 (저장하면 웹에 반영)"
             DebugLogger.info("Editor", "[FEATURE] 커버 이미지 적용 완료 (\(url))")
@@ -1957,7 +1954,7 @@ struct ImagePickerSheet: View {
     }
 
     private func imageCell(_ item: APIClient.UploadItem) -> some View {
-        let fullURL = URL(string: item.url, relativeTo: APIClient.baseURL)!
+        let fullURL = URL(string: item.url, relativeTo: APIClient.baseURL) ?? URL(string: item.url) ?? APIClient.baseURL
         return Button {
             insert(item)
         } label: {

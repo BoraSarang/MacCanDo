@@ -18,6 +18,7 @@
 		514AFDA4D128DF28E63EC379 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE6313F95F40001D531E92C /* EditorView.swift */; };
 		5FBC05736583DC5E9167E294 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = A430B85286C4980A1CFD6FE0 /* DesignTokens.swift */; };
 		60A45178416081E68FCF6116 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB9FC8C54E212615517ADCA /* SettingsView.swift */; };
+		7BDE2F4CB883786239A80565 /* SQLiteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBD21AE92753162D277C530 /* SQLiteStore.swift */; };
 		7D6D8463D7C7157ADD24BDCC /* DebugLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EFDAF205EA552858C081DB4 /* DebugLogger.swift */; };
 		7EC2AB7AF395A9B4CD2AA733 /* PostsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B81BE59A4D76E9CF0D71EA0C /* PostsView.swift */; };
 		8A43D9FEB69E65B4734458DE /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16172B9BAFC57C8C27C60C9 /* CommandPaletteView.swift */; };
@@ -27,6 +28,7 @@
 		B70CAF7C2849134B520FFEFD /* DebugPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B81AAE9D7D3BEB5151D7F9A6 /* DebugPanel.swift */; };
 		BDE6F6746E3AAB9E8E0D13BD /* MacCanDoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0EAD957CC4EB8AAE854D1C8 /* MacCanDoApp.swift */; };
 		C06DC3FEB8DA71C62A30849F /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A4AEB15CE47BA28D95EDF1F /* StatsView.swift */; };
+		C11CCCF330206927ACD20410 /* WebHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CCC1E2A616426B825BBFA3C /* WebHelpers.swift */; };
 		C4A6F313BC55C762F26A947F /* MacNewsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26C166BAA72C6DD7E5B6C687 /* MacNewsView.swift */; };
 		CACA0BFAA657F990D572613F /* SeriesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59975CCD9634CB6FA4377C6A /* SeriesView.swift */; };
 		CBC5862B43C31C73AE3983DA /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 8CCF8E662072B9CC8DC1D5CD /* InfoPlist.strings */; };
@@ -48,6 +50,7 @@
 		26C166BAA72C6DD7E5B6C687 /* MacNewsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacNewsView.swift; sourceTree = "<group>"; };
 		2AFCF9D468A32C5EAF752013 /* MacNewsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacNewsStore.swift; sourceTree = "<group>"; };
 		394D02BF49B6232DDDEB1F0D /* CommentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentsView.swift; sourceTree = "<group>"; };
+		3CBD21AE92753162D277C530 /* SQLiteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteStore.swift; sourceTree = "<group>"; };
 		449BF5A67E60F260EAB660B7 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		45480C8F1BE47080B3F46F9B /* MarkdownRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderer.swift; sourceTree = "<group>"; };
 		52EB225E9FA1A70AF85687C8 /* CommonUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonUI.swift; sourceTree = "<group>"; };
@@ -61,6 +64,7 @@
 		82F0832757645D9B13D012DB /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		8CCF8E662072B9CC8DC1D5CD /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = ko.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		9AB9FC8C54E212615517ADCA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		9CCC1E2A616426B825BBFA3C /* WebHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebHelpers.swift; sourceTree = "<group>"; };
 		A430B85286C4980A1CFD6FE0 /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		AEE6313F95F40001D531E92C /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		B5613CECBB27510EA2CE9687 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -148,6 +152,8 @@
 				45480C8F1BE47080B3F46F9B /* MarkdownRenderer.swift */,
 				6D631EAAAE7479E6F98D57CC /* PostModels.swift */,
 				808A4BB3D5CAB0AFC32FD952 /* ReferenceStore.swift */,
+				3CBD21AE92753162D277C530 /* SQLiteStore.swift */,
+				9CCC1E2A616426B825BBFA3C /* WebHelpers.swift */,
 				016EB1302F480287DD6A18C4 /* WindowManager.swift */,
 			);
 			path = Core;
@@ -246,9 +252,11 @@
 				DABAD8941C2702D3779B440A /* PostModels.swift in Sources */,
 				7EC2AB7AF395A9B4CD2AA733 /* PostsView.swift in Sources */,
 				4F2167770ABAF449BC656079 /* ReferenceStore.swift in Sources */,
+				7BDE2F4CB883786239A80565 /* SQLiteStore.swift in Sources */,
 				CACA0BFAA657F990D572613F /* SeriesView.swift in Sources */,
 				60A45178416081E68FCF6116 /* SettingsView.swift in Sources */,
 				C06DC3FEB8DA71C62A30849F /* StatsView.swift in Sources */,
+				C11CCCF330206927ACD20410 /* WebHelpers.swift in Sources */,
 				06FE6BB6FC14776443D0BFE3 /* WindowManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -56,7 +56,7 @@ export async function recordDownloadEvent(input: {
     data: { clickCount: { increment: 1 } },
   });
 
-  bumpDailyStat("clicks"); // T-59: 일별 통계
+  void bumpDailyStat("clicks"); // T-59: 일별 통계
 
   logger.info("Download", `클릭 기록 (link=${input.linkId}, post=${input.postId}, user=${input.userId ?? "-"})`);
   return event;
@@ -138,11 +138,6 @@ export async function getAdminComments(status?: string) {
     orderBy: { createdAt: "desc" },
     take: 200,
   });
-}
-
-// 승인 대기 댓글 (기본 뷰)
-export async function getPendingComments() {
-  return getAdminComments("PENDING");
 }
 
 // 댓글 상태 변경 (승인/스팸) — 관리자 전용

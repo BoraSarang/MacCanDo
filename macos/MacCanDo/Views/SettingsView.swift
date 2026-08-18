@@ -83,7 +83,9 @@ struct SettingsView: View {
                         }
                         .keyboardShortcut(.defaultAction)
                         Button("토큰 발급 안내") {
-                            NSWorkspace.shared.open(URL(string: "\(APIClient.baseURL.absoluteString)/api/auth/token")!)
+                            if let url = URL(string: "\(APIClient.baseURL.absoluteString)/api/auth/token") {
+                                NSWorkspace.shared.open(url)
+                            }
                         }
                         .controlSize(.small)
                     }
