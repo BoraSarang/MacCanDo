@@ -190,7 +190,7 @@ struct AdsView: View {
             DebugLogger.info("Ads", "광고 화면 표시됨 (시리즈 \(sd.series.count), 글 \(pd.count))")
         } catch {
             let e = error as? APIError
-            errorMessage = e?.message ?? "광고 슬롯을 불러오지 못했습니다."
+            errorMessage = e?.message ?? ErrorMessages.message("E-MAC-ADS-1001")
             DebugLogger.error("Ads", "광고 로드 실패: \(errorMessage ?? "")")
         }
     }

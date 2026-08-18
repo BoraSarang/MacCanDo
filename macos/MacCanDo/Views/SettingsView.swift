@@ -25,7 +25,7 @@ struct SettingsView: View {
                         Button("저장") {
                             let url = inputWebURL.trimmingCharacters(in: .whitespacesAndNewlines)
                             guard let u = URL(string: url), u.scheme != nil else {
-                                webMessage = "올바른 주소가 아닙니다 (https:// 포함)."
+                                webMessage = ErrorMessages.message("E-MAC-SET-1002")
                                 return
                             }
                             UserDefaults.standard.set(url, forKey: "webURL")

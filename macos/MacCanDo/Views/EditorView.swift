@@ -1102,7 +1102,7 @@ struct EditorView: View {
             DebugLogger.info("Editor", "시리즈 생성 (\(title))")
         } catch {
             let e = error as? APIError
-            saveState = "시리즈 생성 실패: \(e?.message ?? error.localizedDescription)"
+            saveState = "\(ErrorMessages.message("E-MAC-EDIT-1001")): \(e?.message ?? error.localizedDescription)"
             selectedSeriesId = nil
             DebugLogger.error("Editor", "시리즈 생성 실패: \(e?.code ?? "unknown")")
         }
@@ -1111,7 +1111,7 @@ struct EditorView: View {
     private func openOnWeb() {
         let currentSlug = slug.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !currentSlug.isEmpty else {
-            saveState = "슬러그가 없습니다 — 저장 후 다시 시도하세요"
+            saveState = ErrorMessages.message("E-MAC-EDIT-1002")
             return
         }
         guard let url = URL(string: "post/\(currentSlug)", relativeTo: APIClient.webURL) else { return }
@@ -1134,7 +1134,7 @@ struct EditorView: View {
     private func insertYoutube() {
         let raw = insertURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let id = youtubeID(from: raw) else {
-            saveState = "유튜브 ID를 찾을 수 없습니다"
+            saveState = ErrorMessages.message("E-MAC-EDIT-1003")
             return
         }
         insertInline("[youtube:\(id)]")
@@ -1144,7 +1144,7 @@ struct EditorView: View {
     private func insertVideo() {
         let url = insertURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard url.hasPrefix("http") else {
-            saveState = "http(s) URL을 입력해 주세요"
+            saveState = ErrorMessages.message("E-MAC-EDIT-1004")
             return
         }
         insertInline("[video:\(url)]")
@@ -1175,7 +1175,7 @@ struct EditorView: View {
     private func saveToServer(status newStatus: String) async {
         guard title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
               content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-            saveState = "제목과 본문을 입력해 주세요"
+            saveState = ErrorMessages.message("E-MAC-EDIT-1005")
             DebugLogger.warn("Editor", "저장 차단: 제목/본문 비어 있음")
             return
         }
@@ -1220,7 +1220,7 @@ struct EditorView: View {
             NotificationCenter.default.post(name: .postSaved, object: nil)
         } catch {
             let e = error as? APIError
-            saveState = "저장 실패: \(e?.message ?? error.localizedDescription)"
+            saveState = "\(ErrorMessages.message("E-MAC-EDIT-1006")): \(e?.message ?? error.localizedDescription)"
             DebugLogger.error("Editor", "서버 저장 실패: \(e?.code ?? "unknown")")
         }
     }
@@ -1238,7 +1238,7 @@ struct EditorView: View {
             Task { await generateSEO() }
             return
         }
-        seoError = "Gemini API 키가 설정되지 않았습니다. 설정 → AI SEO (Gemini)에서 입력하세요."
+        seoError = ErrorMessages.message("E-MAC-EDIT-1007")
         showSEO = true
     }
 
@@ -2077,7 +2077,7 @@ struct ImagePickerSheet: View {
                     dismiss()
                 } catch {
                     let e = error as? APIError
-                    errorMessage = "업로드 실패: \(e?.message ?? error.localizedDescription)"
+                    errorMessage = "\(ErrorMessages.message("E-MAC-UPLOAD-1004")): \(e?.message ?? error.localizedDescription)"
                     DebugLogger.error("Upload", "업로드 실패: \(e?.code ?? "unknown")")
                     busy = false
                 }
@@ -2093,7 +2093,7 @@ struct ImagePickerSheet: View {
             DebugLogger.info("Upload", "이미지 목록 로드 (\(images.count)개)")
         } catch {
             let e = error as? APIError
-            errorMessage = "목록을 불러오지 못했습니다: \(e?.message ?? error.localizedDescription)"
+            errorMessage = "\(ErrorMessages.message("E-MAC-UPLOAD-1001")): \(e?.message ?? error.localizedDescription)"
             DebugLogger.error("Upload", "목록 로드 실패: \(e?.code ?? "unknown")")
         }
         isLoading = false
@@ -2108,7 +2108,7 @@ struct ImagePickerSheet: View {
             DebugLogger.info("Upload", "이미지 삭제 완료 (\(item.name))")
         } catch {
             let e = error as? APIError
-            errorMessage = "삭제 실패: \(e?.message ?? error.localizedDescription)"
+            errorMessage = "\(ErrorMessages.message("E-MAC-UPLOAD-1002")): \(e?.message ?? error.localizedDescription)"
             DebugLogger.error("Upload", "삭제 실패: \(e?.code ?? "unknown")")
         }
         busy = false
@@ -2130,7 +2130,7 @@ struct ImagePickerSheet: View {
             DebugLogger.info("Upload", "캡션 수정 완료 (\(item.name))")
         } catch {
             let e = error as? APIError
-            errorMessage = "캡션 수정 실패: \(e?.message ?? error.localizedDescription)"
+            errorMessage = "\(ErrorMessages.message("E-MAC-UPLOAD-1003")): \(e?.message ?? error.localizedDescription)"
             DebugLogger.error("Upload", "캡션 수정 실패: \(e?.code ?? "unknown")")
         }
         busy = false

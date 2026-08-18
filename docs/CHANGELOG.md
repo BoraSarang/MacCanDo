@@ -1,5 +1,12 @@
 ## v2.10 (2026-08-18) — [web+macos] 소스 리팩토링 (T-63, bd MacCanDo-27c)
 
+### P5 토큰/메시지 연동
+- ErrorMessages.swift 신규 — 번들 error_message_ko.json 로드 + E-MAC-* 코드 → 한국어 메시지 (web apiError와 동일 폴백)
+- error_message_ko.json을 macOS 앱 번들 리소스로 등록 (pbxproj + Resources/ 복사) — E-MAC 키 13개 추가 (EDIT/UPLOAD/ADS/SET)
+- 하드코딩 에러 문자열 교체: EditorView saveState/업로드 11곳, AdsView 1곳, SettingsView 1곳 → ErrorMessages.message()
+- 루트 json ↔ web/lib/json 키 동기화 (44/42키)
+
+
 ### P1 안전성
 - web: error_message_ko.json에 E-WEB-POST-1001~1003 추가 (기존엔 코드 문자열 그대로 노출되던 버그) — 루트+web/lib 동기화
 - web: admin SeriesManager/AdsManager reload try-catch (unhandled rejection 방지)
