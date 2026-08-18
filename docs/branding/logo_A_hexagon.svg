@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="brand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#007AFF"/>
+      <stop offset="100%" stop-color="#AF52DE"/>
+    </linearGradient>
+  </defs>
+  <!-- 배경 -->
+  <rect width="1024" height="1024" fill="#ffffff"/>
+  <!-- 헥사곤 -->
+  <polygon points="512,120 866,316 866,708 512,904 158,708 158,316"
+           fill="url(#brand)"/>
+  <!-- MC 모노그램 -->
+  <g fill="#ffffff" font-family="'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-weight="800" text-anchor="middle">
+    <text x="512" y="600" font-size="330" letter-spacing="-6">MC</text>
+  </g>
+</svg>

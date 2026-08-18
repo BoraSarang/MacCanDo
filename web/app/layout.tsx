@@ -20,6 +20,7 @@ export const metadata: Metadata = {
     description: "맥으로 이것도 할 수 있다",
     type: "website",
     locale: "ko_KR",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "MacCanDo" }],
   },
   robots: { index: true, follow: true },
 };

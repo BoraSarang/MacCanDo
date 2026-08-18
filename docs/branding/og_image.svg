@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#007AFF"/>
+      <stop offset="100%" stop-color="#AF52DE"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <!-- 배경 그라디언트 -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- 장식 원 (반투명) -->
+  <circle cx="1050" cy="80" r="220" fill="#ffffff" opacity="0.08"/>
+  <circle cx="120" cy="580" r="260" fill="#ffffff" opacity="0.06"/>
+  <!-- 체크 배지 (라운드 스퀘어 + 체크) -->
+  <g transform="translate(140,155)">
+    <rect x="0" y="0" width="320" height="320" rx="88" fill="#ffffff"/>
+    <path d="M82 160 L140 218 L242 100" fill="none" stroke="#007AFF" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- 브랜드 텍스트 -->
+  <text x="520" y="300" font-family="'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="88" font-weight="800" fill="#ffffff" letter-spacing="-2">MacCanDo</text>
+  <text x="522" y="368" font-family="'SF Pro Display','Helvetica Neue',Arial,sans-serif" font-size="34" font-weight="500" fill="#ffffff" opacity="0.92" letter-spacing="0">맥으로 이것도 할 수 있다</text>
+</svg>
