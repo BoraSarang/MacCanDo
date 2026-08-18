@@ -90,7 +90,7 @@ export default function AdsManager() {
 
       {/* 시리즈 배너 */}
       <section>
-        <h3 className="font-bold mb-1">📚 시리즈 배너 (홈 상단)</h3>
+        <h3 className="font-bold mb-1">시리즈 배너 (홈 상단)</h3>
         <p className="text-xs text-text-muted mb-3">★ 지정 시 배너 먼저 노출, 미지정 시 전체 시리즈로 자동 채움</p>
         <ul className="border rounded-lg divide-y text-sm max-h-[420px] overflow-y-auto">
           {bannerSeries.map((s) => (

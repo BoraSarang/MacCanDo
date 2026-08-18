@@ -19,7 +19,7 @@ export default async function SeriesPage() {
   return (
     <div className="max-w-3xl mx-auto">
       <header className="text-center py-10 mb-6">
-        <h1 className="text-3xl font-bold mb-2">📚 시리즈</h1>
+        <h1 className="text-3xl font-bold mb-2 type-display">시리즈</h1>
         <p className="text-text-secondary">여러 편으로 나뉜 가이드를 한곳에서 모아보세요.</p>
       </header>
 
@@ -44,7 +44,7 @@ export default async function SeriesPage() {
                 <div
                   className={`w-full h-36 bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center text-5xl`}
                 >
-                  📚
+                  ⌘
                 </div>
               )}
               <div className="p-5">

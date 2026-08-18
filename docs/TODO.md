@@ -9,6 +9,7 @@
 
 | 번호 | 작업 | 플랫폼 | 상태 | 비고 |
 |------|------|--------|------|------|
+| T-58 | 웹 리디자인 파이프라인 (⌘ 키캡 시그니처·framer-motion spring·타이포 스케일·이모지 제거·감사) | web | ✅ | v2.8 |
 | T-44 | 공통 컴포넌트 (ErrorState/EmptyState/StatusBar/배지) + 토큰 실적용 | macos | ✅ | v2.7.0 |
 | T-45 | Settings scene 분리 (⌘,) + 사이드바 설정 제거 | macos | ✅ | v2.7.0 |
 | T-46 | ContentView — ⌘1~8 hidden Button + ⌥⌘S 토글 + 배지 + 맥 소식 탭 | macos | ✅ | v2.7.0 |

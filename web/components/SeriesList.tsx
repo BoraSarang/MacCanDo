@@ -18,7 +18,7 @@ export default function SeriesList({
 
   return (
     <section className="mt-10 card p-6">
-      <h2 className="font-bold text-lg mb-4">📚 {series.title}</h2>
+      <h2 className="font-bold text-lg mb-4">{series.title}</h2>
       <ol className="space-y-1">
         {series.posts.map((p) => {
           const isCurrent = p.id === currentId;

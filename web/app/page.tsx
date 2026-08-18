@@ -5,6 +5,8 @@ import { getSeriesBanner } from "@/lib/series";
 import PostCard from "@/components/PostCard";
 import SeriesBanner from "@/components/SeriesBanner";
 import FeaturedPosts from "@/components/FeaturedPosts";
+import Hero from "@/components/Hero";
+import { CardMotion } from "@/components/Motion";
 
 export const revalidate = 60;
 
@@ -19,18 +21,8 @@ export default async function HomePage() {
 
   return (
     <div>
-      {/* 히어로 */}
-      <section className="text-center py-12 mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-3">
-          맥으로{" "}
-          <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            이것도 할 수 있다
-          </span>
-        </h1>
-        <p className="text-text-secondary max-w-2xl mx-auto">
-          유용한 Mac 프로그램 소개, 꿀팁 가이드, 최신 소식까지 — MacCanDo에서 확인하세요.
-        </p>
-      </section>
+      {/* 히어로 — ⌘ 키캡 시그니처 (시그니처 시각 언어) */}
+      <Hero />
 
       {/* 시리즈 배너 — 광고 슬롯 (T-11) */}
       <SeriesBanner series={series} />
@@ -62,18 +54,19 @@ export default async function HomePage() {
         <h2 className="text-xl font-bold mb-4">역할별 탐색</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {categories.map((c) => (
-            <Link
-              key={c.slug}
-              href={`/category/${c.slug}`}
-              className="card p-4 hover:border-primary/50 hover:shadow-md transition-all"
-            >
-              <div className="font-semibold flex items-center gap-2">
-                <span aria-hidden className="text-lg">{c.icon ?? "📁"}</span>
-                {c.name}
-              </div>
-              {c.description && <div className="text-xs text-text-muted mt-1">{c.description}</div>}
-              <div className="text-xs text-text-muted mt-2">게시글 {c.postCount}개</div>
-            </Link>
+            <CardMotion key={c.slug} className="h-full">
+              <Link
+                href={`/category/${c.slug}`}
+                className="card p-4 h-full block hover:border-primary/50 hover:shadow-md transition-all"
+              >
+                <div className="font-semibold flex items-center gap-2">
+                  <span aria-hidden className="text-lg">{c.icon ?? "📁"}</span>
+                  {c.name}
+                </div>
+                {c.description && <div className="text-xs text-text-muted mt-1">{c.description}</div>}
+                <div className="text-xs text-text-muted mt-2">게시글 {c.postCount}개</div>
+              </Link>
+            </CardMotion>
           ))}
         </div>
       </section>

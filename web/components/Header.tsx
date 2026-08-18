@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { logger } from "@/lib/logger";
 import { useTheme } from "@/components/ThemeProvider";
+import { SunIcon, MoonIcon } from "@/components/Icons";
 
 const MENU = [
   { href: "/apps", label: "맥 앱" },
@@ -43,8 +44,11 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-10 bg-header-bg backdrop-blur border-b border-border">
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-6">
-        <Link href="/" className="font-bold text-lg shrink-0" onClick={() => logger.info("Header", "홈 이동")}>
-          ⌘ MacCanDo
+        <Link href="/" className="flex items-center gap-2 shrink-0" onClick={() => logger.info("Header", "홈 이동")}>
+          <span className="keycap w-7 h-7 text-sm text-text" aria-hidden>
+            ⌘
+          </span>
+          <span className="font-bold text-lg">MacCanDo</span>
         </Link>
 
         <nav className="hidden md:flex gap-4 text-sm">
@@ -72,7 +76,7 @@ export default function Header() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="게시글 검색"
+            placeholder="게시글 검색…"
             className="input flex-1 min-w-0 md:flex-none md:w-56"
             aria-label="검색어 입력"
           />
@@ -93,11 +97,11 @@ export default function Header() {
               toggle();
               logger.info("Header", `테마 전환 → ${dark ? "라이트" : "다크"}`);
             }}
-            className="px-2.5 py-1.5 rounded-lg border border-border text-text-secondary text-sm hover:bg-surface-hover"
-            aria-label="다크모드 전환"
-            title="다크모드 전환"
+            className="p-2 rounded-lg border border-border text-text-secondary hover:bg-surface-hover transition-colors"
+            aria-label={dark ? "라이트 모드로 전환" : "다크 모드로 전환"}
+            title={dark ? "라이트 모드로 전환" : "다크 모드로 전환"}
           >
-            {dark ? "☀️" : "🌙"}
+            {dark ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
           </button>
         </form>
       </div>

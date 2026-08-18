@@ -1,7 +1,13 @@
 // [FEATURE] 홈 추천 게시글 — 광고 슬롯 (T-11)
 // 관리자 지정(featuredOrder) 우선 + 모자라면 조회수 top으로 자동 채움
 // 대형 카드 1 + 소형 카드 2 (웨일 확장 스토어 추천 배너 스타일)
+// framer-motion spring (apple-design)
+"use client";
+
 import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+
+const MotionLink = motion(Link);
 
 type FeaturedPost = {
   id: string;
@@ -20,8 +26,12 @@ function formatDate(d: Date | null) {
 }
 
 export default function FeaturedPosts({ posts }: { posts: FeaturedPost[] }) {
+  const reduced = useReducedMotion();
   if (posts.length === 0) return null;
   const [main, ...rest] = posts;
+  const hover = reduced ? undefined : { y: -3 };
+  const tap = reduced ? undefined : { scale: 0.985 };
+  const spring = { type: "spring", bounce: 0, duration: 0.3 } as const;
 
   return (
     <section className="mb-10">
@@ -33,7 +43,13 @@ export default function FeaturedPosts({ posts }: { posts: FeaturedPost[] }) {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* 대형 카드 */}
-        <Link href={`/post/${main.slug}`} className="group card overflow-hidden lg:col-span-2 hover:border-primary/50 hover:shadow-md transition-all">
+        <MotionLink
+          href={`/post/${main.slug}`}
+          className="group card overflow-hidden lg:col-span-2 hover:border-primary/50 hover:shadow-md transition-all"
+          whileHover={hover}
+          whileTap={tap}
+          transition={spring}
+        >
           <div className="relative aspect-[21/9] bg-surface-hover">
             {main.thumbnailUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -60,12 +76,12 @@ export default function FeaturedPosts({ posts }: { posts: FeaturedPost[] }) {
             {main.excerpt && <p className="text-sm text-text-muted mt-1 line-clamp-2">{main.excerpt}</p>}
             <div className="text-xs text-text-muted mt-2">{formatDate(main.publishedAt)} · 조회 {main.viewCount.toLocaleString()}</div>
           </div>
-        </Link>
+        </MotionLink>
 
         {/* 소형 카드 2 */}
         <div className="grid gap-4">
           {rest.map((p) => (
-            <Link key={p.id} href={`/post/${p.slug}`} className="group card overflow-hidden hover:border-primary/50 hover:shadow-md transition-all">
+            <MotionLink key={p.id} href={`/post/${p.slug}`} className="group card overflow-hidden hover:border-primary/50 hover:shadow-md transition-all" whileHover={hover} whileTap={tap} transition={spring}>
               <div className="grid grid-cols-[112px_1fr] h-full">
                 <div className="relative bg-surface-hover">
                   {p.thumbnailUrl ? (
@@ -84,7 +100,7 @@ export default function FeaturedPosts({ posts }: { posts: FeaturedPost[] }) {
                   </div>
                 </div>
               </div>
-            </Link>
+            </MotionLink>
           ))}
         </div>
       </div>

@@ -31,7 +31,7 @@ export default function PostBody({ html }: { html: string }) {
       btn.dataset.copyBtn = "true";
       btn.setAttribute("aria-label", "코드 복사");
       btn.title = "코드 복사";
-      btn.textContent = "📋";
+      btn.textContent = "복사";
       Object.assign(btn.style, {
         position: "absolute",
         top: "8px",
@@ -73,8 +73,8 @@ export default function PostBody({ html }: { html: string }) {
             document.body.removeChild(ta);
           }
         }
-        btn.textContent = ok ? "✓" : "✗";
-        setTimeout(() => (btn.textContent = "📋"), 1600);
+        btn.textContent = ok ? "✓ 복사됨" : "✗ 실패";
+        setTimeout(() => (btn.textContent = "복사"), 1600);
       });
       pre.appendChild(btn);
     });

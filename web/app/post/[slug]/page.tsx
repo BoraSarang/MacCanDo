@@ -13,6 +13,7 @@ import SeriesList from "@/components/SeriesList";
 import PostBody from "@/components/PostBody";
 import WelcomeBanner from "@/components/WelcomeBanner";
 import { getSeriesForPost } from "@/lib/series";
+import { EyeIcon } from "@/components/Icons";
 
 export const revalidate = 60;
 
@@ -97,7 +98,10 @@ export default async function PostPage({ params }: Props) {
               </Link>
             ))}
             <span>{formatDate(post.publishedAt)}</span>
-            <span>👁 {post.viewCount}</span>
+            <span className="inline-flex items-center gap-1">
+              <EyeIcon className="w-3.5 h-3.5" />
+              <span className="tnum">{post.viewCount}</span>
+            </span>
           </div>
         )}
         <h1 className="text-3xl font-bold leading-tight">{post.title}</h1>
@@ -144,7 +148,7 @@ export default async function PostPage({ params }: Props) {
       {/* 다운로드 링크 (게이트 — 댓글 1개 이상 + 로그인 시 공개, 앱 카드 링크 제외) */}
       {!isPage && gateLinks.length > 0 && (
         <section className="mt-10 card p-6 border-primary/30 bg-primary-soft/50">
-          <h2 className="font-bold text-lg mb-1">📥 다운로드</h2>
+          <h2 className="font-bold text-lg mb-1">다운로드</h2>
           {gateUnlocked ? (
             <>
               <p className="text-sm text-text-secondary mb-4">댓글 작성 감사합니다! 다운로드 링크가 공개되었습니다.</p>

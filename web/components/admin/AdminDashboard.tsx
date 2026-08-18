@@ -106,11 +106,11 @@ export default function AdminDashboard() {
       <h1 className="text-2xl font-bold mb-6">관리자 대시보드</h1>
 
       <div className="flex gap-2 mb-6">
-        {tabBtn("summary", "📊 요약 통계")}
-        {tabBtn("posts", "📝 게시글별 통계")}
-        {tabBtn("comments", `💬 댓글 승인${pending.length ? ` (${pending.length})` : ""}`)}
-        {tabBtn("series", "📚 시리즈")}
-        {tabBtn("ads", "📢 광고")}
+        {tabBtn("summary", "요약 통계")}
+        {tabBtn("posts", "게시글별 통계")}
+        {tabBtn("comments", `댓글 승인${pending.length ? ` (${pending.length})` : ""}`)}
+        {tabBtn("series", "시리즈")}
+        {tabBtn("ads", "광고")}
       </div>
 
       {tab === "series" && <SeriesManager />}
@@ -204,11 +204,11 @@ export default function AdminDashboard() {
                         }
                         className="cursor-help text-sm"
                       >
-                        ✨
+                        <span className="badge badge-success">AI</span>
                       </span>
                     ) : p.excerpt ? (
                       <span title={p.excerpt} className="cursor-help text-sm text-text-muted">
-                        📝
+                        요약
                       </span>
                     ) : (
                       <span className="text-text-muted">—</span>

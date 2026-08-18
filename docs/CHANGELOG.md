@@ -1,3 +1,14 @@
+## v2.8 (2026-08-18) — [web] 웹 리디자인 파이프라인 (frontend-design → apple-design → emil-design-eng → web-design-guidelines)
+
+- 디자인 브리프: "⌘ 커맨드 키" 세계관 시그니처 확립 — 히어로 ⌘ 키캡(.keycap: 표면 그라데이션 + 3px 하단 테두리 + 8px radius) + spring 스태거 진입(Hero.tsx), 헤더 로고 키캡 뱃지
+- 모션 토큰 보강: --ds-duration-slow(320ms), --ds-ease-out(Apple cubic-bezier(0.32,0.72,0,1)), --ds-ease-spring 추가, framer-motion 의존성 추가 (web/package.json)
+- apple-design 모션: 카드 whileHover y:-3 / whileTap scale(0.985) spring(bounce 0, 0.3s) — PostCard·FeaturedPosts·SeriesBanner·카테고리(CardMotion), FadeIn/FadeInMount 공용 컴포넌트 (Motion.tsx), 버튼 :active scale(0.97) + transition-[transform,...] 분리, reduced-motion 전역 처리
+- 타이포: 타입 스케일 클래스(.type-display/-h1/-h2/-caption/-micro) — display 1.05 leading/-0.02em tracking, text-wrap: balance, .tnum(tabular-nums)
+- 이모지 제거 (39→0 UI 잔존 0, DB 카테고리 아이콘만 aria-hidden 유지): 테마 토글 ☀️🌙→Sun/MoonIcon SVG, 조회/댓글 👁💬→Eye/CommentIcon, MobileBar 🔍☰⋯→SVG, 코드 복사 📋→"복사"/"✓ 복사됨", 시리즈/다운로드/탭 이모지 제거, AdminDashboard ✨→badge "AI"
+- web-design-guidelines 적용: 전역 :focus-visible 링, 검색 placeholder "…" 적용, prefers-reduced-motion 미디어 전역, 이미지 CLS는 비율 고정 컨테이너(aspect-video)로 기존 방어 확인
+- 검증: npm run build 성공, dev 서버 DOM/CSS 계산값 검증(키캡 그라데이션·타이포 tracking/leading·focus-visible·reduced-motion 규칙 존재), 카드 hover translateY(-3px)/tap scale/복원 실측, 다크 모드 배경/키캡 토큰, 콘솔 에러 0, 상세 페이지(환영 배너·조회수·코드 복사·시리즈 📚 제거) a11y 스냅샷
+- 스크린샷/a11y 덤프: docs/screenshots/web/v2.8_home_light.png, v2.8_post_dark.png, v2.8_home.a11y.json
+
 ## v2.7.5 (2026-08-18) — [macos] Pollinations 무료 이미지 생성 제거 + DebugPanel HIG 적용
 
 - 무료 이미지 생성(Pollinations) 완전 제거: ImageGenProvider case 제거(자동=Gemini), auto 폴백 로직·callPollinations·encodePrompt 삭제, 설정 설명/에디터 폴백 경고 문구 정리 — Gemini(또는 OpenRouter) 전용

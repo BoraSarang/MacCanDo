@@ -36,7 +36,7 @@ export default async function SeriesDetailPage({ params }: { params: Promise<{ i
           <img src={series.imageUrl} alt={series.title} className="w-full h-52 object-cover rounded-2xl mt-4" />
         ) : (
           <div className="w-full h-52 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-6xl mt-4">
-            📚
+            ⌘
           </div>
         )}
         <div className="mt-6">
@@ -70,7 +70,7 @@ export default async function SeriesDetailPage({ params }: { params: Promise<{ i
                 />
               ) : (
                 <div className="w-24 h-16 rounded-lg bg-bg-soft shrink-0 flex items-center justify-center text-2xl">
-                  📄
+                  
                 </div>
               )}
               <div className="min-w-0">

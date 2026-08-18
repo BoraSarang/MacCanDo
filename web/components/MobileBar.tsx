@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { logger } from "@/lib/logger";
+import { SearchIcon, MenuIcon, MoreIcon } from "@/components/Icons";
 
 const MENU = [
   { href: "/apps", label: "맥 앱" },
@@ -65,24 +66,26 @@ export default function MobileBar() {
           <button
             type="button"
             onClick={() => toggle("search")}
-            className={`py-3 text-sm font-medium transition-colors ${panel === "search" ? "text-primary" : "text-text-secondary"}`}
+            className={`py-3 text-sm font-medium transition-colors inline-flex items-center justify-center gap-1.5 ${panel === "search" ? "text-primary" : "text-text-secondary"}`}
           >
-            🔍 검색
+            <SearchIcon className="w-4 h-4" />
+            검색
           </button>
           <button
             type="button"
             onClick={() => toggle("nav")}
-            className={`py-3 text-sm font-medium transition-colors ${panel === "nav" ? "text-primary" : "text-text-secondary"}`}
+            className={`py-3 text-sm font-medium transition-colors inline-flex items-center justify-center gap-1.5 ${panel === "nav" ? "text-primary" : "text-text-secondary"}`}
           >
-            ☰ 메뉴
+            <MenuIcon className="w-4 h-4" />
+            메뉴
           </button>
           <button
             type="button"
             onClick={() => toggle("more")}
-            className={`py-3 text-sm font-medium transition-colors ${panel === "more" ? "text-primary" : "text-text-secondary"}`}
+            className={`py-3 text-sm font-medium transition-colors inline-flex items-center justify-center gap-1.5 ${panel === "more" ? "text-primary" : "text-text-secondary"}`}
             aria-label="더보기"
           >
-            ⋯
+            <MoreIcon className="w-4 h-4" />
           </button>
         </div>
 
@@ -94,7 +97,7 @@ export default function MobileBar() {
                   type="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="게시글 검색"
+                  placeholder="게시글 검색…"
                   className="input flex-1"
                   autoFocus
                   aria-label="검색어 입력"

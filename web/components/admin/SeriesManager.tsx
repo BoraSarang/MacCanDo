@@ -160,7 +160,7 @@ export default function SeriesManager() {
                 : "bg-surface-hover text-text-secondary border-transparent"
             }`}
           >
-            📚 {s.title} ({s.posts.length})
+            {s.title} ({s.posts.length})
           </button>
         ))}
       </div>
@@ -190,7 +190,7 @@ export default function SeriesManager() {
       {selected && (
         <div className="border border-border rounded-xl p-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <h3 className="font-bold text-lg">📚 {selected.title}</h3>
+            <h3 className="font-bold text-lg">{selected.title}</h3>
             {selected.description && (
               <span className="text-sm text-text-secondary">{selected.description}</span>
             )}

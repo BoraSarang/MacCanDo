@@ -64,6 +64,9 @@
   /* 모션 */
   --ds-duration-fast: 150ms;
   --ds-duration-normal: 200ms;
+  --ds-duration-slow: 320ms;
+  --ds-ease-out: cubic-bezier(0.32, 0.72, 0, 1); /* Apple ease-out — 응답성 */
+  --ds-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1); /* 오버슈트 허용 (모멘텀 있는 경우만) */
 }
 
 /* ---------- 2. Semantic (의미 토큰) — 라이트 ---------- */
@@ -173,19 +176,55 @@
 /* ---------- 3. Component 토큰 (컴포넌트 클래스) ---------- */
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium cursor-pointer;
+    @apply transition-[transform,background-color,color,border-color,opacity] duration-150 ease-out active:scale-[0.97];
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer bg-primary text-white hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium cursor-pointer bg-primary text-white hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply transition-[transform,background-color,color,border-color,opacity] duration-150 ease-out active:scale-[0.97];
   }
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer border border-primary text-primary hover:bg-primary-soft;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium cursor-pointer border border-primary text-primary hover:bg-primary-soft;
+    @apply transition-[transform,background-color,color,border-color,opacity] duration-150 ease-out active:scale-[0.97];
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer text-text-secondary hover:bg-surface-hover hover:text-text;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium cursor-pointer text-text-secondary hover:bg-surface-hover hover:text-text;
+    @apply transition-[transform,background-color,color,border-color,opacity] duration-150 ease-out active:scale-[0.97];
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer bg-danger text-white hover:opacity-90;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium cursor-pointer bg-danger text-white hover:opacity-90;
+    @apply transition-[transform,background-color,color,border-color,opacity] duration-150 ease-out active:scale-[0.97];
+  }
+
+  /* 타이포 스케일 (크기별 tracking/leading — apple-design §15) */
+  .type-display {
+    @apply text-3xl md:text-5xl font-bold leading-[1.05] tracking-[-0.02em] text-balance;
+  }
+  .type-h1 {
+    @apply text-2xl md:text-3xl font-bold leading-[1.15] tracking-[-0.015em] text-balance;
+  }
+  .type-h2 {
+    @apply text-xl font-bold leading-snug tracking-[-0.01em] text-balance;
+  }
+  .type-caption {
+    @apply text-sm text-text-secondary leading-relaxed;
+  }
+  .type-micro {
+    @apply text-xs text-text-muted leading-relaxed tracking-[0.01em];
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* 키캡 — 시그니처 시각 언어 (⌘ 커맨드 키 세계관) */
+  .keycap {
+    @apply inline-flex items-center justify-center font-semibold select-none;
+    font-family: var(--ds-font-sans);
+    background: linear-gradient(to bottom, var(--ds-surface-hover), var(--ds-surface));
+    border: 1px solid var(--ds-border-strong);
+    border-bottom-width: 3px;
+    border-radius: 0.5rem;
+    box-shadow: var(--ds-shadow-sm);
   }
 
   .card {
@@ -217,6 +256,25 @@
   }
   .table-td {
     @apply p-2;
+  }
+}
+
+/* 전역 키보드 포커스 링 (web-design-guidelines) */
+:focus-visible {
+  outline: 2px solid var(--ds-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* 모션 감소 (apple-design §14 — 3신호 중 주요 신호) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
