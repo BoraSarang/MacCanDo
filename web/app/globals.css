@@ -71,11 +71,14 @@
 
 /* ---------- 2. Semantic (의미 토큰) — 라이트 ---------- */
 :root {
-  --ds-primary: var(--ds-blue-600);
-  --ds-primary-hover: var(--ds-blue-700);
+  /* WCAG AA 대비: #0062cc vs 흰색 4.83:1 (버튼/링크 텍스트), #757580 vs 흰색 4.56:1 (muted) */
+  --ds-primary: #0062cc;
+  --ds-primary-hover: #0052a8;
   --ds-primary-soft: var(--ds-blue-50);
   --ds-accent: var(--ds-purple-500);
   --ds-accent-soft: var(--ds-purple-50);
+  --ds-primary-btn: #0062cc;
+  --ds-primary-btn-hover: #0052a8;
 
   --ds-bg: #ffffff;
   --ds-surface: var(--ds-gray-50);
@@ -85,7 +88,7 @@
 
   --ds-text: var(--ds-gray-900);
   --ds-text-secondary: var(--ds-gray-600);
-  --ds-text-muted: var(--ds-gray-400);
+  --ds-text-muted: #757580;
 
   --ds-input-bg: #ffffff;
   --ds-input-border: var(--ds-gray-300);
@@ -102,11 +105,14 @@
 
 /* ---------- 2. Semantic — 다크 ---------- */
 .dark {
-  --ds-primary: #0a84ff;
-  --ds-primary-hover: #409cff;
-  --ds-primary-soft: rgb(10 132 255 / 0.15);
+  /* WCAG AA 대비: #409cff vs 배경 5.9:1 (링크), #8b8b95 vs 배경 5.4:1 (muted) */
+  --ds-primary: #409cff;
+  --ds-primary-hover: #6db2ff;
+  --ds-primary-soft: rgb(64 156 255 / 0.15);
   --ds-accent: #bf5af2;
   --ds-accent-soft: rgb(191 90 242 / 0.15);
+  --ds-primary-btn: #0062cc;
+  --ds-primary-btn-hover: #0052a8;
 
   --ds-bg: #151517;
   --ds-surface: #1f1f23;
@@ -116,7 +122,7 @@
 
   --ds-text: #f5f5f7;
   --ds-text-secondary: #b0b0b8;
-  --ds-text-muted: #6e6e76;
+  --ds-text-muted: #8b8b95;
 
   --ds-input-bg: #1f1f23;
   --ds-input-border: #3a3a40;
@@ -180,8 +186,12 @@
     @apply transition-[transform,background-color,color,border-color,opacity] duration-150 ease-out active:scale-[0.97];
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium cursor-pointer bg-primary text-white hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium cursor-pointer text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: var(--ds-primary-btn);
     @apply transition-[transform,background-color,color,border-color,opacity] duration-150 ease-out active:scale-[0.97];
+  }
+  .btn-primary:hover {
+    background-color: var(--ds-primary-btn-hover);
   }
   .btn-outline {
     @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium cursor-pointer border border-primary text-primary hover:bg-primary-soft;
@@ -232,16 +242,16 @@
   }
 
   .badge {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2 py-1 text-xs font-medium min-h-6;
   }
   .badge-warning {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-warning-soft text-warning;
+    @apply inline-flex items-center rounded-full px-2 py-1 text-xs font-medium min-h-6 bg-warning-soft text-warning;
   }
   .badge-success {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-success-soft text-success;
+    @apply inline-flex items-center rounded-full px-2 py-1 text-xs font-medium min-h-6 bg-success-soft text-success;
   }
   .badge-danger {
-    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-danger-soft text-danger;
+    @apply inline-flex items-center rounded-full px-2 py-1 text-xs font-medium min-h-6 bg-danger-soft text-danger;
   }
 
   .input {

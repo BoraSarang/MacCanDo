@@ -6,8 +6,10 @@
 - 타이포: 타입 스케일 클래스(.type-display/-h1/-h2/-caption/-micro) — display 1.05 leading/-0.02em tracking, text-wrap: balance, .tnum(tabular-nums)
 - 이모지 제거 (39→0 UI 잔존 0, DB 카테고리 아이콘만 aria-hidden 유지): 테마 토글 ☀️🌙→Sun/MoonIcon SVG, 조회/댓글 👁💬→Eye/CommentIcon, MobileBar 🔍☰⋯→SVG, 코드 복사 📋→"복사"/"✓ 복사됨", 시리즈/다운로드/탭 이모지 제거, AdminDashboard ✨→badge "AI"
 - web-design-guidelines 적용: 전역 :focus-visible 링, 검색 placeholder "…" 적용, prefers-reduced-motion 미디어 전역, 이미지 CLS는 비율 고정 컨테이너(aspect-video)로 기존 방어 확인
-- 검증: npm run build 성공, dev 서버 DOM/CSS 계산값 검증(키캡 그라데이션·타이포 tracking/leading·focus-visible·reduced-motion 규칙 존재), 카드 hover translateY(-3px)/tap scale/복원 실측, 다크 모드 배경/키캡 토큰, 콘솔 에러 0, 상세 페이지(환영 배너·조회수·코드 복사·시리즈 📚 제거) a11y 스냅샷
-- 스크린샷/a11y 덤프: docs/screenshots/web/v2.8_home_light.png, v2.8_post_dark.png, v2.8_home.a11y.json
+- Lighthouse 감사 수정 (A11y 92→100): 중첩 `<a>` 제거(PostCard 배지 Link→span — 하이드레이션 실패 근본 원인 해결), WCAG AA 대비 토큰(라이트 primary #0062cc 4.83:1·muted #757580 4.56:1, 다크 primary #409cff 5.9:1·muted #8b8b95 5.4:1, btn-primary 전용 배경 --ds-primary-btn), 터치 타깃(.badge min-h-6+py-1 → 24px) — 최종 A11y 100 / Best Practices 96 / SEO 100 / Agentic 100 (BP 96 잔여 1건은 로컬 시리즈 커버 404 — R2 미적용 인프라 이슈, T-08로 해결 예정)
+- 배포: Vercel Production Ready (web-bo-ra-sa-rang.vercel.app, SSO 보호 유지 — 커스텀 도메인 없음)
+- 검증: npm run build 성공, dev 서버 DOM/CSS 계산값 검증(키캡 그라데이션·타이포 tracking/leading·focus-visible·reduced-motion 규칙 존재), 카드 hover translateY(-3px)/tap scale/복원 실측, 다크 모드 토큰, 하이드레이션 에러 0(중첩 a 수정 후), 상세 페이지 a11y 스냅샷
+- 스크린샷/a11y 덤프: docs/screenshots/web/v2.8_home_light.png, v2.8_post_dark.png, v2.8_home.a11y.json, lighthouse/report.json
 
 ## v2.7.5 (2026-08-18) — [macos] Pollinations 무료 이미지 생성 제거 + DebugPanel HIG 적용
 
