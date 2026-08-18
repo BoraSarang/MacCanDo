@@ -1,4 +1,12 @@
-## v2.10 (2026-08-18) — [web+macos] 소스 리팩토링 (T-63, bd MacCanDo-27c)
+## v2.10.1 (2026-08-18) — [common] 로고/아이콘 디자인 (bd MacCanDo-cyf)
+
+- B안(체크 배지 — 라운드 스퀘어 + 체크, 브랜드 그라디언트 #007AFF→#AF52DE) 채택
+- Gemini free tier 이미지 쿼터 0(429) — AI 생성 대신 SVG 수동 제작 (원본: docs/branding/)
+- web: 파비콘 3종(icon.png/favicon.ico/apple-icon.png) 교체 + public/og-image.png(1200x630) + layout.tsx openGraph images 등록
+- macOS: Resources/AppIcon.icns 교체 (iconset 10크기 → iconutil)
+- 검증: web build+tsc+E2E 4/4, macos BUILD SUCCEEDED
+
+## v2.10 (2026-08-18) — [web+macos] 소스 리팩토링 (T-63, bd MacCanDo-27c)-27c)
 
 ### P5 토큰/메시지 연동
 - ErrorMessages.swift 신규 — 번들 error_message_ko.json 로드 + E-MAC-* 코드 → 한국어 메시지 (web apiError와 동일 폴백)
