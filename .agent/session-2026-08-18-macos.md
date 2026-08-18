@@ -46,3 +46,41 @@
 
 ## 커밋 대기
 - 커밋 예정 파일: Views 8개(Posts/Series/Comments/Ads/Stats/Settings/MacNews/Assistant/CommandPalette/ContentView/EditorView/SeriesView), Core(CommonUI/FlowLayout 신규, DraftStore, PostModels), MacCanDoApp/WindowManager, docs(CHANGELOG/TODO/PLAN), pbxproj
+
+## 진행 상황 (04:10~04:45) — 사용자 보고 4건 수정 + UI 직접 검증
+- 1) 시리즈 동작 안 됨 → 근본 원인 2개: ① ContentView detail 안 중첩 NavigationSplitView 렌더 불가 ② isLoading=false 초기값 → 빈 뷰 mount 안 됨 → .task 미실행. NavigationStack+HSplitView 복구 + isLoading=true → 복구 확인
+- 2) AI 도우미 참고자료/맥 소식 탭 불일치 → 맥 소식은 사이드바 독립 탭이므로 도우미 창 segmented 제거 (참고 자료만)
+- 3) 미리보기 리사이즈 안 됨 → WKWebView를 ScrollView로 감싼 것이 원인 → ScrollView 제거, GeometryReader 리사이즈 로그로 검증 (482×840, 416×690 등)
+- 4) 에디터 시트 UI/UX → 헤더 title3.bold 통일, 이모지→SF Symbol, ErrorState/EmptyState, 파일 선택 bordered
+- UI 직접 검증: Swift AX 트리 덤프/클릭/타이핑 스크립트(/tmp/ax*.swift) — 사이드바 7탭, 시리즈(목록 5+상세+툴바+글추가 시트), AI 도우미(참고자료 3건, segmented 없음), 에디터(제목 입력→AI 생성 활성화 확인, 시트 5종 열림 확인)
+- 배포: 빌드 12 (~/Applications)
+- 남은 것: 커밋
+
+
+## 진행 상황 (08:2x) — Inspector 재배치 (v2.7.2)
+- 카테고리 최상단 + 커버를 글 타입 Form 아래로 이동, 커버 미리보기 상단 크롭 (alignment .top)
+- AX 검증: [카테고리 4토큰] → [글 타입/시리즈/태그/slug] → [커버] 순서 확인
+- 배포 빌드 13, 커밋 후 push 필요
+- (참고) 사용자 로그에 맞춤법 검사 API 오류(APIError 1) — 별도 이슈로 남겨둠
+
+
+## 진행 상황 (08:30) — 에디터/미리보기 50:50 (v2.7.3)
+- HSplitView → HStack+Divider (에디터/미리보기 동일 사이즈, 리사이즈 시에도 유지)
+- 검증: 1250→484 / 1000→359 / 1600→659 (= (창폭-281)/2 정확 일치)
+- 배포 빌드 14, 커밋 필요
+
+
+## 진행 상황 (08:35) — 맞춤법 검사 에러 수정 (v2.7.4)
+- 원인: APIError가 LocalizedError 미채택 → localizedDescription이 "MacCanDo.APIError 오류 1."로만 표시 (실제 원인 숨김)
+- 수정: errorDescription = message 반환
+- 검증: 본문 42자 검사 → 오류 1건 발견 + 적용 버튼 정상, 툴바 배지 "맞춤법 1"
+- 배포 빌드 15, 커밋 필요
+
+
+## 진행 상황 (09:05~09:25) — Pollinations 제거 + DebugPanel HIG (v2.7.5)
+- Pollinations(무료 이미지) 완전 제거: case/폴백/callPollinations/encodePrompt/설정문구/폴백 경고 삭제 (Gemini 전용)
+- DebugPanel HIG 적용: textBackgroundColor, SF Symbols(ladybug/pin/triangle), ds토큰 색상, .dsMono/.dsCaption, bordered 버튼
+- 검증: frame 로그 + 스크린샷 픽셀 분석으로 패널 렌더 확인 (이미지 미지원 모델 — 픽셀 검사로 대체)
+- 참고: NSPanel(utilityWindow)은 System Events/AX 트리에서 windows로 안 잡힘 — 좌표/픽셀 검증 필요
+- 배포 빌드 16, 커밋 필요
+
