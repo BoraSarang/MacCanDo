@@ -145,6 +145,20 @@ struct SeriesItem: Decodable, Identifiable {
     let createdAt: String?
     let featuredOrder: Int? // 홈 배너 순서 (T-11, null=미지정)
     let posts: [SeriesPost]
+
+    // 서버 PATCH 응답에 posts가 없을 때 기존 목록 유지용 (글 목록 초기화 방지)
+    func withPosts(_ newPosts: [SeriesPost]) -> SeriesItem {
+        SeriesItem(
+            id: id,
+            title: title,
+            description: description,
+            imageUrl: imageUrl,
+            intro: intro,
+            createdAt: createdAt,
+            featuredOrder: featuredOrder,
+            posts: newPosts
+        )
+    }
 }
 
 struct AdminSeriesData: Decodable {

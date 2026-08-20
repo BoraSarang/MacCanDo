@@ -203,8 +203,26 @@ export async function updateSeries(id: string, title?: string, description?: str
   if (imageUrl !== undefined) data.imageUrl = imageUrl?.trim() || null;
   if (intro !== undefined) data.intro = intro?.trim() || null;
   if (featuredOrder !== undefined) data.featuredOrder = featuredOrder;
-  const series = await db.series.update({ where: { id }, data });
-  return { ...series, posts: [] as { id: string; title: string; slug: string; status: PostStatus; seriesOrder: number; publishedAt: Date | null }[] };
+  // PATCH 후에도 posts를 실제로 포함해 반환 (빈 배열 반환 시 macOS 앱 로컬 시리즈의 글 목록이 초기화됨)
+  const series = await db.series.update({
+    where: { id },
+    data,
+    include: {
+      posts: {
+        where: { seriesOrder: { not: null } },
+        orderBy: { seriesOrder: "asc" },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          status: true,
+          seriesOrder: true,
+          publishedAt: true,
+        },
+      },
+    },
+  });
+  return { ...series, posts: series.posts.map((p) => ({ ...p, seriesOrder: p.seriesOrder as number })) };
 }
 
 // 삭제 시 글은 유지 (seriesId만 SetNull)

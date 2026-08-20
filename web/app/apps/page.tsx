@@ -23,10 +23,18 @@ export default async function AppsPage({ searchParams }: Props) {
   const sort = sortStr === "views" ? ("views" as const) : ("latest" as const);
   const baseFilter = category ? `?category=${category}` : "";
 
-  const [cats, result] = await Promise.all([
+  const [catsRaw, result] = await Promise.all([
     getCategories(),
-    getPosts({ categorySlug: category || undefined, page, sort }),
+    // 맥 앱 허브는 맥 앱 관련 글만 — '이야기(stories)' 카테고리는 제외 (단, stories 카테고리 직접 선택 시 표시)
+    getPosts({
+      categorySlug: category || undefined,
+      excludeCategorySlug: category ? undefined : "stories",
+      page,
+      sort,
+    }),
   ]);
+  // 맥 앱 허브 사이드바에서는 '이야기' 카테고리 숨김 (앱이 아닌 콘텐츠)
+  const cats = catsRaw.filter((c) => c.slug !== "stories");
   const active = category ? cats.find((c) => c.slug === category) : null;
 
   return (

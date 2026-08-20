@@ -35,6 +35,7 @@ export interface PostListResult {
 
 export interface PostListParams {
   categorySlug?: string;
+  excludeCategorySlug?: string; // 맥 앱 허브 등에서 특정 카테고리(이야기 등) 제외
   contentType?: string;
   tagSlug?: string;
   query?: string;
@@ -47,12 +48,13 @@ export interface PostListParams {
 // 목록 (카테고리 필터 + pg_trgm 기반 검색 + 페이징) — 발행 글만 (PAGE 타입 제외, T-17)
 // 정렬: 시리즈 글은 (시리즈 최신 편 발행일, seriesOrder) 기준으로 나란히, 일반 글은 publishedAt desc
 export async function getPosts(params: PostListParams = {}): Promise<PostListResult> {
-  const { categorySlug, contentType, tagSlug, query, page = 1, pageSize = 12, skip = 0, sort = "latest" } = params;
+  const { categorySlug, excludeCategorySlug, contentType, tagSlug, query, page = 1, pageSize = 12, skip = 0, sort = "latest" } = params;
   const notPage = { not: "PAGE" as PostContentType };
   const where: Prisma.PostWhereInput = {
     status: "PUBLISHED" as PostStatus,
     ...(contentType ? { contentType: contentType as PostContentType } : { contentType: notPage }),
     ...(categorySlug ? { categories: { some: { category: { slug: categorySlug } } } } : {}),
+    ...(excludeCategorySlug ? { categories: { none: { category: { slug: excludeCategorySlug } } } } : {}),
     ...(tagSlug ? { tags: { some: { tag: { slug: tagSlug } } } } : {}),
     ...(query
       ? {
@@ -70,6 +72,11 @@ export async function getPosts(params: PostListParams = {}): Promise<PostListRes
   if (categorySlug) {
     conds.push(
       Prisma.sql`EXISTS (SELECT 1 FROM "PostCategory" pcx JOIN "Category" cx ON cx.id = pcx."categoryId" WHERE pcx."postId" = p.id AND cx."slug" = ${categorySlug})`
+    );
+  }
+  if (excludeCategorySlug) {
+    conds.push(
+      Prisma.sql`NOT EXISTS (SELECT 1 FROM "PostCategory" pcx JOIN "Category" cx ON cx.id = pcx."categoryId" WHERE pcx."postId" = p.id AND cx."slug" = ${excludeCategorySlug})`
     );
   }
   if (contentType) {

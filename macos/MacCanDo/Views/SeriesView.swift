@@ -109,6 +109,10 @@ struct SeriesView: View {
         }
         .sheet(isPresented: $showEdit) {
             seriesForm(isCreate: false)
+                // 시트 첫 렌더링에서 취지 소개가 비어 보이는 문제 방지 (재확인 후 표시)
+                .onAppear {
+                    if let s = selectedSeries { newIntro = s.intro ?? "" }
+                }
         }
         // T-50: 글 추가 시트 (검색 + 체크박스)
         .sheet(isPresented: $showAddPosts) {
@@ -139,6 +143,12 @@ struct SeriesView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                if let intro = s.intro, !intro.isEmpty {
+                    Text(intro)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(2)
+                }
             }
             .tag(s.id)
             // T-40: 시리즈 우클릭 컨텍스트 메뉴 (기존 버튼과 동일 동작)
@@ -348,10 +358,12 @@ struct SeriesView: View {
             Text("취지 소개 (선택, 마크다운 — 상세 페이지 상단에 표시)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            TextEditor(text: $newIntro)
+            // TextEditor는 시트 첫 렌더링에서 바인딩 값이 안 그려지는 버그 → TextField(axis:.vertical) 사용
+            TextField("취지 소개를 입력하세요", text: $newIntro, axis: .vertical)
                 .font(.body)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(3...6)
                 .frame(minHeight: 110)
-                .overlay(RoundedRectangle(cornerRadius: Radius.sm).stroke(Color.dsSurfaceHover))
             HStack {
                 Spacer()
                 Button("취소") {
@@ -396,7 +408,7 @@ struct SeriesView: View {
             if selectedSeriesId == nil || !d.series.contains(where: { $0.id == selectedSeriesId }) {
                 selectedSeriesId = d.series.first?.id
             }
-            DebugLogger.info("Series", "시리즈 목록 로드 (\(d.series.count)개)")
+            DebugLogger.info("Series", "시리즈 목록 로드 (\(d.series.count)개) — intro: \(d.series.map { "\($0.title):\(($0.intro?.isEmpty ?? true) ? "X" : "O")" }.joined(separator: ", "))")
         } catch {
             let e = error as? APIError
             errorMessage = e?.message ?? error.localizedDescription
@@ -482,9 +494,10 @@ struct SeriesView: View {
                 token: auth.token,
                 id: s.id,
                 title: title,
-                description: newDescription.isEmpty ? nil : newDescription,
+                // 빈 채로 저장해도 기존 값 유지 (취지 소개/설명이 null로 삭제되지 않도록)
+                description: newDescription.isEmpty ? s.description : newDescription,
                 imageUrl: newImageUrl.isEmpty ? nil : newImageUrl,
-                intro: newIntro.isEmpty ? nil : newIntro
+                intro: newIntro.isEmpty ? s.intro : newIntro
             )
             showEdit = false
             await load()
@@ -521,7 +534,8 @@ struct SeriesView: View {
             let updated = try await APIClient.setSeriesFeatured(token: auth.token, id: s.id, order: order)
             if let d = data, let idx = d.series.firstIndex(where: { $0.id == updated.id }) {
                 var newSeries = d.series
-                newSeries[idx] = updated
+                // 서버 PATCH 응답에 posts가 비어 있으면 기존 목록 유지 (글 목록 초기화 방지)
+                newSeries[idx] = updated.posts.isEmpty ? updated.withPosts(d.series[idx].posts) : updated
                 data = AdminSeriesData(series: newSeries, loosePosts: d.loosePosts)
             }
             DebugLogger.info("Series", "홈 배너 \(order == nil ? "해제" : "지정(\(order!))") — \(s.title)")

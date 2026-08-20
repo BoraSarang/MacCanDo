@@ -126,12 +126,12 @@ struct SeriesWizardView: View {
     @EnvironmentObject var auth: AuthStore
     @Environment(\.dismiss) private var dismiss
 
-    // 시리즈 정보
-    @State private var seriesTitle = "그 이름, 뺏겼다"
-    @State private var seriesDescription = "똑같은 이름을 두고 벌어진 상표권 전쟁 이야기"
-    @State private var seriesIntro = "MacPaw의 Gemini와 Google의 Gemini, 애플과 비틀즈, 메타와 영국의 작은 회사까지 — '같은 이름'을 두고 벌어진 재미난 대결을 따라가 봅니다."
+    // 시리즈 정보 — 매번 새로 입력 (시드 기본값 제거)
+    @State private var seriesTitle = ""
+    @State private var seriesDescription = ""
+    @State private var seriesIntro = ""
     @State private var bannerOrder = 1
-    @State private var seriesCoverPrompt = "쌍둥이자리 별자리와 상표 각인 도장, 법정 망치가 어우러진 일러스트, 진보라-남색 그라데이션, 미니멀, 16:9"
+    @State private var seriesCoverPrompt = ""
     @State private var seriesCoverURL: String?
     @State private var generatingCover = false
 
