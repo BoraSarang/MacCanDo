@@ -1,3 +1,15 @@
+## v2.12 (2026-08-20) — [macos] AI 도우미 고도화 (T-71~T-72)
+
+### macOS
+- T-71: AI 도우미(AssistantView) 개선
+  - 입력 textbox(TextEditor, 여러 줄) — "프로그램 이름 / 웹사이트 URL / 설명"
+  - 조회 결과 액션 바: 커버 이미지 생성(EditorView imageGenSheet 패턴 재사용 — 프롬프트 자동 구성/수정, 생성→미리보기→업로드→커버 지정), 업로드 이미지에서 수동 선택(ImagePickerSheet .cover)
+  - 본문 이미지 생성(EditorView bodyImageGenSheet 패턴 재사용 — 생성→미리보기→업로드→[img:URL] 결과 끝에 삽입), 업로드 이미지에서 수동 삽입(ImagePickerSheet .insert)
+  - "게시글 초안으로 등록" — PostInput status=DRAFT + 커버 반영, 서버 등록 후 "편집기에서 열기"로 EditorView(postId:) 이어서 수정
+  - 기존 ReferenceStore 자동 저장 유지, 새 조회 시 커버/초안 상태 초기화
+- T-72: 맥 소식 "글 작성에 사용" → AI 도우미 경유 — WindowManager.showAssistant(seedQuery:) 시드(제목+원문+소스+평가+요약) 자동 조회 후 초안/편집기 진행 (기존 EditorView 직행 제거)
+- 검증: macOS xcodebuild Debug 성공 + 앱 재실행(로그인·맥 소식 리포트 로드) 확인
+
 ## v2.11 (2026-08-20) — [web+macos] 시리즈 "그 이름, 뺏겼다" + 이야기 마법사 + AI 설정 (T-64~T-70)
 
 ### macOS

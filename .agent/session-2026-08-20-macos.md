@@ -1,6 +1,31 @@
-# 세션 로그 — MacCanDo v2.11 (T-64~T-70 완료)
+# 세션 로그 — MacCanDo v2.11~v2.12 (T-64~T-73)
 
-> 날짜: 2026-08-20 · 플랫폼: macos + web (v2.11)
+> 날짜: 2026-08-20 · 플랫폼: macos + web
+
+## v2.12 오후 작업 (T-71~T-72 완료, T-73 대기)
+
+### 1. 무엇을
+- T-71 ✅ AI 도우미(AssistantView) 개선: 입력 textbox(TextEditor)화, 조회 결과 액션 바(커버/본문 이미지 AI 생성+수동 선택, 게시글 초안 DRAFT 등록 → 편집기에서 열기), EditorView imageGenSheet/bodyImageGenSheet 패턴 재사용, ReferenceStore 저장 유지
+- T-72 ✅ 맥 소식 "글 작성에 사용" → AI 도우미 경유 (WindowManager.showAssistant(seedQuery:), MacNewsView.openAssistant — 제목+원문+소스+평가+요약 시드 자동 조회)
+- T-73 ⏳ 이야기 마법사 개편 (StorySeed 하드코딩 제거 → 주제 기반 자동 기획) — 사용자 승인 대기
+- 버그 수정: 시리즈 PATCH 빈 posts 문제(서버+macOS 가드), 취지 소개 TextEditor 첫 렌더링 버그(TextField axis:vertical 전환), update() intro 보존, 마법사 @State 시드 기본값 제거, /apps에서 stories 제외(excludeCategorySlug)
+
+### 3. 빌드/검증
+- xcodebuild Debug **BUILD SUCCEEDED** (경고 2건 SeriesWizardView 기존)
+- 앱 재실행(pid 60906, DerivedData/MacCanDo) — 토큰 로드·맥 소식 리포트 로드 확인
+- GUI 시나리오(맥 소식→글 작성에 사용→도우미 시드 조회→초안 등록→편집기)는 사용자 직접 확인 필요
+
+### 6. 문서
+- docs/TODO.md (T-71~73 등록, T-71/72 ✅), docs/plans/PLAN_v2.12_common.md, docs/CHANGELOG.md (v2.12)
+
+### 5. 다음 에이전트 전달 (v2.12 추가)
+- AssistantView: 관리자 토큰은 UserDefaults "apiToken" 직접 읽음 (environmentObject 없음), EditorView(postId:)로 초안 이어서 수정
+- ImagePickerSheet(mode: .cover/.insert)는 EditorView에 정의 — AssistantView에서 재사용
+- 미커밋 상태: v2.12 작업 + v2.11 오전 수정분(웹 lib/posts.ts·series.ts, macOS SeriesView/PostModels/SeriesWizardView 등) 모두 작업 트리에 있음
+
+---
+
+## v2.11 오전 작업 (T-64~T-70 완료)
 
 ## 1. 무엇을 (T-번호)
 - T-64 ✅ 카테고리 관리 (web API + macOS Settings)
@@ -25,7 +50,9 @@ macos (구현) + web (API/콘텐츠 등록)
 - 이미지: Gemini 이미지 쿼터 429 + OpenRouter 잔액 부족 → 사용자가 수동 생성해 /Users/lee/Downloads에 webp 4장(g1/g2/g3/series) → 업로드(type=image/webp 명시 필요, curl 기본 MIME 미감지) + 커버 연결
 
 ## 4. 남은 TODO (T-번호)
-- 없음 (v2.11 완료) — 다음 버전 대기
+- v2.12: T-73 이야기 마법사 개편 (주제 기반 자동 기획) — 다음 작업
+- GUI 시나리오 검증 대기: AI 도우미(초안 등록→편집기), 맥 소식→도우미 경유
+- 미커밋 정리: v2.11 오후 수정분 + v2.12 전체 (사용자 커밋 요청 대기)
 
 ## 5. 다음 에이전트 전달 로그
 - 에러코드: E-MAC-WIZ-1001 (마법사 등록 실패), E-MAC-AI-1005 (본문 이미지 생성) — error_message_ko.json 존재
