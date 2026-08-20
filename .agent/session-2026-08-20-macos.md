@@ -11,6 +11,7 @@
 - T-77 ✅ 설정 UI — AI 설정 섹션 개편(키 3종 Gemini/OpenRouter/NVIDIA), ChainEditorView 팝오버(순서/추가/삭제/기본값), 커스텀 모델, 전체 기본값 복원, importKeysFromKeychain에 NVIDIA_API_KEY 추가
 - T-78 ✅ 비전 alt — EditorView/AssistantView 이미지 시트 "alt 설명 생성" 버튼(본문 `[img:URL alt="…"]` 삽입, 커버는 클립보드), web markdown.ts parseParams 쿼터 지원 + `<img alt>` 렌더
 - T-79 ✅ 검증+문서 — TODO/PLAN/CHANGELOG/error_message_ko.json(E-MAC-SET-1001 추가)/세션 로그
+- T-73 ✅ (이어서) 이야기 마법사 개편 — StorySeed.all 하드코딩 제거 → GeminiService.StorySeedPlan + generateStorySeriesPlan(topic:) (JSON 배열, .wizard 체인), 1단계 주제 입력+[편 목록 AI 기획], drafts 빈 시작/가드, canProceed drafts 필수, draft.seed→draft.plan
 
 ### 3. 빌드/검증
 - macOS xcodebuild Debug **BUILD SUCCEEDED**

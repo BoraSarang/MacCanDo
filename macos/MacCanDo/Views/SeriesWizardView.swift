@@ -1,88 +1,8 @@
-// [FEATURE] 이야기 시리즈 마법사 — v2.11 (T-67)
-// 5단계 위저드: 시리즈 정보 → 카테고리 → 글 초안(Gemini) → 이미지 생성/업로드 → 등록 확인
+// [FEATURE] 이야기 시리즈 마법사 — v2.11 (T-67) / v2.13 (T-73 개편)
+// 5단계 위저드: 시리즈 정보+주제 → 카테고리 → 글 초안(Gemini) → 이미지 생성/업로드 → 등록 확인
+// T-73: 하드코딩 시드 제거 → 주제 기반 AI 편 목록 기획 (GeminiService.StorySeedPlan/generateStorySeriesPlan)
 // 진입: 메뉴 바(파일 > 새 이야기 시리즈…) / SeriesView 버튼 / ⌘K 커맨드 팔레트
 import SwiftUI
-
-// ---------- 편 시드 데이터 — "그 이름, 뺏겼다" (검증된 팩트 + 출처) ----------
-struct StorySeed: Identifiable {
-    let id = UUID()
-    let title: String
-    let slug: String
-    let summary: String
-    let coverPrompt: String
-    let bodyPrompts: [String]
-}
-
-extension StorySeed {
-    static let all: [StorySeed] = [
-        StorySeed(
-            title: "Gemini가 둘? MacPaw와 Google의 우연한 동명이인",
-            slug: "gemini-macpaw-google",
-            summary: """
-            - MacPaw Gemini: 맥용 중복 파일 정리 앱. 2016년 5월 'Gemini 2' 출시 (9to5Mac 리뷰). 2017년 2월 App Store 'Gemini 2: The Duplicate Finder' 정식 등록. CleanMyMac X 제작사 MacPaw(우크라이나/미국)의 제품. 우주 테마 디자인, 클린업 '임무'와 업적/랭크 시스템. Setapp 구독 서비스에 포함.
-            - Google Gemini: 2023년 12월 Google DeepMind가 발표한 LLM. 2024년 2월 챗봇 'Bard'가 'Gemini'로 리브랜딩.
-            - 두 제품 모두 '쌍둥이자리(Gemini)'에서 이름을 땄지만, 분야가 완전히 달라(파일 정리 유틸 vs AI) 상표 분쟁은 없음 — 우연한 동명이인의 대표 사례.
-            - 출처:
-            1. MacPaw Gemini 2 출시 — https://9to5mac.com/2016/05/10/macpaw-gemini-2/
-            2. App Store 페이지 — https://apps.apple.com/app/gemini-2-the-duplicate-finder/id1090488118
-            3. MacPaw 공식 소개 — https://macpaw.com/ko
-            4. Google Gemini 발표 — https://blog.google/products/gemini/
-            """,
-            coverPrompt: "쌍둥이자리 별자리 두 개가 마주보며 대칭을 이루는 일러스트, 왼쪽은 파일 정리/청소 툴(디스크 청소기, 중복 파일)을, 오른쪽은 AI 뉴럴 네트워크(파란 보석, 신경망)을 상징, 다크 블루 그라데이션 배경, 미니멀하고 미래적인 스타일, 16:9",
-            bodyPrompts: [
-                "우주 공간에서 중복 파일을 청소하는 로봇, MacPaw Gemini 앱의 우주 테마 스타일, 다크 블루, 미니멀 일러스트",
-                "파란 보석 형태의 AI 뉴럴 네트워크가 반짝이는 미래지향적 일러스트, Google Gemini 스타일"
-            ]
-        ),
-        StorySeed(
-            title: "애플이 'Apple'을 지키려 30년 싸운 이유",
-            slug: "apple-vs-beatles-30years",
-            summary: """
-            - 1968년 비틀즈가 'Apple Corps' 설립 (음반 레이블, 그린 Granny Smith 사과 로고).
-            - 1978년 조지 해리슨이 애플 컴퓨터(현 Apple Inc)의 광고를 보고 이름/로고 침해 최초 소송.
-            - 1981년 합의: 애플 컴퓨터가 8만 달러 지불 + 음악 사업 진출 금지 조항.
-            - 1989년 애플 컴퓨터의 MIDI 소프트웨어로 재소 → 1991년 합의: 2,650만 달러 지불, '컴퓨터/소프트웨어 = 애플, 음악 = 비틀즈' 영역 분할.
-            - 2003년 iTunes Store 출시 → Apple Corps 재소 ('음악 사업 진출 위반').
-            - 2006년 영국 법원 판결: iTunes는 음악을 '전달(distribution)'하는 것이지 '창작'하는 것이 아니므로 Apple Inc 승소.
-            - 2007년 2월 5일 최종 합의: Apple Inc가 모든 'Apple' 상표를 소유, Apple Corps에 재라이선스. 합의금은 5천만~1억 달러로 추정 (법원 문서 공개분 기준). 스티브 잡스: "We love the Beatles."
-            - 비틀즈 전 음원은 2010년 iTunes에 입점 (조지 해리슨 생전에는 불가).
-            - 출처:
-            1. Apple Newsroom 2007-02-05 — https://www.apple.com/newsroom/2007/02/05Apple-and-The-Beatles-Agree-to-Terminate-Litigation/
-            2. NYT 2007-02-06 — https://www.nytimes.com/2007/02/06/technology/06apple.html
-            3. BBC 2007-02-05 — http://news.bbc.co.uk/2/hi/business/6332319.stm
-            4. NBC News — https://www.nbcnews.com/id/wbna16988500
-            """,
-            coverPrompt: "그린 사과(비틀즈 스타일)와 한 입 베어문 실버 사과(애플 스타일)가 법정 저울 위에서 마주 보는 일러스트, 레트로 레코드판과 현대 테크 기기가 배경, 클래식+모던 대비, 16:9",
-            bodyPrompts: [
-                "1968년 빈티지 레코드 스튜디오의 비닐 레코드와 오디오 장비, 따뜻한 갈색 톤 클래식 일러스트",
-                "아이팟과 아이튠즈 뮤직 스토어 시대의 음악 재생 화면, 2000년대 초반 레트로 테크 스타일"
-            ]
-        ),
-        StorySeed(
-            title: "데이비드 vs 골리앗 — 'Threads' 이름 전쟁",
-            slug: "threads-name-war-david-goliath",
-            summary: """
-            - Threads Software Ltd(영국, 이하 TSL): 지능형 메시지 허브 기업. 모기업 JPY Ltd가 2012년 'Threads' 상표 등록, 2014년부터 전 세계에서 브랜드 홍보, 2018년 스핀오프, 1,000개 이상 조직이 라이선스 사용, 연 200% 성장.
-            - 2023년 4월경부터 메타가 'threads.app' 도메인 매수를 4차례 제안(6,000파운드 → 145,000파운드) — 모두 거절.
-            - 2023년 7월 5일 메타가 Threads 출시 (100개국 동시, 5일 만에 1억 사용자 돌파).
-            - 2023년 7월 7일 TSL의 페이스북 페이지가 삭제됨.
-            - 2023년 10월 30일 TSL이 메타에 30일 내 사용 중지 경고 → 법원 injunction 예고 (언론은 '데이비드 vs 골리앗'으로 표현).
-            - 메타는 TSL의 상표가 5년 이상 미사용됐다며 무효화를 시도 (미사용 무효 청구).
-            - 추가: 미국 패션 브랜드 American Threads가 인스타그램 @Threads 핸들을 보유했고, 메타가 @threadsapp 사용 후 추후 @threads 핸들 확보.
-            - 출처:
-            1. The Register 2023-10-31 — https://www.theregister.com/2023/10/31/threads_software_meta_legal/
-            2. BusinessWire 2023-10-30 — https://www.businesswire.com/news/home/20231030177404/en/
-            3. Gizmodo 2023-10-30 — https://gizmodo.com/threads-software-meta-legal-threat-1850967810
-            4. Trademark Lawyer Magazine 2024-02-29 — https://www.trademarklawyermagazine.com/threads-trademark-dispute/
-            """,
-            coverPrompt: "거대한 푸른 SNS 아이콘(골리앗)과 작은 영국식 사무실 건물(데이비드)이 슬링샷으로 대치하는 은유적 일러스트, 현대 플랫 스타일, 선명한 대비, 16:9",
-            bodyPrompts: [
-                "런던 사무실에서 상표 등록 문서를 든 작은 스타트업 팀, 영국식 빅토리아풍 건물 창문, 따뜻한 조명 일러스트",
-                "스마트폰 화면 위로 쏟아지는 수많은 메시지 알림과 허브 아이콘, 현대 미니멀 일러스트"
-            ]
-        ),
-    ]
-}
 
 // ---------- 마법사 단계 ----------
 enum StoryWizardStep: Int, CaseIterable, Identifiable {
@@ -108,7 +28,7 @@ enum StoryWizardStep: Int, CaseIterable, Identifiable {
 // ---------- 편 생성 상태 ----------
 class StoryDraft: ObservableObject, Identifiable {
     let id = UUID()
-    let seed: StorySeed
+    let plan: GeminiService.StorySeedPlan
     @Published var body: String = ""
     @Published var coverURL: String?
     @Published var bodyImageURLs: [String] = []
@@ -117,8 +37,8 @@ class StoryDraft: ObservableObject, Identifiable {
     @Published var generatingImages = false
     @Published var error: String?
 
-    init(seed: StorySeed) {
-        self.seed = seed
+    init(plan: GeminiService.StorySeedPlan) {
+        self.plan = plan
     }
 }
 
@@ -126,7 +46,7 @@ struct SeriesWizardView: View {
     @EnvironmentObject var auth: AuthStore
     @Environment(\.dismiss) private var dismiss
 
-    // 시리즈 정보 — 매번 새로 입력 (시드 기본값 제거)
+    // 시리즈 정보 — 매번 새로 입력
     @State private var seriesTitle = ""
     @State private var seriesDescription = ""
     @State private var seriesIntro = ""
@@ -134,6 +54,10 @@ struct SeriesWizardView: View {
     @State private var seriesCoverPrompt = ""
     @State private var seriesCoverURL: String?
     @State private var generatingCover = false
+    // T-73: 주제 기반 편 목록 AI 기획
+    @State private var seriesTopic = ""
+    @State private var planningSeries = false
+    @State private var planError: String?
 
     // 카테고리
     @State private var categories: [APIClient.AdminCategory] = []
@@ -151,7 +75,7 @@ struct SeriesWizardView: View {
     @State private var registerDone = false
 
     init() {
-        _drafts = State(initialValue: StorySeed.all.map { StoryDraft(seed: $0) })
+        _drafts = State(initialValue: [])
     }
 
     var body: some View {
@@ -217,7 +141,7 @@ struct SeriesWizardView: View {
         }
     }
 
-    // 1단계: 시리즈 정보
+    // 1단계: 시리즈 정보 + 주제
     private var seriesStep: some View {
         Form {
             Section("시리즈") {
@@ -225,6 +149,33 @@ struct SeriesWizardView: View {
                 TextField("한 줄 설명", text: $seriesDescription)
                 TextField("홈 배너 순서 (1이 맨 앞)", value: $bannerOrder, format: .number)
                     .frame(maxWidth: 160)
+            }
+            // T-73: 주제 → AI 편 목록 기획 (하드코딩 시드 제거)
+            Section("이야기 주제 → 편 목록 기획") {
+                TextField("주제 (예: '데이비드 vs 골리앗 — 이름 전쟁' 또는 '맥 생산성 앱의 역사')", text: $seriesTopic, axis: .vertical)
+                    .lineLimit(2...4)
+                HStack {
+                    Button {
+                        Task { await planSeries() }
+                    } label: {
+                        if planningSeries {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Label(drafts.isEmpty ? "편 목록 AI 기획" : "다시 기획", systemImage: "wand.and.stars")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(planningSeries || seriesTopic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if !drafts.isEmpty {
+                        Text("기획된 편 \(drafts.count)개").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if let planError {
+                    Text(planError).font(.caption).foregroundStyle(.red)
+                }
+                Text("주제를 입력하면 AI가 3~5편의 시리즈 편(제목/팩트/이미지 프롬프트)을 기획합니다. 결과는 다음 단계에서 확인·편집할 수 있습니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("인트로 (시리즈 소개 글)") {
                 TextEditor(text: $seriesIntro)
@@ -288,24 +239,36 @@ struct SeriesWizardView: View {
     // 3단계: 글 초안
     private var draftsStep: some View {
         VStack(spacing: 10) {
-            HStack {
-                Text("각 편의 글 초안을 생성합니다. 생성 후 바로 편집할 수 있습니다.")
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("전체 초안 생성") {
-                    Task { await generateAllDrafts() }
+            if drafts.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "wand.and.stars").font(.system(size: 34)).foregroundStyle(.secondary)
+                    Text("아직 기획된 편이 없습니다.").font(.headline)
+                    Text("1단계로 돌아가 주제를 입력하고 [편 목록 AI 기획]을 눌러 편을 만드세요.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .disabled(drafts.contains { $0.generating })
-            }
-            ScrollView {
-                VStack(spacing: 12) {
-                    ForEach(drafts) { draft in
-                        StoryDraftRow(draft: draft) {
-                            Task { await generateDraft(draft) }
+                .frame(maxWidth: .infinity, minHeight: 240)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.dsSurfaceHover.opacity(0.4)))
+            } else {
+                HStack {
+                    Text("각 편의 글 초안을 생성합니다. 생성 후 바로 편집할 수 있습니다.")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("전체 초안 생성") {
+                        Task { await generateAllDrafts() }
+                    }
+                    .disabled(drafts.contains { $0.generating })
+                }
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(drafts) { draft in
+                            StoryDraftRow(draft: draft) {
+                                Task { await generateDraft(draft) }
+                            }
                         }
                     }
+                    .padding(8)
                 }
-                .padding(8)
             }
         }
         .padding(14)
@@ -354,7 +317,7 @@ struct SeriesWizardView: View {
                     ForEach(drafts) { draft in
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text(draft.seed.title).font(.headline)
+                                Text(draft.plan.title).font(.headline)
                                 Spacer()
                                 Button {
                                     Task { await generateAllImages(for: draft) }
@@ -413,7 +376,7 @@ struct SeriesWizardView: View {
                 Divider()
                 ForEach(drafts) { draft in
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(draft.seed.title).font(.headline)
+                        Text(draft.plan.title).font(.headline)
                         Text("본문 \(draft.body.count)자" + (draft.coverURL == nil ? " · 커버 없음" : " · 커버 ✓") + (draft.bodyImageURLs.isEmpty ? "" : " · 본문 이미지 \(draft.bodyImageURLs.count)장"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -478,11 +441,28 @@ struct SeriesWizardView: View {
         DebugLogger.info("Wizard", "마법사 단계 → \(step.label)")
     }
 
+    // T-73: 주제 → 시리즈 편 목록 AI 기획 (GeminiService.generateStorySeriesPlan — .wizard 체인)
+    private func planSeries() async {
+        let topic = seriesTopic.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !topic.isEmpty else { return }
+        planningSeries = true
+        planError = nil
+        defer { planningSeries = false }
+        do {
+            let plans = try await GeminiService.generateStorySeriesPlan(topic: topic)
+            drafts = plans.map { StoryDraft(plan: $0) }
+            DebugLogger.info("Wizard", "[FEATURE] 시리즈 편 기획 완료 count=\(plans.count) topic=\(String(topic.prefix(40)))")
+        } catch {
+            planError = error is APIError ? (error as! APIError).message : error.localizedDescription
+            DebugLogger.error("Wizard", "[ERROR] E-MAC-AI-1003 \(planError ?? "")")
+        }
+    }
+
     private var canProceed: Bool {
         switch step {
-        case .series: return !seriesTitle.trimmingCharacters(in: .whitespaces).isEmpty
+        case .series: return !seriesTitle.trimmingCharacters(in: .whitespaces).isEmpty && !drafts.isEmpty
         case .category: return storyCategory != nil
-        case .drafts: return true
+        case .drafts: return !drafts.isEmpty
         case .images: return true
         case .confirm: return true
         }
@@ -538,9 +518,9 @@ struct SeriesWizardView: View {
         defer { draft.generatingImages = false }
         do {
             if draft.coverURL == nil {
-                draft.coverURL = try await generateAndUpload(prompt: draft.seed.coverPrompt)
+                draft.coverURL = try await generateAndUpload(prompt: draft.plan.coverPrompt)
             }
-            for prompt in draft.seed.bodyPrompts where draft.bodyImageURLs.count < draft.seed.bodyPrompts.count {
+            for prompt in draft.plan.bodyPrompts where draft.bodyImageURLs.count < draft.plan.bodyPrompts.count {
                 let url = try await generateAndUpload(prompt: prompt)
                 if !draft.bodyImageURLs.contains(url) {
                     draft.bodyImageURLs.append(url)
@@ -569,7 +549,7 @@ struct SeriesWizardView: View {
         draft.error = nil
         defer { draft.generating = false }
         do {
-            let text = try await GeminiService.generateStoryDraft(title: draft.seed.title, summary: draft.seed.summary)
+            let text = try await GeminiService.generateStoryDraft(title: draft.plan.title, summary: draft.plan.summary)
             draft.body = text
         } catch {
             draft.error = "초안 생성 실패: \(error.localizedDescription)"
@@ -588,6 +568,10 @@ struct SeriesWizardView: View {
     private func register() async {
         guard auth.isAuthed else {
             registerError = "로그인이 필요합니다."
+            return
+        }
+        guard !drafts.isEmpty else {
+            registerError = "기획된 편이 없습니다. 1단계에서 주제를 입력하고 편 목록을 기획해 주세요."
             return
         }
         registering = true
@@ -625,8 +609,8 @@ struct SeriesWizardView: View {
                     body += "\n\n[img:\(url)]"
                 }
                 let input = PostInput(
-                    title: draft.seed.title,
-                    slug: draft.seed.slug,
+                    title: draft.plan.title,
+                    slug: draft.plan.slug,
                     categoryIds: [categoryID!],
                     tags: ["이야기"],
                     contentType: "ARTICLE",
@@ -665,7 +649,7 @@ private struct StoryDraftRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(draft.seed.title).font(.headline)
+                Text(draft.plan.title).font(.headline)
                 Spacer()
                 if let err = draft.error {
                     Text(err).font(.caption).foregroundStyle(.red)

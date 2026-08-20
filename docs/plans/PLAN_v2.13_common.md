@@ -35,6 +35,9 @@
   - EditorView/AssistantView 이미지 시트 "설명 생성(alt)" 버튼 → 본문 `[img:URL alt=…]` 삽입, 커버는 클립보드
   - web lib/markdown.ts: `[img:URL alt=…]` 파싱 → `<img alt>` (parseParams 재사용)
 - [x] T-79: 검증 + 문서 (xcodebuild/web tsc+build/MD 렌더, TODO/CHANGELOG/세션 로그, 에러코드 재사용)
+- [x] T-73 (이어서 완료): 이야기 마법사 주제 기반 개편
+  - StorySeed.all 하드코딩 제거 → `GeminiService.StorySeedPlan`(Codable) + `generateStorySeriesPlan(topic:)` (JSON 배열, .wizard 체인)
+  - 1단계 주제 입력 + [편 목록 AI 기획] 버튼, drafts 빈 시작(가드 추가), canProceed drafts 필수, draft.seed → draft.plan
 
 ## 기본 체인 (마이그레이션 시드)
 

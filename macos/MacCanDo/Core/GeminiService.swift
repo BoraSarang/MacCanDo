@@ -691,6 +691,51 @@ enum GeminiService {
         return try await callGeminiText(prompt: prompt, action: .wizard)
     }
 
+    // ---------- T-73: 이야기 시리즈 편 목록 AI 기획 (v2.13) ----------
+    struct StorySeedPlan: Codable, Identifiable {
+        var id = UUID()
+        let title: String
+        let slug: String
+        let summary: String
+        let coverPrompt: String
+        let bodyPrompts: [String]
+
+        enum CodingKeys: String, CodingKey { case title, slug, summary, coverPrompt, bodyPrompts }
+    }
+
+    // 주제 → 시리즈 편 목록(3~5편) 기획 — 동작 체인 .wizard 경유
+    static func generateStorySeriesPlan(topic: String) async throws -> [StorySeedPlan] {
+        let prompt = """
+        다음 주제로 블로그 '이야기' 시리즈의 편 목록을 3~5편 기획해 주세요. JSON 배열만 출력하세요 (마크다운 코드블록·설명 없이).
+
+        시리즈 주제: \(topic)
+
+        각 편 형식 (키 이름 그대로, 값은 한국어):
+        {
+          "title": "편 제목 (흥미로운 제목)",
+          "slug": "영문-소문자-하이픈-슬러그",
+          "summary": "이 편에서 다룰 사실/사건 요약 — 검증 가능한 팩트 위주(기업·제품·연도·수치), 창작 내용은 '추정' 명시. 4~6줄.",
+          "coverPrompt": "16:9 커버 이미지 생성 프롬프트 (구체적인 시각 묘사, 미니멀/일러스트 톤)",
+          "bodyPrompts": ["본문 이미지 1 프롬프트", "본문 이미지 2 프롬프트"]
+        }
+
+        요구사항:
+        - 전체가 하나의 큰 이야기 흐름(서사)이 되도록 편 순서를 구성
+        - 실제 존재하는 사건/기업/제품이면 정확한 이름·연도·수치로 팩트 기반
+        - summary에 출처(신문/보도명 — URL 생략)를 붙이면 좋음
+        - JSON 외 어떤 텍스트도 출력 금지
+        """
+        let raw = try await fetchText(prompt: prompt, action: .wizard)
+        guard let data = extractJSONArray(from: raw) else {
+            throw APIError(code: "E-MAC-AI-1003", message: "편 목록을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
+        }
+        guard let plans = try? JSONDecoder().decode([StorySeedPlan].self, from: data), !plans.isEmpty else {
+            throw APIError(code: "E-MAC-AI-1003", message: "편 목록을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
+        }
+        DebugLogger.info("Gemini", "[FEATURE] 시리즈 편 목록 기획 완료 count=\(plans.count) topic=\(String(topic.prefix(40)))")
+        return plans
+    }
+
     // 공통 fetch (Gemini 호출 → 텍스트 추출)
     private static func fetchGeminiText(prompt: String, model: String) async throws -> String {
         let payload = GeminiRequest(

@@ -16,7 +16,7 @@
 | T-68 | 본문 이미지 미리보기→등록 흐름 (v2.11) | macos | ✅ | v2.11 |
 | T-71 | AI 도우미 개선 — 입력 textbox + 커버/본문 이미지 생성 + 게시글 초안(DRAFT) 등록 (v2.12) | macos | ✅ | v2.12 |
 | T-72 | 맥 소식 "글 작성에 사용" → AI 도우미 경유 (v2.12) | macos | ✅ | v2.12 |
-| T-73 | 이야기 마법사 개편 — 하드코딩 시드 제거 → 주제 기반 자동 기획/본문/카테고리/이미지 (v2.12) | macos | todo | v2.12 |
+| T-73 | 이야기 마법사 개편 — 하드코딩 시드 제거 → 주제 기반 자동 기획/본문/카테고리/이미지 (v2.12) | macos | ✅ 2026-08-20 (StorySeed.all 제거 → GeminiService.StorySeedPlan + generateStorySeriesPlan(.wizard 체인), 1단계 주제 입력+기획 버튼, drafts 빈 시작+가드, canProceed drafts 필수) | v2.13 |
 | T-74 | 체인 설정 데이터 모델 (AIProvider/AIModelRef/AIAction/AIChainConfig + UserDefaults JSON) (v2.13) | macos | ✅ 2026-08-20 (AIProvider/AIModelRef/AICapability/AIAction/AIChainConfig + modelCatalog + 기본 체인 + aiChains 저장/로드/커스텀 모델) | v2.13 |
 | T-75 | 체인 실행 엔진 + 기존 fetchText/callGeminiText/generateImage 통합 (v2.13) | macos | ✅ 2026-08-20 (runTextChain/runImageChain/generateImageDescription + fetchText(action:)/callGeminiText(action:)/generateImage(prompt:action:), ImageGenProvider/imageModel 제거, 뷰 6곳 chainLabel 교체) | v2.13 |
 | T-76 | NVIDIA 공급자 — 텍스트/이미지(flux.1-schnell)/비전(llama-3.2-90b) (v2.13) | macos | ✅ 2026-08-20 (fetchNVIDIAText/callNVIDIAImage(b64_json)/fetchNVision(image_url base64), OpenAI 호환 API) | v2.13 |

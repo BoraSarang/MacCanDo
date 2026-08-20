@@ -18,6 +18,9 @@
   - 기존 이미지 공급자/모델 Picker 제거, `importKeysFromKeychain`에 NVIDIA_API_KEY 추가
 - T-78: 비전 alt 연동
   - EditorView/AssistantView 이미지 시트 "alt 설명 생성(비전 AI)" 버튼 → 본문은 `[img:URL alt="…"]` 삽입, 커버는 클립보드 복사
+- T-73: 이야기 마법사 개편 (주제 기반 자동 기획)
+  - `StorySeed.all` 하드코딩 3편 제거 → `GeminiService.StorySeedPlan` + `generateStorySeriesPlan(topic:)` (주제 → 3~5편 JSON 기획, .wizard 체인 경유)
+  - 1단계에 "이야기 주제 → 편 목록 기획" 섹션 추가 (기획 버튼/재기획/편 수 표시), drafts 빈 시작 + 진행 가드, canProceed에 drafts 필수, draft.seed → draft.plan
 - 에러코드 재사용: E-MAC-SET-1001, E-MAC-AI-1001/1003/1005/1006/1007
 - 검증: macOS xcodebuild Debug BUILD SUCCEEDED
 
