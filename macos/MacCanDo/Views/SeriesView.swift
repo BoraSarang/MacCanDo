@@ -48,6 +48,13 @@ struct SeriesView: View {
                     .toolbar {
                         // T-50: 하단 버튼 바 제거 → 툴바 (macOS 표준)
                         ToolbarItemGroup(placement: .primaryAction) {
+                            // T-67: 이야기 시리즈 마법사 (5단계 — 카테고리/글/이미지 일괄)
+                            Button {
+                                NotificationCenter.default.post(name: .newStoryWizardRequested, object: nil)
+                            } label: {
+                                Label("이야기 마법사", systemImage: "wand.and.stars")
+                            }
+                            .help("이야기 시리즈 마법사")
                             Button {
                                 newTitle = ""
                                 newDescription = ""
@@ -179,6 +186,21 @@ struct SeriesView: View {
                         }
                         Label(s.title, systemImage: "books.vertical")
                             .font(.title3.bold())
+                        // T-65: v2.11 — 홈 배너 지정/해제 (웹 메인 상단 시리즈 배너에 노출)
+                        HStack(spacing: 6) {
+                            Button {
+                                Task { await toggleBanner() }
+                            } label: {
+                                Label(
+                                    s.featuredOrder != nil ? "홈 배너 지정됨" : "홈 배너 지정",
+                                    systemImage: s.featuredOrder != nil ? "star.fill" : "star"
+                                )
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .foregroundStyle(s.featuredOrder != nil ? Color.dsWarning : Color.dsTextSecondary)
+                            .help(s.featuredOrder != nil ? "홈 배너 지정 해제" : "웹 메인 상단 시리즈 배너에 노출")
+                        }
                         if let desc = s.description, !desc.isEmpty {
                             Text(desc)
                                 .font(.caption)
@@ -489,6 +511,29 @@ struct SeriesView: View {
             DebugLogger.error("Series", "삭제 실패: \(e?.code ?? "unknown")")
         }
         isLoading = false
+    }
+
+    // T-65: v2.11 — 홈 배너 지정/해제 (AdsView와 동일 패턴 — 서버 응답으로 로컬 반영)
+    private func toggleBanner() async {
+        guard let s = selectedSeries else { return }
+        do {
+            let order = s.featuredOrder == nil ? nextSeriesOrder : nil
+            let updated = try await APIClient.setSeriesFeatured(token: auth.token, id: s.id, order: order)
+            if let d = data, let idx = d.series.firstIndex(where: { $0.id == updated.id }) {
+                var newSeries = d.series
+                newSeries[idx] = updated
+                data = AdminSeriesData(series: newSeries, loosePosts: d.loosePosts)
+            }
+            DebugLogger.info("Series", "홈 배너 \(order == nil ? "해제" : "지정(\(order!))") — \(s.title)")
+        } catch {
+            let e = error as? APIError
+            errorMessage = e?.message ?? error.localizedDescription
+            DebugLogger.error("Series", "홈 배너 지정 실패: \(e?.code ?? "unknown")")
+        }
+    }
+
+    private var nextSeriesOrder: Int {
+        ((data?.series.compactMap(\.featuredOrder).max() ?? 0) + 1)
     }
 
     // 드래그 정렬 → 즉시 서버 저장

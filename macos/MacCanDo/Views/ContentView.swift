@@ -49,6 +49,7 @@ struct ContentView: View {
     @AppStorage("sidebar.selection") private var selectionRaw: String = SidebarItem.posts.rawValue
     @State private var sidebarWidth: CGFloat = 220
     @State private var showPalette = false
+    @State private var showStoryWizard = false // T-67: 이야기 시리즈 마법사
     @State private var columnVisibility: NavigationSplitViewVisibility = .all // T-46: ⌥⌘S 토글
     @State private var pendingCommentCount: Int? // T-46: 사이드바 배지
     @State private var draftsCount = 0
@@ -103,6 +104,10 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .newPostRequested)) { _ in
                 openNewPost()
             }
+            // T-67: 이야기 시리즈 마법사 시트 열기
+            .onReceive(NotificationCenter.default.publisher(for: .newStoryWizardRequested)) { _ in
+                showStoryWizard = true
+            }
 
             // T-42: ⌘K 팔레트
             if showPalette {
@@ -141,6 +146,11 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .postSaved)) { _ in
             draftsCount = DraftStore.all().count
+        }
+        // T-67: 이야기 시리즈 마법사 시트
+        .sheet(isPresented: $showStoryWizard) {
+            SeriesWizardView()
+                .environmentObject(auth)
         }
     }
 

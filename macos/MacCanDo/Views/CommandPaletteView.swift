@@ -4,6 +4,7 @@ import SwiftUI
 
 enum PaletteAction: Hashable {
     case newPost
+    case newStorySeries // T-67: 이야기 시리즈 마법사
     case assistant
     case debugPanel
 }
@@ -35,7 +36,7 @@ struct CommandPaletteView: View {
 
     // 팔레트 화면 목록 (설정은 ⌘, Settings scene — T-45, AI 도우미는 창 열기 액션으로 별도 처리)
     private let screens: [SidebarItem] = [.posts, .series, .comments, .stats, .ads, .macNews]
-    private let actions: [PaletteAction] = [.newPost, .assistant, .debugPanel]
+    private let actions: [PaletteAction] = [.newPost, .newStorySeries, .assistant, .debugPanel]
 
     var body: some View {
         ZStack {
@@ -132,6 +133,7 @@ struct CommandPaletteView: View {
     private func actionName(_ a: PaletteAction) -> String {
         switch a {
         case .newPost: return "새 글 작성"
+        case .newStorySeries: return "새 이야기 시리즈"
         case .assistant: return "AI 도우미"
         case .debugPanel: return "DebugPanel"
         }
@@ -191,6 +193,7 @@ struct CommandPaletteView: View {
         case .action(let a):
             switch a {
             case .newPost: return "square.and.pencil"
+            case .newStorySeries: return "books.vertical"
             case .assistant: return "wand.and.stars"
             case .debugPanel: return "ladybug"
             }
@@ -213,6 +216,9 @@ struct CommandPaletteView: View {
         case .action(let a):
             switch a {
             case .newPost: openEditor(key: "new", title: "새 글 작성", postId: nil)
+            case .newStorySeries:
+                NotificationCenter.default.post(name: .newStoryWizardRequested, object: nil)
+                DebugLogger.info("Palette", "이야기 시리즈 마법사 열기")
             case .assistant:
                 WindowManager.showAssistant()
                 DebugLogger.info("Palette", "AI 도우미 열기")

@@ -208,7 +208,24 @@ enum GeminiService {
         let candidates: [Candidate]?
     }
 
-    static let imageModels: [String] = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"]
+    // v2.11 T-66: 선택 가능한 이미지 모델 (설정 → 이미지 모델 선택, 선택 모델 우선 + 폴백)
+    static let imageModelOptions: [String] = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"]
+
+    // 설정에서 선택한 모델 (없으면 첫 번째)
+    static var imageModel: String {
+        let stored = UserDefaults.standard.string(forKey: "imageGenModel") ?? ""
+        return imageModelOptions.contains(stored) ? stored : imageModelOptions[0]
+    }
+
+    // 선택 모델 우선 정렬 목록 (폴백 순서)
+    static var imageModels: [String] {
+        var list = imageModelOptions
+        if let idx = list.firstIndex(of: imageModel) {
+            list.remove(at: idx)
+            list.insert(imageModel, at: 0)
+        }
+        return list
+    }
 
     // 프롬프트 → 16:9 이미지 생성 (base64 inlineData 디코드)
     // 공급자 체인: 설정값에 따라 Gemini(3.1 → 2.5 폴백) 또는 Flux(OpenRouter)
@@ -239,7 +256,7 @@ enum GeminiService {
         guard let key = UserDefaults.standard.string(forKey: "openrouterKey"), !key.isEmpty else {
             throw APIError(code: "E-MAC-SET-1001", message: "OpenRouter API 키가 설정되지 않았습니다. 설정 → 이미지 생성에서 입력하세요.", status: -1)
         }
-        let models = ["google/gemini-3.1-flash-image", "google/gemini-2.5-flash-image"]
+        let models = imageModels.map { "google/\($0)" }
         var lastError: Error?
         for model in models {
             do {
@@ -359,6 +376,27 @@ enum GeminiService {
             throw APIError(code: "E-MAC-AI-1003", message: "AI 응답이 비어 있습니다. 다시 시도해 주세요.", status: -1)
         }
         return text
+    }
+
+    // v2.11 T-67: 이야기 시리즈 글 초안 생성 (사건 요약/팩트/출처 시드 → 1,500자+ 스토리텔링)
+    static func generateStoryDraft(title: String, summary: String) async throws -> String {
+        let prompt = """
+        다음 주제로 MacCanDo 블로그의 이야기 시리즈 글 초안을 한국어로 작성해 주세요.
+
+        글 제목: \(title)
+
+        사건 요약/팩트 (아래 사실을 반드시 모두 자연스럽게 녹여내세요):
+        \(summary)
+
+        작성 규칙:
+        - 본문 1,500자 이상의 길고 자세한 스토리텔링 (사건의 흐름, 배경, 인용, 여운까지)
+        - 딱딱한 기사체가 아닌, 블로그 독자가 술술 읽는 자연스러운 한국어 문체
+        - 마크다운 형식: ## 소제목으로 단락을 나누고, 필요하면 - 목록 사용
+        - 마지막에 반드시 '## 출처' 소제목을 만들고 검증된 출처를 '1. 제목 — URL' 형태로 링크 나열
+        - 확실하지 않은 수치는 '추정'으로 표기하고, 사실은 추측과 명확히 구분
+        - 글 제목은 출력하지 말고 본문 내용만 출력
+        """
+        return try await callGeminiText(prompt: prompt)
     }
 
     // 공통 fetch (Gemini 호출 → 텍스트 추출)

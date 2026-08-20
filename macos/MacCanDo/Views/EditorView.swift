@@ -189,6 +189,12 @@ struct EditorView: View {
     @State private var imageGenPromptText = ""
     @State private var generatingCoverImage = false
     @State private var generatedCoverImageData: Data?
+    // T-68: v2.11 — AI 본문 이미지 생성 (미리보기 → 확인 시 업로드 + [img:URL] 삽입)
+    @State private var showBodyImageGen = false
+    @State private var bodyImagePromptText = ""
+    @State private var generatingBodyImage = false
+    @State private var generatedBodyImageData: Data?
+    @State private var bodyImageError: String?
     @State private var lookedUpAppUrls: Set<String> = [] // [app:URL] App Store 조회 시도 완료 URL (반복 방지)
     @State private var coverImageError: String?
     @State private var insertURL = ""
@@ -293,6 +299,7 @@ struct EditorView: View {
         }
         .sheet(isPresented: $showAppSheet) { appCardSheet } // T-15
         .sheet(isPresented: $showCoverImagePrompt) { imageGenSheet } // T-21: AI 커버 이미지
+        .sheet(isPresented: $showBodyImageGen) { bodyImageGenSheet } // T-68: AI 본문 이미지
     }
 
     // ---------- 앱 카드 시트 (T-15): App Store URL → 자동 추출 → [app] 삽입 ----------
@@ -468,6 +475,11 @@ struct EditorView: View {
                 Button { insertInline("## 제목") } label: { Label("H", systemImage: "").font(.caption.bold()).help("제목") }
                 Button { insertInline("[텍스트](https://)") } label: { Image(systemName: "link").help("링크") }
                 Button { showImagePicker = true } label: { Image(systemName: "photo").help("이미지 삽입") }
+                // T-68: v2.11 — AI 본문 이미지 (생성 → 미리보기 → 확인 시 업로드 + 삽입)
+                Button { showBodyImageGen = true; bodyImagePromptText = ""; bodyImageError = nil } label: {
+                    Image(systemName: "photo.badge.sparkles")
+                }
+                .help("AI 본문 이미지 생성 (미리보기 후 삽입)")
                 Button { insertURL = ""; showYoutubeDialog = true } label: { Image(systemName: "play.rectangle").help("유튜브 삽입") }
                 Button { insertURL = ""; showVideoDialog = true } label: { Image(systemName: "film").help("동영상(MP4) 삽입") }
                 Button { showAppSheet = true } label: { Image(systemName: "square.grid.2x2").help("앱 카드 삽입") }
@@ -1496,6 +1508,127 @@ struct EditorView: View {
         .frame(width: 500, height: 580)
     }
 
+    // T-68: v2.11 — AI 본문 이미지 시트 (프롬프트 → 생성 → 미리보기 → "본문에 삽입" 시 업로드 + [img:URL])
+    private var bodyImageGenSheet: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("AI 본문 이미지 생성").font(.title3.bold())
+                Spacer()
+                Text(GeminiService.imageGenProvider.label).font(.caption2).foregroundStyle(.secondary)
+            }
+            Text("본문에 넣을 이미지를 만듭니다. 생성 결과를 확인한 뒤 [본문에 삽입]을 누르면 업로드되어 [img:URL]이 커서 위치에 들어갑니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextEditor(text: $bodyImagePromptText)
+                .font(.body)
+                .frame(minHeight: 70)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.dsSurfaceHover))
+            HStack {
+                Button("초기화") { bodyImagePromptText = bodyImagePrompt() }
+                    .buttonStyle(.link)
+                    .controlSize(.small)
+                Spacer()
+                if let data = generatedBodyImageData, let ns = NSImage(data: data) {
+                    Text("\(Int(ns.size.width))×\(Int(ns.size.height))").font(.caption2).foregroundStyle(.secondary)
+                }
+                Button("다시 생성") {
+                    Task { await generateBodyImage(prompt: bodyImagePromptText) }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(generatingBodyImage || generatedBodyImageData == nil || bodyImagePromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Group {
+                if generatingBodyImage {
+                    VStack(spacing: 8) {
+                        ProgressView()
+                        Text("이미지 생성 중… (보통 10~30초)").font(.caption).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                } else if let data = generatedBodyImageData, let ns = NSImage(data: data) {
+                    Image(nsImage: ns)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.dsSurfaceHover))
+                } else {
+                    Rectangle()
+                        .fill(Color.dsSurface)
+                        .frame(maxWidth: .infinity, minHeight: 180)
+                        .overlay(Text("생성 결과가 여기에 표시됩니다").font(.caption).foregroundStyle(.secondary))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            if let err = bodyImageError {
+                Text(err).font(.caption).foregroundStyle(Color.dsDanger)
+            }
+            HStack {
+                Button("취소") { showBodyImageGen = false }.keyboardShortcut(.cancelAction)
+                Spacer()
+                Button("이 프롬프트로 생성") {
+                    Task { await generateBodyImage(prompt: bodyImagePromptText) }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(generatingBodyImage || bodyImagePromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button("본문에 삽입") {
+                    Task { await applyGeneratedBodyImage() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(generatingBodyImage || generatedBodyImageData == nil)
+            }
+        }
+        .padding(20)
+        .frame(width: 500, height: 520)
+    }
+
+    // T-68: 본문 이미지 프롬프트 자동 구성
+    private func bodyImagePrompt() -> String {
+        let bodyExcerpt = String(content.replacingOccurrences(of: #"[\[\]]"#, with: " ", options: .regularExpression)
+            .prefix(200))
+        return """
+        다음 글의 본문에 어울리는 삽화를 만들어 주세요: \(title)
+        본문 요약: \(bodyExcerpt)
+        macOS 앱 큐레이션 블로그 본문 이미지, 깔끔하고 미니멀한 스타일, 텍스트 없이.
+        """
+    }
+
+    // T-68: AI 본문 이미지 생성 (업로드 없이 Data 유지 — 미리보기 후 "본문에 삽입" 시 업로드)
+    private func generateBodyImage(prompt: String) async {
+        generatingBodyImage = true
+        bodyImageError = nil
+        do {
+            DebugLogger.info("Editor", "[FEATURE] AI 본문 이미지 생성 시작 provider=\(GeminiService.imageGenProvider.rawValue) prompt=\(String(prompt.prefix(60)))…")
+            let (imageData, provider) = try await GeminiService.generateImage(prompt: prompt)
+            generatedBodyImageData = imageData
+            DebugLogger.info("Editor", "[FEATURE] AI 본문 이미지 생성 완료 provider=\(provider) bytes=\(imageData.count)")
+        } catch {
+            bodyImageError = error is APIError ? (error as! APIError).message : error.localizedDescription
+            DebugLogger.error("Editor", "[ERROR] E-MAC-AI-1005 \(bodyImageError ?? "")")
+        }
+        generatingBodyImage = false
+    }
+
+    // T-68: 생성된 본문 이미지 업로드 + [img:URL] 삽입
+    private func applyGeneratedBodyImage() async {
+        guard let data = generatedBodyImageData else { return }
+        do {
+            let dir = FileManager.default.temporaryDirectory
+            let fileURL = dir.appendingPathComponent("body-img-\(UUID().uuidString.prefix(8)).\(GeminiService.imageExtension(for: data))")
+            try data.write(to: fileURL)
+
+            let url = try await APIClient.uploadImage(token: auth.token, fileURL: fileURL)
+            try? FileManager.default.removeItem(at: fileURL)
+            generatedBodyImageData = nil
+            showBodyImageGen = false
+            insertInline("[img:\(url)]")
+            DebugLogger.info("Editor", "[FEATURE] 본문 이미지 삽입 완료 url=\(url)")
+        } catch {
+            bodyImageError = error is APIError ? (error as! APIError).message : error.localizedDescription
+            DebugLogger.error("Editor", "[ERROR] E-MAC-AI-1005 \(bodyImageError ?? "")")
+        }
+    }
+
     // T-21: 커버 이미지 프롬프트 자동 구성 (제목+본문 요약 기반)
     private func coverImagePrompt() -> String {
         let bodyExcerpt = String(content.replacingOccurrences(of: #"[\[\]]"#, with: " ", options: .regularExpression)
@@ -2144,4 +2277,6 @@ extension Notification.Name {
     static let postSaved = Notification.Name("MacCanDo.postSaved")
     // T-35: ⌘N 새 글 요청 (메뉴 바 → ContentView)
     static let newPostRequested = Notification.Name("MacCanDo.newPostRequested")
+    // T-67: 새 이야기 시리즈 마법사 요청 (메뉴 바/SeriesView/⌘K → ContentView 시트)
+    static let newStoryWizardRequested = Notification.Name("MacCanDo.newStoryWizardRequested")
 }

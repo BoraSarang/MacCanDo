@@ -437,6 +437,65 @@ enum APIClient {
         )
     }
 
+    // ---------- 카테고리 (관리자) — /api/admin/categories (v2.11 T-64) ----------
+
+    struct AdminCategory: Decodable, Identifiable {
+        let id: String
+        let slug: String
+        let name: String
+        let description: String?
+        let icon: String?
+        let sort: Int
+        let parentId: String?
+        let postCount: Int
+    }
+
+    struct CategoryCreateBody: Encodable {
+        let name: String
+        let slug: String
+        let description: String?
+        let icon: String?
+        let sort: Int
+    }
+
+    struct CategoryUpdateBody: Encodable {
+        let name: String?
+        let slug: String?
+        let description: String?
+        let icon: String?
+        let sort: Int?
+    }
+
+    // 목록 — GET /api/admin/categories
+    static func fetchAdminCategories(token: String?) async throws -> [AdminCategory] {
+        try await request("api/admin/categories", token: token)
+    }
+
+    // 생성 — POST /api/admin/categories
+    static func createCategory(token: String?, name: String, slug: String, description: String?, icon: String?, sort: Int) async throws -> AdminCategory {
+        try await request(
+            "api/admin/categories",
+            method: "POST",
+            token: token,
+            body: CategoryCreateBody(name: name, slug: slug, description: description, icon: icon, sort: sort)
+        )
+    }
+
+    // 수정 — PATCH /api/admin/categories/[id]
+    static func updateCategory(token: String?, id: String, name: String?, slug: String?, description: String?, icon: String?, sort: Int?) async throws -> AdminCategory {
+        try await request(
+            "api/admin/categories/\(id)",
+            method: "PATCH",
+            token: token,
+            body: CategoryUpdateBody(name: name, slug: slug, description: description, icon: icon, sort: sort)
+        )
+    }
+
+    // 삭제 (연결된 PostCategory cascade) — DELETE /api/admin/categories/[id]
+    static func deleteCategory(token: String?, id: String) async throws {
+        let _: APIEmptyData = try await request("api/admin/categories/\(id)", method: "DELETE", token: token)
+    }
+
     // ---------- 디버그 패널: 서버 로그 조회 (자체 로그 미발생 — 폴링 잡음 방지) ----------
 
     struct ServerLogEntry: Codable, Identifiable {

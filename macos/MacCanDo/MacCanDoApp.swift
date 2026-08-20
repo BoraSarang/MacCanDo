@@ -67,6 +67,9 @@ struct MacCanDoApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("새 글") { newPost() }
                     .keyboardShortcut("n", modifiers: .command)
+                // T-67: 이야기 시리즈 마법사 (⌥⌘N — 시리즈 생성)
+                Button("새 이야기 시리즈…") { newStoryWizard() }
+                    .keyboardShortcut("n", modifiers: [.command, .option])
             }
             // T-34: View — DebugPanel (⌘⇧D)
             CommandGroup(after: .sidebar) {
@@ -87,5 +90,10 @@ struct MacCanDoApp: App {
     // T-34: ⌘N — 새 글 에디터 창 (ContentView 경유 알림 → 동일 동작 보장)
     private func newPost() {
         NotificationCenter.default.post(name: .newPostRequested, object: nil)
+    }
+
+    // T-67: ⌥⌘N — 이야기 시리즈 마법사 시트 (ContentView 경유 알림)
+    private func newStoryWizard() {
+        NotificationCenter.default.post(name: .newStoryWizardRequested, object: nil)
     }
 }

@@ -122,6 +122,10 @@ struct SettingsView: View {
                                 .font(.caption)
                                 .foregroundStyle(Color.dsSuccess)
                         }
+                        // T-66: v2.11 — 키체인에서 AI 키 자동 가져오기 (macOS 키체인 접근 허용 팝업 가능)
+                        Button("키체인에서 가져오기") { importKeysFromKeychain() }
+                            .controlSize(.small)
+                            .help("macOS 키체인(borasarang)에 저장된 AI 키를 자동으로 채웁니다")
                     }
                     if !geminiMessage.isEmpty {
                         Text(geminiMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
@@ -143,10 +147,23 @@ struct SettingsView: View {
                             Text(p.label).tag(p)
                         }
                     }
+                    // T-66: v2.11 — 이미지 생성 모델 선택 (선택 모델 우선 + 폴백)
+                    Picker("이미지 생성 모델", selection: Binding(
+                        get: { GeminiService.imageModel },
+                        set: { newValue in
+                            UserDefaults.standard.set(newValue, forKey: "imageGenModel")
+                            imageGenMessage = "이미지 모델: \(newValue)"
+                            DebugLogger.info("Settings", "이미지 모델 변경: \(newValue)")
+                        }
+                    )) {
+                        ForEach(GeminiService.imageModelOptions, id: \.self) { m in
+                            Text(m).tag(m)
+                        }
+                    }
                     if !imageGenMessage.isEmpty {
                         Text(imageGenMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
                     }
-                    Text("시리즈 커버/글 썸네일의 AI 이미지 생성 공급자입니다. '자동'이면 Gemini를 사용합니다.")
+                    Text("이미지 생성 공급자/모델을 고릅니다. 선택한 모델이 실패하면 다른 모델로 자동 폴백합니다.")
                         .font(.dsCaption)
                         .foregroundStyle(.secondary)
                     // T-22: OpenRouter (Flux) 키 — 이미지 생성 공급자 선택과 연결
@@ -251,6 +268,61 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            // T-64: v2.11 — 카테고리 관리 (이야기 등 신규 카테고리 추가/삭제)
+            Section("카테고리 관리") {
+                VStack(alignment: .leading, spacing: 8) {
+                    if authStore.isAuthed {
+                        if categoriesLoading {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            ForEach(adminCategories) { cat in
+                                HStack {
+                                    Text(cat.icon ?? "🏷").font(.dsBody)
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        Text(cat.name).font(.dsBody)
+                                        Text("\(cat.slug) · 글 \(cat.postCount)개")
+                                            .font(.dsCaption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Button {
+                                        deleteAdminCategory(cat)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("카테고리 삭제 (글 연결 해제)")
+                                }
+                            }
+                            Divider()
+                            HStack(spacing: 6) {
+                                TextField("이름", text: $newCategoryName)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(maxWidth: 140)
+                                TextField("slug (영문)", text: $newCategorySlug)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(maxWidth: 120)
+                                TextField("아이콘", text: $newCategoryIcon)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(maxWidth: 60)
+                                Button("추가") { createAdminCategory() }
+                                    .disabled(newCategoryName.isEmpty || newCategorySlug.isEmpty)
+                            }
+                        }
+                    } else {
+                        Text("관리자 API 토큰 연결 후 사용할 수 있습니다.")
+                            .font(.dsCaption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if !categoryMessage.isEmpty {
+                        Text(categoryMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
+                    }
+                    Text("글 분류에 쓸 카테고리를 추가/삭제합니다. '이야기(stories)' 같은 시리즈 전용 카테고리도 여기서 만들 수 있습니다.")
+                        .font(.dsCaption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .formStyle(.grouped)
         .onAppear {
@@ -265,6 +337,7 @@ struct SettingsView: View {
             if let key = UserDefaults.standard.string(forKey: "openrouterKey"), !key.isEmpty {
                 inputOpenRouterKey = key
             }
+            loadAdminCategories()
         }
     }
 
@@ -279,6 +352,13 @@ struct SettingsView: View {
     @State private var backupMessage = ""
     @State private var syncMessage = ""
     @State private var cacheMessage = ""
+    // T-64: v2.11 — 카테고리 관리
+    @State private var adminCategories: [APIClient.AdminCategory] = []
+    @State private var categoriesLoading = false
+    @State private var newCategoryName = ""
+    @State private var newCategorySlug = ""
+    @State private var newCategoryIcon = ""
+    @State private var categoryMessage = ""
 
     // T-54: 연결 테스트 — api/categories 호출로 토큰 유효성 + 서버 응답 확인
     private func testConnection() {
@@ -297,6 +377,115 @@ struct SettingsView: View {
                 DebugLogger.error("Settings", "연결 테스트 실패: \(e?.code ?? "unknown") status=\(e?.status ?? -1)")
             }
             testingConnection = false
+        }
+    }
+
+    // T-66: v2.11 — 키체인에서 AI 키 자동 가져오기 (NSTask + security, borasarang 계정)
+    private func importKeysFromKeychain() {
+        geminiMessage = ""
+        openRouterMessage = ""
+        Task {
+            var imported: [String] = []
+            if let k = await keychainValue(service: "GOOGLE_AI_API_KEY") {
+                UserDefaults.standard.set(k, forKey: "geminiKey")
+                inputGeminiKey = k
+                imported.append("Gemini")
+            }
+            if let k = await keychainValue(service: "OPENROUTER_API_KEY") {
+                UserDefaults.standard.set(k, forKey: "openrouterKey")
+                inputOpenRouterKey = k
+                imported.append("OpenRouter")
+            }
+            if imported.isEmpty {
+                geminiMessage = "키체인에서 찾지 못했습니다. (GOOGLE_AI_API_KEY / OPENROUTER_API_KEY — 없으면 무시)"
+            } else {
+                geminiMessage = "키체인에서 가져옴: \(imported.joined(separator: ", "))"
+            }
+            DebugLogger.info("Settings", "[FEATURE] 키체인 키 자동 가져오기: \(imported.joined(separator: ","))")
+        }
+    }
+
+    private func keychainValue(service: String) async -> String? {
+        await withCheckedContinuation { cont in
+            DispatchQueue.global().async {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+                process.arguments = ["find-generic-password", "-s", service, "-a", "borasarang", "-w"]
+                let outPipe = Pipe()
+                process.standardOutput = outPipe
+                process.standardError = Pipe()
+                do {
+                    try process.run()
+                    let data = outPipe.fileHandleForReading.readDataToEndOfFile()
+                    process.waitUntilExit()
+                    let s = String(data: data, encoding: .utf8)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    cont.resume(returning: (process.terminationStatus == 0 && !(s?.isEmpty ?? true)) ? s : nil)
+                } catch {
+                    cont.resume(returning: nil)
+                }
+            }
+        }
+    }
+
+    // T-64: v2.11 — 카테고리 관리 (목록/추가/삭제)
+    private func loadAdminCategories() {
+        guard authStore.isAuthed else { return }
+        categoriesLoading = true
+        Task {
+            do {
+                adminCategories = try await APIClient.fetchAdminCategories(token: authStore.token)
+                DebugLogger.info("Settings", "[FEATURE] 카테고리 목록 로드 (\(adminCategories.count)개)")
+            } catch {
+                let e = error as? APIError
+                categoryMessage = "카테고리 로드 실패: \(e?.message ?? error.localizedDescription)"
+                DebugLogger.error("Settings", "카테고리 로드 실패: \(e?.code ?? "unknown")")
+            }
+            categoriesLoading = false
+        }
+    }
+
+    private func createAdminCategory() {
+        let name = newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let slug = newCategorySlug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !name.isEmpty, !slug.isEmpty else { return }
+        let icon = newCategoryIcon.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            do {
+                _ = try await APIClient.createCategory(
+                    token: authStore.token,
+                    name: name,
+                    slug: slug,
+                    description: nil,
+                    icon: icon.isEmpty ? nil : icon,
+                    sort: adminCategories.count
+                )
+                categoryMessage = "카테고리 추가 완료: \(name)"
+                newCategoryName = ""
+                newCategorySlug = ""
+                newCategoryIcon = ""
+                loadAdminCategories()
+                DebugLogger.info("Settings", "[FEATURE] 카테고리 추가: \(name)")
+            } catch {
+                let e = error as? APIError
+                categoryMessage = "카테고리 추가 실패: \(e?.message ?? error.localizedDescription)"
+                DebugLogger.error("Settings", "카테고리 추가 실패: \(e?.code ?? "unknown")")
+            }
+        }
+    }
+
+    private func deleteAdminCategory(_ cat: APIClient.AdminCategory) {
+        Task {
+            do {
+                try await APIClient.deleteCategory(token: authStore.token, id: cat.id)
+                categoryMessage = "카테고리 삭제: \(cat.name) (글 연결 해제)"
+                loadAdminCategories()
+                DebugLogger.info("Settings", "[FEATURE] 카테고리 삭제: \(cat.name)")
+            } catch {
+                let e = error as? APIError
+                categoryMessage = "카테고리 삭제 실패: \(e?.message ?? error.localizedDescription)"
+                DebugLogger.error("Settings", "카테고리 삭제 실패: \(e?.code ?? "unknown")")
+            }
         }
     }
 
