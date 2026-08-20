@@ -9,6 +9,13 @@
 
 | 번호 | 작업 | 플랫폼 | 상태 | 비고 |
 |------|------|--------|------|------|
+| T-64 | 카테고리 관리 (web admin API + macOS Settings 섹션 — v2.11) | web+macos | ✅ | v2.11 |
+| T-65 | 시리즈 홈 배너 순서(featuredOrder) 편집 (SeriesView — v2.11) | macos | ✅ | v2.11 |
+| T-66 | AI 설정 관리 (모델 선택 + 키 자동 가져오기 — v2.11) | macos | ✅ | v2.11 |
+| T-67 | 이야기 시리즈 마법사 (5단계 위저드 + 진입 3곳 — v2.11) | macos | ✅ | v2.11 |
+| T-68 | 본문 이미지 미리보기→등록 흐름 (v2.11) | macos | ✅ | v2.11 |
+| T-69 | 콘텐츠 등록 (시리즈 "그 이름, 뺏겼다" + 글 3편 + 이미지 + 홈 배너 — v2.11) | web+macos | ✅ | v2.11 (카테고리 stories + 시리즈 + 글 3편 PUBLISHED + 커버 webp 4장 업로드 + 홈 배너 order 1) |
+| T-70 | 검증 + 문서 + 커밋 (v2.11) | common | ✅ | v2.11 (tsc/build/E2E 4/4, macos BUILD SUCCEEDED) |
 | T-58 | 웹 리디자인 파이프라인 (⌘ 키캡 시그니처·framer-motion spring·타이포 스케일·이모지 제거·감사) | web | ✅ | v2.8 |
 | T-44 | 공통 컴포넌트 (ErrorState/EmptyState/StatusBar/배지) + 토큰 실적용 | macos | ✅ | v2.7.0 |
 | T-45 | Settings scene 분리 (⌘,) + 사이드바 설정 제거 | macos | ✅ | v2.7.0 |
@@ -83,3 +90,8 @@
 | T-03 | web 기반 (목록/카테고리/상세/검색) | web | ✅ 2026-08-16 |
 | T-04 | Google 로그인 + 댓글 + 스팸 방지 | web | ✅ 2026-08-16 (OAuth 자격 증명 대기) |
 | T-05 | 다운로드 게이트 + 통계(/admin) + 댓글 승인 | web | ✅ 2026-08-16 |
+| T-64 | 카테고리 관리 (web admin API + macOS Settings 섹션 — v2.11) | web+macos | ✅ 2026-08-20 |
+| T-65 | 시리즈 홈 배너 순서(featuredOrder) 편집 (SeriesView — v2.11) | macos | ✅ 2026-08-20 |
+| T-66 | AI 설정 관리 (모델 선택 + 키 자동 가져오기 — v2.11) | macos | ✅ 2026-08-20 |
+| T-67 | 이야기 시리즈 마법사 (5단계 위저드 + 진입 3곳 — v2.11) | macos | ✅ 2026-08-20 |
+| T-68 | 본문 이미지 미리보기→등록 흐름 (v2.11) | macos | ✅ 2026-08-20 |

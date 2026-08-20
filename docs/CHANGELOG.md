@@ -1,3 +1,28 @@
+## v2.11 (2026-08-20) — [web+macos] 시리즈 "그 이름, 뺏겼다" + 이야기 마법사 + AI 설정 (T-64~T-70)
+
+### macOS
+- T-64: 카테고리 관리 (Settings 섹션 — 목록/생성/삭제, web admin API 연동)
+- T-65: 시리즈 홈 배너 순서(featuredOrder) 편집 (SeriesView)
+- T-66: AI 설정 관리 — 모델 선택 + 키체인 자동 가져오기 (SettingsView importKeysFromKeychain, NSTask+security, borasarang 계정)
+- T-67: 이야기 시리즈 마법사 — SeriesWizardView 5단계(시리즈 정보→카테고리→글 초안(Gemini)→이미지→등록 확인) + StorySeed 3편 내장 + 진입 3곳(파일 메뉴 ⌥⌘N/SeriesView 툴바/⌘K 팔레트, .newStoryWizardRequested) + GeminiService.generateStoryDraft + SeriesView 서브스크립트 오류 수정
+- T-68: 본문 이미지 미리보기→등록 흐름 (EditorView — 생성→미리보기→업로드→[img:URL] 삽입)
+- 에러코드: E-MAC-WIZ-1001, E-MAC-AI-1005
+- 검증: macOS xcodebuild Debug 성공
+
+### 콘텐츠 (T-69)
+- 카테고리 "이야기"(stories, 📖, sort 3) 생성
+- 시리즈 "그 이름, 뺏겼다" 등록 + 홈 배너(featuredOrder=1) + 커버 webp
+- 글 3편 PUBLISHED 등록 (Gemini 초안 3.7-flash/3.6-flash, korean-humanizer 다듬기 + 이미지 자리 마커):
+  - gemini-macpaw-google — MacPaw vs Google Gemini 동명이인
+  - apple-vs-beatles-30years — 애플 vs 비틀즈 30년 분쟁
+  - threads-name-war-david-goliath — Threads 이름 전쟁
+- 커버 이미지 4장 webp 업로드 + 글 thumbnailUrl/시리즈 imageUrl 연결 (사용자 수동 생성, Gemini 이미지 쿼터 429/OpenRouter 잔액 부족)
+- 검증: TC-69-1 통과 — 웹 홈 배너 최상단 + 최근 게시글 3편 + 커버 노출 (a11y 덤프)
+
+### 검증 (T-70)
+- web: `tsc --noEmit` 통과 + `npm run build` 성공 + Playwright E2E 4/4 통과
+- macOS: `xcodebuild -configuration Debug` BUILD SUCCEEDED
+
 ## v2.10.1 (2026-08-18) — [common] 로고/아이콘 디자인 (bd MacCanDo-cyf)
 
 - B안(체크 배지 — 라운드 스퀘어 + 체크, 브랜드 그라디언트 #007AFF→#AF52DE) 채택
