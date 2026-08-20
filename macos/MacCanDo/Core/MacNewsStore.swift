@@ -344,6 +344,7 @@ enum NewsCollector {
                         let items = try await fetchRaw(source: source)
                         return (source.name, items, nil)
                     } catch {
+                        DebugLogger.warn("News", "\(source.name) 수집 실패: \(error)")
                         return (source.name, nil, source.name)
                     }
                 }

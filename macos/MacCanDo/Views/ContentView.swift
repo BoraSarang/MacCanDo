@@ -68,8 +68,11 @@ struct ContentView: View {
                 List(SidebarItem.allCases, selection: selection) { item in
                     if item == .assistant {
                         // AI 도우미: 새 창으로 열기 — 오른쪽 패널 전환 없음 (에디터 창과 나란히 활용)
-                        Button { openAssistantWindow() } label: { sidebarRow(item) }
-                            .buttonStyle(.plain)
+                        // T-81: 행 전체 클릭 — List 셀 전체가 타깃이 되도록 onTapGesture 사용
+                        sidebarRow(item)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .onTapGesture { openAssistantWindow() }
                             .contextMenu {
                                 Button("AI 도우미 열기") { openAssistantWindow() }
                             }

@@ -21,8 +21,23 @@
 - T-73: 이야기 마법사 개편 (주제 기반 자동 기획)
   - `StorySeed.all` 하드코딩 3편 제거 → `GeminiService.StorySeedPlan` + `generateStorySeriesPlan(topic:)` (주제 → 3~5편 JSON 기획, .wizard 체인 경유)
   - 1단계에 "이야기 주제 → 편 목록 기획" 섹션 추가 (기획 버튼/재기획/편 수 표시), drafts 빈 시작 + 진행 가드, canProceed에 drafts 필수, draft.seed → draft.plan
-- 에러코드 재사용: E-MAC-SET-1001, E-MAC-AI-1001/1003/1005/1006/1007
-- 검증: macOS xcodebuild Debug BUILD SUCCEEDED
+- T-80: AI 실패 로그 상세화
+  - 체인 폴백 로그 3곳에 HTTP status + 원인 메시지 포함 (`E-MAC-AI-1007 status=400 AI 호출 실패 (HTTP 400)`)
+  - 맥 소식 수집 실패: APIError면 code/status/message, 비-APIError(네트워크 타임아웃 등)면 전체 원인 표시 — "unknown" 제거
+  - RSS 소스별 실패 시 원인 로그 즉시 기록 (예: `MacTech 수집 실패: NSURLErrorDomain -1001`)
+- T-81: 설정 화면 3분류 개편 — NavigationSplitView → HStack 고정 레이아웃
+  - macOS 26 설정(Settings scene)에서 NavigationSplitView 자동 토글이 목록 위에 생기는 문제 → HStack 고정(사이드바 180pt + Divider + 콘텐츠 상단 섹션 제목)으로 최종 해결, Settings scene unified toolbar 제거
+  - 3분류: 일반(서버/관리자 토큰/카테고리), AI(키/동작별 체인/커스텀 모델/캐시), 데이터(백업/동기화)
+  - AI 키 입력 순서를 AI 사용 순서(Gemini → NVIDIA → OpenRouter)로 정렬, ChainEditorView popover 폭 520 확대, 체인 라벨 줄바꿈 허용, 삭제 버튼 텍스트("삭제")+툴팁, 카테고리 입력 2줄 레이아웃 + 아이콘 힌트, 공급자 3곳 URL Link 처리, onAppear NVIDIA 키 채움
+  - 앱 배포/실행 위치 고정: `/Users/lee/Applications/MacCanDo.app`
+- T-82: AI 폴백 정비 (NVIDIA 실측 기반) — 소식 요약 전멸(6/6 청크 실패, 0건) 원인 수정
+  - NVIDIA 모델 실측: `deepseek-ai/deepseek-v4-flash-0731` 529 과부하+100초(타임아웃 유발) → 기본 텍스트 체인/카탈로그를 `openai/gpt-oss-20b`(0.46초)로 교체, 느린 모델(nemotron-3-ultra 등) 제거
+  - `runTextChain`/`runImageChain`/`generateImageDescription` catch를 `APIError`만 → 전체 Error로 확장 — 타임아웃·네트워크 유실(URLError)도 APIError(E-MAC-NET-1001)로 래핑해 다음 공급자로 폴백 (폴백 체인 중단 버그 해결)
+  - 타임아웃 60→120초 (NVIDIA 텍스트/비전, Gemini 텍스트, OpenRouter 텍스트)
+  - `summarizeNews` 실패 청크 건너뛰기 — 개별 청크 실패가 전체 수집을 중단하지 않도록 부분 결과 반환
+  - `aiChains` 초기화(기본 체인 복원) + NVIDIA 키 키체인/UserDefaults 갱신
+- 에러코드 재사용: E-MAC-SET-1001, E-MAC-AI-1001/1003/1005/1006/1007, E-MAC-NET-1001
+- 검증: macOS xcodebuild Debug BUILD SUCCEEDED + NVIDIA `openai/gpt-oss-20b` 실측 200/0.46초, `/Users/lee/Applications` 배포·실행(pid 18845)
 
 ### Web (T-78)
 - lib/markdown.ts — `[img:URL alt="…"]` 파싱(parseParams 쿼터 지원) → `<img alt="…">` 렌더링

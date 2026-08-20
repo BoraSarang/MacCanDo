@@ -180,9 +180,13 @@ struct MacNewsView: View {
             }
             DebugLogger.info("News", "수집 완료: \(report.items.count)건 (실패 \(failed.count)개 소스)")
         } catch {
-            let e = error as? APIError
-            lastError = e?.message ?? error.localizedDescription
-            DebugLogger.error("News", "수집 실패: \(e?.code ?? "unknown")")
+            if let e = error as? APIError {
+                lastError = e.message
+                DebugLogger.error("News", "수집 실패: \(e.code) status=\(e.status) \(e.message)")
+            } else {
+                lastError = error.localizedDescription
+                DebugLogger.error("News", "수집 실패: \(error)")  // URLError 등 비-APIError — 전체 원인 표시
+            }
         }
         isCollecting = false
         progress = ""

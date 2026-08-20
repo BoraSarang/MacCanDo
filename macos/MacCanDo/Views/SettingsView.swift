@@ -3,6 +3,26 @@
 // T-54: v2.7.0 — SecureField(토큰/키) + 연결 테스트(api/categories) + 캐시 초기화 + 저장 후 필드 유지
 import SwiftUI
 
+// T-81: v2.13 — 설정 사이드바 3분류 (일반 / AI / 데이터)
+enum SettingsSection: String, CaseIterable, Identifiable {
+    case general, ai, data
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .general: return "일반"
+        case .ai: return "AI"
+        case .data: return "데이터"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .general: return "gearshape"
+        case .ai: return "sparkles"
+        case .data: return "externaldrive"
+        }
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject private var authStore: AuthStore
     @State private var inputToken = ""
@@ -10,8 +30,75 @@ struct SettingsView: View {
     @State private var testingConnection = false
     @State private var testMessage: String?
     @State private var testIsError = false
+    @State private var sidebarWidth: CGFloat = 180
 
     var body: some View {
+        // T-81: NavigationSplitView 제거 — macOS 26 설정 창에서 시스템 토글(사이드바 감추기)이 계속 생성됨.
+        // HStack 고정 레이아웃으로 교체 → 토글 버튼이 존재할 수 없음, 사이드바 항상 표시.
+        HStack(spacing: 0) {
+            List(SettingsSection.allCases, selection: $selectedSection) { section in
+                sidebarRow(section)
+                    .tag(section)
+            }
+            .listStyle(.sidebar)
+            .frame(width: 180)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(selectedSection.label)
+                    .font(.title2.bold())
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                Divider()
+                Group {
+                    switch selectedSection {
+                    case .general: generalStep
+                    case .ai: aiStep
+                    case .data: dataStep
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(minWidth: 700, minHeight: 500)
+        .onAppear {
+            DebugLogger.info("Settings", "설정 화면 표시됨")
+            // T-54: 저장된 값 미리 채우기 (재입력 불편 제거)
+            if let token = authStore.token, !token.isEmpty {
+                inputToken = token
+            }
+            if let key = UserDefaults.standard.string(forKey: "geminiKey"), !key.isEmpty {
+                inputGeminiKey = key
+            }
+            if let key = UserDefaults.standard.string(forKey: "openrouterKey"), !key.isEmpty {
+                inputOpenRouterKey = key
+            }
+            if let key = UserDefaults.standard.string(forKey: "nvidiaKey"), !key.isEmpty {
+                inputNVIDIAKey = key
+            }
+            loadAdminCategories()
+        }
+    }
+
+    // T-81: 메인 창(ContentView)과 동일한 사이드바 행 — 폭 110 미만이면 아이콘만 (Finder 스타일)
+    @ViewBuilder
+    private func sidebarRow(_ item: SettingsSection) -> some View {
+        if sidebarWidth < 110 {
+            Image(systemName: item.icon)
+                .frame(maxWidth: .infinity)
+                .help(item.label)
+        } else {
+            HStack(spacing: 6) {
+                Label(item.label, systemImage: item.icon)
+                Spacer()
+            }
+        }
+    }
+
+    // ---------- 일반 (서버 / 토큰 / 카테고리) — T-81 사이드바 분류 ----------
+    private var generalStep: some View {
         Form {
             Section("서버") {
                 VStack(alignment: .leading, spacing: 8) {
@@ -98,6 +185,69 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // T-64: v2.11 — 카테고리 관리 (T-81: 일반 분류로 이동)
+            Section("카테고리 관리") {
+                VStack(alignment: .leading, spacing: 8) {
+                    if authStore.isAuthed {
+                        if categoriesLoading {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            ForEach(adminCategories) { cat in
+                                HStack {
+                                    Text(cat.icon ?? "🏷").font(.dsBody)
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        Text(cat.name).font(.dsBody)
+                                        Text("\(cat.slug) · 글 \(cat.postCount)개")
+                                            .font(.dsCaption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Button {
+                                        deleteAdminCategory(cat)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("카테고리 삭제 (글 연결 해제)")
+                                }
+                            }
+                            Divider()
+                            // T-81: 입력 폼 2줄 레이아웃 — 사이드바 폭에서도 깨지지 않도록
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 6) {
+                                    TextField("이름 (예: 이야기)", text: $newCategoryName)
+                                        .textFieldStyle(.roundedBorder)
+                                    TextField("slug (영문, 예: stories)", text: $newCategorySlug)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                                HStack(spacing: 6) {
+                                    TextField("아이콘 (이모지 1개, 선택 — 예: 📚)", text: $newCategoryIcon)
+                                        .textFieldStyle(.roundedBorder)
+                                    Button("추가") { createAdminCategory() }
+                                        .disabled(newCategoryName.isEmpty || newCategorySlug.isEmpty)
+                                }
+                            }
+                        }
+                    } else {
+                        Text("관리자 API 토큰 연결 후 사용할 수 있습니다.")
+                            .font(.dsCaption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if !categoryMessage.isEmpty {
+                        Text(categoryMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
+                    }
+                    Text("글 분류에 쓸 카테고리를 추가/삭제합니다. '아이콘'은 목록에 표시할 이모지 1개를 넣으세요 (예: 📚, 🍎 — 비워도 됨). '이야기(stories)' 같은 시리즈 전용 카테고리도 여기서 만들 수 있습니다.")
+                        .font(.dsCaption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // ---------- AI (키 3종 / 동작별 체인 / 커스텀 모델 / 캐시) — T-81 분류 ----------
+    private var aiStep: some View {
+        Form {
             Section("AI 설정 (동작별 모델 체인)") {
                 VStack(alignment: .leading, spacing: 8) {
                     SecureField("Gemini API 키", text: $inputGeminiKey)
@@ -129,7 +279,46 @@ struct SettingsView: View {
                     if !geminiMessage.isEmpty {
                         Text(geminiMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
                     }
-                    Text("텍스트·이미지 생성의 기본 공급자입니다. 키는 https://aistudio.google.com/apikey 에서 발급 (무료).")
+                    HStack(spacing: 4) {
+                        Text("텍스트·이미지 생성의 기본 공급자입니다. 키는")
+                        Link("aistudio.google.com/apikey", destination: URL(string: "https://aistudio.google.com/apikey")!)
+                        Text("에서 발급 (무료).")
+                    }
+                        .font(.dsCaption)
+                        .foregroundStyle(.secondary)
+                    Divider()
+
+                    // T-81: AI 사용(체인 실행) 순서대로 정렬 — Gemini → NVIDIA → OpenRouter
+                    SecureField("NVIDIA API 키 (build.nvidia.com)", text: $inputNVIDIAKey)
+                        .font(.dsMono)
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.none)
+                    HStack {
+                        Button("저장") {
+                            let k = inputNVIDIAKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !k.isEmpty else {
+                                nvidiaMessage = "NVIDIA API 키를 입력해 주세요."
+                                return
+                            }
+                            UserDefaults.standard.set(k, forKey: "nvidiaKey")
+                            nvidiaMessage = "키가 저장되었습니다."
+                            DebugLogger.info("Settings", "NVIDIA 키 저장됨")
+                        }
+                        .keyboardShortcut(.defaultAction)
+                        if !(UserDefaults.standard.string(forKey: "nvidiaKey") ?? "").isEmpty {
+                            Label("저장됨", systemImage: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(Color.dsSuccess)
+                        }
+                    }
+                    if !nvidiaMessage.isEmpty {
+                        Text(nvidiaMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
+                    }
+                    HStack(spacing: 4) {
+                        Text("NVIDIA NIM(인퍼런스 마이크로서비스) = NVIDIA가 호스팅하는 AI 모델 API. 텍스트(DeepSeek)·이미지(FLUX)·이미지 설명(LLaMA Vision)을 무료 제공. 키는")
+                        Link("build.nvidia.com", destination: URL(string: "https://build.nvidia.com")!)
+                        Text("에서 무료 발급 (모델별 약 40 RPM).")
+                    }
                         .font(.dsCaption)
                         .foregroundStyle(.secondary)
                     Divider()
@@ -159,37 +348,11 @@ struct SettingsView: View {
                     if !openRouterMessage.isEmpty {
                         Text(openRouterMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
                     }
-                    Text("체인 폴백용 무료 모델(Gemma/GPT-OSS) 및 이미지 모델에 사용합니다. https://openrouter.ai/keys 에서 발급 (무료 모델은 크레딧 불필요).")
-                        .font(.dsCaption)
-                        .foregroundStyle(.secondary)
-                    Divider()
-
-                    SecureField("NVIDIA NIM API 키", text: $inputNVIDIAKey)
-                        .font(.dsMono)
-                        .textFieldStyle(.roundedBorder)
-                        .textContentType(.none)
-                    HStack {
-                        Button("저장") {
-                            let k = inputNVIDIAKey.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !k.isEmpty else {
-                                nvidiaMessage = "NVIDIA API 키를 입력해 주세요."
-                                return
-                            }
-                            UserDefaults.standard.set(k, forKey: "nvidiaKey")
-                            nvidiaMessage = "키가 저장되었습니다."
-                            DebugLogger.info("Settings", "NVIDIA 키 저장됨")
-                        }
-                        .keyboardShortcut(.defaultAction)
-                        if !(UserDefaults.standard.string(forKey: "nvidiaKey") ?? "").isEmpty {
-                            Label("저장됨", systemImage: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(Color.dsSuccess)
-                        }
+                    HStack(spacing: 4) {
+                        Text("체인 폴백용 무료 모델(Gemma/GPT-OSS) 및 이미지 모델에 사용합니다. 키는")
+                        Link("openrouter.ai/keys", destination: URL(string: "https://openrouter.ai/keys")!)
+                        Text("에서 발급 (무료 모델은 크레딧 불필요).")
                     }
-                    if !nvidiaMessage.isEmpty {
-                        Text(nvidiaMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
-                    }
-                    Text("NVIDIA NIM (build.nvidia.com) — 개발/프로토타입 무료, 모델별 약 40 RPM. 텍스트·이미지·이미지 설명(alt)에 사용합니다.")
                         .font(.dsCaption)
                         .foregroundStyle(.secondary)
                     Divider()
@@ -199,12 +362,12 @@ struct SettingsView: View {
                         .font(.dsCaption.bold())
                         .foregroundStyle(.secondary)
                     ForEach(GeminiService.AIAction.allCases) { action in
-                        HStack(spacing: 8) {
+                        HStack(alignment: .top, spacing: 8) {
                             Text(action.label).frame(width: 110, alignment: .leading).font(.caption)
                             Text(GeminiService.chainLabel(for: action))
                                 .font(.caption2.monospaced())
                                 .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                                .help(GeminiService.chainLabel(for: action))
                             Spacer()
                             Button("편집") { editingAction = action }
                                 .controlSize(.small)
@@ -298,7 +461,13 @@ struct SettingsView: View {
                     ChainEditorView(action: action)
                 }
             }
+        }
+        .formStyle(.grouped)
+    }
 
+    // ---------- 데이터 (백업/동기화) — T-81 분류 ----------
+    private var dataStep: some View {
+        Form {
             Section("백업 / 복원") {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
@@ -336,79 +505,11 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-
-            // T-64: v2.11 — 카테고리 관리 (이야기 등 신규 카테고리 추가/삭제)
-            Section("카테고리 관리") {
-                VStack(alignment: .leading, spacing: 8) {
-                    if authStore.isAuthed {
-                        if categoriesLoading {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            ForEach(adminCategories) { cat in
-                                HStack {
-                                    Text(cat.icon ?? "🏷").font(.dsBody)
-                                    VStack(alignment: .leading, spacing: 0) {
-                                        Text(cat.name).font(.dsBody)
-                                        Text("\(cat.slug) · 글 \(cat.postCount)개")
-                                            .font(.dsCaption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Button {
-                                        deleteAdminCategory(cat)
-                                    } label: {
-                                        Image(systemName: "trash")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .help("카테고리 삭제 (글 연결 해제)")
-                                }
-                            }
-                            Divider()
-                            HStack(spacing: 6) {
-                                TextField("이름", text: $newCategoryName)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(maxWidth: 140)
-                                TextField("slug (영문)", text: $newCategorySlug)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(maxWidth: 120)
-                                TextField("아이콘", text: $newCategoryIcon)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(maxWidth: 60)
-                                Button("추가") { createAdminCategory() }
-                                    .disabled(newCategoryName.isEmpty || newCategorySlug.isEmpty)
-                            }
-                        }
-                    } else {
-                        Text("관리자 API 토큰 연결 후 사용할 수 있습니다.")
-                            .font(.dsCaption)
-                            .foregroundStyle(.secondary)
-                    }
-                    if !categoryMessage.isEmpty {
-                        Text(categoryMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
-                    }
-                    Text("글 분류에 쓸 카테고리를 추가/삭제합니다. '이야기(stories)' 같은 시리즈 전용 카테고리도 여기서 만들 수 있습니다.")
-                        .font(.dsCaption)
-                        .foregroundStyle(.secondary)
-                }
-            }
         }
         .formStyle(.grouped)
-        .onAppear {
-            DebugLogger.info("Settings", "설정 화면 표시됨")
-            // T-54: 저장된 값 미리 채우기 (재입력 불편 제거)
-            if let token = authStore.token, !token.isEmpty {
-                inputToken = token
-            }
-            if let key = UserDefaults.standard.string(forKey: "geminiKey"), !key.isEmpty {
-                inputGeminiKey = key
-            }
-            if let key = UserDefaults.standard.string(forKey: "openrouterKey"), !key.isEmpty {
-                inputOpenRouterKey = key
-            }
-            loadAdminCategories()
-        }
     }
 
+    @State private var selectedSection: SettingsSection = .general // T-81
     @State private var inputGeminiKey = ""
     @State private var geminiMessage = ""
     @State private var inputOpenRouterKey = "" // T-22: OpenRouter 키 (체인 폴백/이미지)
@@ -666,34 +767,39 @@ private struct ChainEditorView: View {
     let action: GeminiService.AIAction
     @Environment(\.dismiss) private var dismiss
     @State private var selectedNew: GeminiService.AIModelRef?
+    // T-81: 로컬 상태로 즉시 반영 — UserDefaults 직접 읽기는 화면 갱신이 안 되므로
+    @State private var localChain: [GeminiService.AIModelRef] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("\(action.label) 체인").font(.headline)
             Text("모델 생성 실패 시 위에서 아래 순서로 폴백합니다.").font(.caption).foregroundStyle(.secondary)
 
-            let chain = GeminiService.chain(for: action)
+            let chain = localChain
             ScrollView {
                 VStack(spacing: 6) {
                     ForEach(Array(chain.enumerated()), id: \.element.id) { idx, ref in
                         HStack(spacing: 8) {
                             Text("\(idx + 1)").font(.caption.monospaced()).foregroundStyle(.secondary).frame(width: 20)
-                            Text(ref.label).font(.caption.monospaced()).lineLimit(1)
+                            Text(ref.label).font(.caption.monospaced())
                             Spacer()
                             if chain.count > 1 {
                                 Button { move(idx, -1) } label: { Image(systemName: "arrow.up") }
                                     .disabled(idx == 0).controlSize(.small).buttonStyle(.borderless)
+                                    .help("위로 이동")
                                 Button { move(idx, 1) } label: { Image(systemName: "arrow.down") }
                                     .disabled(idx == chain.count - 1).controlSize(.small).buttonStyle(.borderless)
+                                    .help("아래로 이동")
                             }
-                            Button(role: .destructive) { remove(ref) } label: { Image(systemName: "minus.circle") }
+                            Button("삭제", role: .destructive) { remove(ref) }
                                 .controlSize(.small).buttonStyle(.borderless)
+                                .help("이 모델을 체인에서 제거")
                         }
                     }
                 }
                 .padding(4)
             }
-            .frame(width: 340, height: 180)
+            .frame(width: 500, height: 200)
 
             Divider()
             HStack(spacing: 8) {
@@ -706,38 +812,43 @@ private struct ChainEditorView: View {
                 .labelsHidden()
                 Button("추가") {
                     if let m = selectedNew {
-                        GeminiService.setChain(GeminiService.chain(for: action) + [m], for: action)
+                        apply(localChain + [m])
                         selectedNew = nil
                     }
                 }
                 .disabled(selectedNew == nil)
             }
             HStack {
-                Button("기본값으로") { GeminiService.setChain(GeminiService.defaultChain(for: action), for: action) }
+                Button("기본값으로") { apply(GeminiService.defaultChain(for: action)) }
                     .controlSize(.small)
                 Spacer()
                 Button("닫기") { dismiss() }.controlSize(.small)
             }
         }
         .padding(14)
-        .frame(width: 360)
+        .frame(width: 520)
+        .onAppear { localChain = GeminiService.chain(for: action) }
     }
 
     // capability별 카탈로그+커스텀 중 체인에 없는 모델
     private var availableModels: [GeminiService.AIModelRef] {
-        let current = GeminiService.chain(for: action)
-        return GeminiService.catalogModels(for: action.capability).filter { !current.contains($0) }
+        GeminiService.catalogModels(for: action.capability).filter { !localChain.contains($0) }
+    }
+
+    private func apply(_ chain: [GeminiService.AIModelRef]) {
+        GeminiService.setChain(chain, for: action)
+        localChain = chain
     }
 
     private func move(_ idx: Int, _ d: Int) {
-        var chain = GeminiService.chain(for: action)
+        var c = localChain
         let target = idx + d
-        guard chain.indices.contains(idx), chain.indices.contains(target) else { return }
-        chain.swapAt(idx, target)
-        GeminiService.setChain(chain, for: action)
+        guard c.indices.contains(idx), c.indices.contains(target) else { return }
+        c.swapAt(idx, target)
+        apply(c)
     }
 
     private func remove(_ ref: GeminiService.AIModelRef) {
-        GeminiService.setChain(GeminiService.chain(for: action).filter { $0 != ref }, for: action)
+        apply(localChain.filter { $0 != ref })
     }
 }

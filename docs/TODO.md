@@ -23,6 +23,9 @@
 | T-77 | 설정 UI — 동작별 모델 체인 편집기 + 키 3종 + 커스텀 모델 (v2.13) | macos | ✅ 2026-08-20 (AI 설정 섹션 개편 — 키 3종, ChainEditorView 팝오버, 커스텀 모델, 기본값 복원, 키체인 NVIDIA_API_KEY 추가) | v2.13 |
 | T-78 | 비전 alt — 에디터/도우미 설명 생성 + 웹 [img:URL alt=] 렌더링 (v2.13) | macos+web | ✅ 2026-08-20 (EditorView/AssistantView alt 생성 버튼 + [img:URL alt="…"] 삽입/클립보드, markdown.ts parseParams 쿼터+alt 렌더) | v2.13 |
 | T-79 | 검증 + 문서 (v2.13) | common | ✅ 2026-08-20 (xcodebuild BUILD SUCCEEDED, web tsc --noEmit 통과, MD alt 렌더 검증) | v2.13 |
+| T-80 | AI 실패 로그 상세화 — 체인 폴백/수집 실패에 HTTP status+message 표시 (v2.13) | macos | ✅ 2026-08-20 (체인 폴백 3곳 status/message 포함, MacNewsView 비-APIError 전체 표시, 소스별 실패 원인 로그) | v2.13 |
+| T-81 | 설정 사이드바 3분류 개편 — 일반/AI/데이터 + AI 키 순서를 사용 순서(Gemini→NVIDIA→OpenRouter)로 (v2.13) | macos | ✅ 2026-08-20 (최종: NavigationSplitView → HStack 고정(사이드바 180pt+Divider+섹션 제목), Settings scene toolbar 제거 — macOS 26 자동 토글 문제 해결. 3분류 일반/AI/데이터, 키 순서 변경, ChainEditorView 폭 520/삭제 버튼/라벨 줄바꿈, 카테고리 2줄+아이콘 힌트, URL Link 처리, NVIDIA 키 onAppear 채움, /Users/lee/Applications 배포) | v2.13 |
+| T-82 | AI 폴백 정비 — NVIDIA 모델 교체 + URLError 폴백 + 타임아웃 120초 + 소식 요약 청크 스킵 (v2.13) | macos | ✅ 2026-08-20 (실측: deepseek-v4-flash-0731 529+100s → openai/gpt-oss-20b(0.46s)로 기본 체인/카탈로그 교체, runTextChain/runImageChain/비전 catch 전체 Error 확장(URLError→E-MAC-NET-1001 래핑), 타임아웃 60→120 4곳, summarizeNews 실패 청크 스킵, aiChains 초기화+NVIDIA 키 갱신, BUILD SUCCEEDED+배포 pid 18845) | v2.13 |
 | T-68 | 본문 이미지 미리보기→등록 흐름 (v2.11) | macos | ✅ | v2.11 |
 | T-69 | 콘텐츠 등록 (시리즈 "그 이름, 뺏겼다" + 글 3편 + 이미지 + 홈 배너 — v2.11) | web+macos | ✅ | v2.11 (카테고리 stories + 시리즈 + 글 3편 PUBLISHED + 커버 webp 4장 업로드 + 홈 배너 order 1) |
 | T-70 | 검증 + 문서 + 커밋 (v2.11) | common | ✅ | v2.11 (tsc/build/E2E 4/4, macos BUILD SUCCEEDED) |

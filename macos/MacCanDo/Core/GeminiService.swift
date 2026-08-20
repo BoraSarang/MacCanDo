@@ -92,8 +92,8 @@ enum GeminiService {
     static let modelCatalog: [AIProvider: [String]] = [
         .gemini: ["gemini-3.7-flash", "gemini-3.1-flash", "gemini-2.5-flash",
                   "gemini-3.1-flash-image", "gemini-2.5-flash-image"],
-        .nvidia: ["deepseek-ai/deepseek-v4-flash", "nvidianemotron-3-ultra-550b-a55b",
-                  "flux.1-schnell", "qwen-image", "stable-diffusion-3.5-large",
+        .nvidia: ["openai/gpt-oss-20b", "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+                  "flux.1-schnell", "google/diffusiongemma-26b-a4b-it",
                   "meta/llama-3.2-90b-vision-instruct", "meta/llama-3.2-11b-vision-instruct"],
         .openrouter: ["google/gemma-4-31b-it:free", "openai/gpt-oss-20b:free",
                       "google/gemini-3.1-flash-image", "google/gemini-2.5-flash-image"]
@@ -102,7 +102,7 @@ enum GeminiService {
     // 기본 체인 (마이그레이션 — 기존 하드코딩과 동일 동작 보존)
     private static let defaultTextChain: [AIModelRef] = [
         AIModelRef(provider: .gemini, model: "gemini-3.7-flash"),
-        AIModelRef(provider: .nvidia, model: "deepseek-ai/deepseek-v4-flash"),
+        AIModelRef(provider: .nvidia, model: "openai/gpt-oss-20b"),
         AIModelRef(provider: .openrouter, model: "google/gemma-4-31b-it:free"),
         AIModelRef(provider: .openrouter, model: "openai/gpt-oss-20b:free")
     ]
@@ -216,9 +216,9 @@ enum GeminiService {
                 }
                 DebugLogger.info("Gemini", "텍스트 생성 완료 provider=\(ref.provider.rawValue) model=\(ref.model)")
                 return text
-            } catch let e as APIError {
-                lastError = e
-                DebugLogger.warn("Gemini", "체인 폴백 (\(ref.label)): \(e.code)")
+            } catch {
+                lastError = (error as? APIError) ?? APIError(code: "E-MAC-NET-1001", message: "네트워크 오류: \(error.localizedDescription)", status: (error as? URLError)?.errorCode ?? -1)
+                DebugLogger.warn("Gemini", "체인 폴백 (\(ref.label)): \(error.localizedDescription)")
             }
         }
         throw lastError ?? APIError(code: "E-MAC-AI-1007", message: "AI 호출에 실패했습니다. 잠시 후 다시 시도해 주세요.", status: -1)
@@ -243,9 +243,9 @@ enum GeminiService {
                 }
                 DebugLogger.info("Gemini", "[FEATURE] 이미지 생성 완료 provider=\(ref.provider.rawValue) model=\(ref.model) bytes=\(data.count)")
                 return (data, ref.provider.rawValue)
-            } catch let e as APIError {
-                lastError = e
-                DebugLogger.warn("Gemini", "이미지 체인 폴백 (\(ref.label)): \(e.code)")
+            } catch {
+                lastError = (error as? APIError) ?? APIError(code: "E-MAC-NET-1001", message: "네트워크 오류: \(error.localizedDescription)", status: (error as? URLError)?.errorCode ?? -1)
+                DebugLogger.warn("Gemini", "이미지 체인 폴백 (\(ref.label)): \(error.localizedDescription)")
             }
         }
         throw lastError ?? APIError(code: "E-MAC-AI-1005", message: "이미지 생성에 실패했습니다.", status: -1)
@@ -263,9 +263,9 @@ enum GeminiService {
                     let text = try await fetchNVision(model: ref.model, imageData: imageData, prompt: prompt)
                     DebugLogger.info("Gemini", "[FEATURE] 이미지 설명 생성 완료 provider=\(ref.provider.rawValue) model=\(ref.model)")
                     return text
-                } catch let e as APIError {
-                    lastError = e
-                    DebugLogger.warn("Gemini", "비전 폴백 (\(ref.label)): \(e.code)")
+                } catch {
+                    lastError = (error as? APIError) ?? APIError(code: "E-MAC-NET-1001", message: "네트워크 오류: \(error.localizedDescription)", status: (error as? URLError)?.errorCode ?? -1)
+                    DebugLogger.warn("Gemini", "비전 폴백 (\(ref.label)): \(error.localizedDescription)")
                 }
             default:
                 continue // 비전은 NVIDIA만 지원
@@ -293,7 +293,7 @@ enum GeminiService {
         ]
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
-        req.timeoutInterval = 60
+        req.timeoutInterval = 120
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         req.httpBody = try JSONSerialization.data(withJSONObject: payload)
@@ -372,7 +372,7 @@ enum GeminiService {
         ]
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
-        req.timeoutInterval = 60
+        req.timeoutInterval = 120
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         req.httpBody = try JSONSerialization.data(withJSONObject: payload)
@@ -752,7 +752,7 @@ enum GeminiService {
 
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
-        req.timeoutInterval = 60
+        req.timeoutInterval = 120
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONEncoder().encode(payload)
 
@@ -792,7 +792,7 @@ enum GeminiService {
         ]
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
-        req.timeoutInterval = 60
+        req.timeoutInterval = 120
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         req.httpBody = try JSONSerialization.data(withJSONObject: payload)
@@ -885,18 +885,24 @@ enum GeminiService {
     static func summarizeNews(_ items: [RawNewsItem]) async throws -> [NewsItem] {
         guard !items.isEmpty else { return [] }
         var all: [NewsItem] = []
+        var failedChunks = 0
         let chunkSize = 25
         var index = 0
         while index < items.count {
             let chunk = Array(items[index..<min(index + chunkSize, items.count)])
-            let part = try await summarizeChunk(chunk)
-            all.append(contentsOf: part)
+            do {
+                let part = try await summarizeChunk(chunk)
+                all.append(contentsOf: part)
+            } catch {
+                failedChunks += 1
+                DebugLogger.warn("Gemini", "소식 요약 청크 \(index / chunkSize + 1) 실패, 건너뜀: \(error.localizedDescription)")
+            }
             index += chunkSize
             if index < items.count {
                 DebugLogger.info("Gemini", "소식 요약 청크 진행 \(index)/\(items.count)건")
             }
         }
-        DebugLogger.info("Gemini", "소식 요약 완료 \(items.count)건 → \(all.count)건")
+        DebugLogger.info("Gemini", "소식 요약 완료 \(items.count)건 → \(all.count)건 (실패 청크 \(failedChunks)개)")
         return all
     }
 

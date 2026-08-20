@@ -38,6 +38,14 @@
 - [x] T-73 (이어서 완료): 이야기 마법사 주제 기반 개편
   - StorySeed.all 하드코딩 제거 → `GeminiService.StorySeedPlan`(Codable) + `generateStorySeriesPlan(topic:)` (JSON 배열, .wizard 체인)
   - 1단계 주제 입력 + [편 목록 AI 기획] 버튼, drafts 빈 시작(가드 추가), canProceed drafts 필수, draft.seed → draft.plan
+- [x] T-80 (추가): AI 실패 로그 상세화
+  - 체인 폴백 3곳(runTextChain/runImageChain/generateImageDescription): `status=` + message 포함 → `E-MAC-AI-1007 status=400 AI 호출 실패 (HTTP 400)`
+  - MacNewsView 수집 실패: APIError면 code+status+message, 비-APIError(URLError 등)면 전체 에러 표시 ("unknown" 제거)
+  - NewsCollector 소스별 실패: catch에서 `\(source.name) 수집 실패: \(error)` 즉시 기록
+- [x] T-81 (추가): 설정 사이드바 3분류 개편
+  - `NavigationSplitView` 사이드바 — 일반(서버/관리자 토큰/카테고리), AI(키 3종/동작별 체인/커스텀 모델/캐시), 데이터(백업/동기화)
+  - AI 키 입력 순서를 AI 사용(체인 실행) 순서로 변경: Gemini → NVIDIA → OpenRouter
+  - 배포/실행: `/Users/lee/Applications/MacCanDo.app` (DerivedData 직접 실행 대신)
 
 ## 기본 체인 (마이그레이션 시드)
 
@@ -50,10 +58,10 @@
 | Provider | 텍스트 | 이미지 | 비전 |
 |----------|--------|--------|------|
 | gemini | gemini-3.7-flash, gemini-3.1-flash, gemini-2.5-flash | gemini-3.1-flash-image, gemini-2.5-flash-image | — |
-| nvidia | deepseek-ai/deepseek-v4-flash, nvidianemotron-3-ultra-550b-a55b | flux.1-schnell, qwen-image, stable-diffusion-3.5-large | meta/llama-3.2-90b-vision-instruct, meta/llama-3.2-11b-vision-instruct |
+| nvidia | openai/gpt-oss-20b, nvidia/llama-3.3-nemotron-super-49b-v1.5 | flux.1-schnell, google/diffusiongemma-26b-a4b-it | meta/llama-3.2-90b-vision-instruct, meta/llama-3.2-11b-vision-instruct |
 | openrouter | google/gemma-4-31b-it:free, openai/gpt-oss-20b:free | google/gemini-3.1-flash-image | — |
 
-> NVIDIA 모델 slug는 구현 시 build.nvidia.com 카탈로그 기준 최신 확인, 불가 시 deepseek-v4-flash/flux.1-schnell/llama-3.2-90b 고정 + 커스텀 모델로 보완
+> NVIDIA 모델은 2026-08-20 키로 실측 확인: `openai/gpt-oss-20b` 200/0.46초(기본 텍스트), `llama-3.3-nemotron-super-49b-v1.5` 200/1.48초. `deepseek-ai/deepseek-v4-flash-0731`은 529 과부하+100초(타임아웃 유발)로 제외. gemma-3-4b-it/12b-it, nemotron-nano는 통합 엔드포인트에서 404.
 
 ## 에러코드
 - E-MAC-SET-1001 (키 없음), E-MAC-AI-1001 (호출 실패), E-MAC-AI-1003 (응답 해석), E-MAC-AI-1007 (HTTP 실패) 재사용
