@@ -1,3 +1,30 @@
+## v2.13 (2026-08-20) — [macos+web] 동작별 AI 모델 체인 설정화 + NVIDIA NIM 통합 (T-74~T-79)
+
+### macOS
+- T-74: 동작별 AI 모델 체인 설정 데이터 모델 (GeminiService)
+  - `AIProvider`(gemini/nvidia/openrouter) · `AIModelRef` · `AICapability`(text/image/vision) · `AIAction`(8종 + label/capability) · `AIChainConfig`
+  - UserDefaults `aiChains` Codable JSON 저장/로드, 기본 체인 시드(기존 하드코딩과 동일 동작 보존 — 회귀 없음), 커스텀 모델 등록/삭제
+  - 모델 카탈로그 `modelCatalog` (Gemini/NVIDIA/OpenRouter — 텍스트·이미지·비전 구분)
+- T-75: 체인 실행 엔진 + 기존 함수 통합
+  - `runTextChain/runImageChain/generateImageDescription(비전)` — 순서대로 시도, 실패·404·429·키 없음은 다음 모델로 자동 폴백
+  - `fetchText(prompt:action:)`, `callGeminiText(prompt:action:)`, `generateImage(prompt:action:)` — 동작 함수(SEO/맞춤법/마법사/도우미/뉴스요약)가 동작별 체인 경유
+  - 기존 `ImageGenProvider`/`imageModel`/`imageModels`/`imageModelOptions` 제거 → 이미지 시트 헤더·로그는 `chainLabel(for:)`로 표시
+- T-76: NVIDIA NIM (build.nvidia.com, OpenAI 호환) — 키체인 `NVIDIA_API_KEY`
+  - 텍스트 `fetchNVIDIAText` (integrate.api.nvidia.com/v1/chat/completions)
+  - 이미지 `callNVIDIAImage` (ai.api.nvidia.com/v1/images/generations, flux.1-schnell, b64_json)
+  - 비전 `fetchNVision` (meta/llama-3.2-90b-vision-instruct, image_url base64 data URI) → 한국어 alt 설명
+- T-77: 설정 UI 개편 (SettingsView)
+  - AI 설정 섹션: 키 3종(Gemini/OpenRouter/NVIDIA NIM) + 동작별 모델 체인 편집기(ChainEditorView 팝오버 — 순서 변경/모델 추가/삭제/기본값) + 커스텀 모델 + 모든 체인 기본값 복원
+  - 기존 이미지 공급자/모델 Picker 제거, `importKeysFromKeychain`에 NVIDIA_API_KEY 추가
+- T-78: 비전 alt 연동
+  - EditorView/AssistantView 이미지 시트 "alt 설명 생성(비전 AI)" 버튼 → 본문은 `[img:URL alt="…"]` 삽입, 커버는 클립보드 복사
+- 에러코드 재사용: E-MAC-SET-1001, E-MAC-AI-1001/1003/1005/1006/1007
+- 검증: macOS xcodebuild Debug BUILD SUCCEEDED
+
+### Web (T-78)
+- lib/markdown.ts — `[img:URL alt="…"]` 파싱(parseParams 쿼터 지원) → `<img alt="…">` 렌더링
+- 검증: `tsc --noEmit` 통과 + MD 렌더 스니펫 확인 (`<img src="…" width="600" alt="…" loading="lazy"/>`)
+
 ## v2.12 (2026-08-20) — [macos] AI 도우미 고도화 (T-71~T-72)
 
 ### macOS

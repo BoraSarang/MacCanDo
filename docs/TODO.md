@@ -17,6 +17,12 @@
 | T-71 | AI 도우미 개선 — 입력 textbox + 커버/본문 이미지 생성 + 게시글 초안(DRAFT) 등록 (v2.12) | macos | ✅ | v2.12 |
 | T-72 | 맥 소식 "글 작성에 사용" → AI 도우미 경유 (v2.12) | macos | ✅ | v2.12 |
 | T-73 | 이야기 마법사 개편 — 하드코딩 시드 제거 → 주제 기반 자동 기획/본문/카테고리/이미지 (v2.12) | macos | todo | v2.12 |
+| T-74 | 체인 설정 데이터 모델 (AIProvider/AIModelRef/AIAction/AIChainConfig + UserDefaults JSON) (v2.13) | macos | ✅ 2026-08-20 (AIProvider/AIModelRef/AICapability/AIAction/AIChainConfig + modelCatalog + 기본 체인 + aiChains 저장/로드/커스텀 모델) | v2.13 |
+| T-75 | 체인 실행 엔진 + 기존 fetchText/callGeminiText/generateImage 통합 (v2.13) | macos | ✅ 2026-08-20 (runTextChain/runImageChain/generateImageDescription + fetchText(action:)/callGeminiText(action:)/generateImage(prompt:action:), ImageGenProvider/imageModel 제거, 뷰 6곳 chainLabel 교체) | v2.13 |
+| T-76 | NVIDIA 공급자 — 텍스트/이미지(flux.1-schnell)/비전(llama-3.2-90b) (v2.13) | macos | ✅ 2026-08-20 (fetchNVIDIAText/callNVIDIAImage(b64_json)/fetchNVision(image_url base64), OpenAI 호환 API) | v2.13 |
+| T-77 | 설정 UI — 동작별 모델 체인 편집기 + 키 3종 + 커스텀 모델 (v2.13) | macos | ✅ 2026-08-20 (AI 설정 섹션 개편 — 키 3종, ChainEditorView 팝오버, 커스텀 모델, 기본값 복원, 키체인 NVIDIA_API_KEY 추가) | v2.13 |
+| T-78 | 비전 alt — 에디터/도우미 설명 생성 + 웹 [img:URL alt=] 렌더링 (v2.13) | macos+web | ✅ 2026-08-20 (EditorView/AssistantView alt 생성 버튼 + [img:URL alt="…"] 삽입/클립보드, markdown.ts parseParams 쿼터+alt 렌더) | v2.13 |
+| T-79 | 검증 + 문서 (v2.13) | common | ✅ 2026-08-20 (xcodebuild BUILD SUCCEEDED, web tsc --noEmit 통과, MD alt 렌더 검증) | v2.13 |
 | T-68 | 본문 이미지 미리보기→등록 흐름 (v2.11) | macos | ✅ | v2.11 |
 | T-69 | 콘텐츠 등록 (시리즈 "그 이름, 뺏겼다" + 글 3편 + 이미지 + 홈 배너 — v2.11) | web+macos | ✅ | v2.11 (카테고리 stories + 시리즈 + 글 3편 PUBLISHED + 커버 webp 4장 업로드 + 홈 배너 order 1) |
 | T-70 | 검증 + 문서 + 커밋 (v2.11) | common | ✅ | v2.11 (tsc/build/E2E 4/4, macos BUILD SUCCEEDED) |

@@ -1,6 +1,30 @@
-# 세션 로그 — MacCanDo v2.11~v2.12 (T-64~T-73)
+# 세션 로그 — MacCanDo v2.11~v2.13 (T-64~T-79)
 
 > 날짜: 2026-08-20 · 플랫폼: macos + web
+
+## v2.13 작업 (T-74~T-79 완료)
+
+### 1. 무엇을
+- T-74 ✅ 동작별 AI 모델 체인 설정 데이터 모델 (GeminiService — AIProvider/AIModelRef/AICapability/AIAction/AIChainConfig, modelCatalog, 기본 체인 시드, UserDefaults `aiChains` JSON 저장/로드/커스텀 모델, chainLabel(for:))
+- T-75 ✅ 체인 실행 엔진 — runTextChain/runImageChain/generateImageDescription(비전), fetchText(prompt:action:)/callGeminiText(prompt:action:)/generateImage(prompt:action:)로 동작 함수 통합, ImageGenProvider/imageModel/imageModels/imageModelOptions 제거, 뷰 6곳 헤더·로그 chainLabel 교체
+- T-76 ✅ NVIDIA NIM — fetchNVIDIAText(chat/completions), callNVIDIAImage(/v1/images/generations b64_json), fetchNVision(image_url base64) — build.nvidia.com 무료, OpenAI 호환
+- T-77 ✅ 설정 UI — AI 설정 섹션 개편(키 3종 Gemini/OpenRouter/NVIDIA), ChainEditorView 팝오버(순서/추가/삭제/기본값), 커스텀 모델, 전체 기본값 복원, importKeysFromKeychain에 NVIDIA_API_KEY 추가
+- T-78 ✅ 비전 alt — EditorView/AssistantView 이미지 시트 "alt 설명 생성" 버튼(본문 `[img:URL alt="…"]` 삽입, 커버는 클립보드), web markdown.ts parseParams 쿼터 지원 + `<img alt>` 렌더
+- T-79 ✅ 검증+문서 — TODO/PLAN/CHANGELOG/error_message_ko.json(E-MAC-SET-1001 추가)/세션 로그
+
+### 3. 빌드/검증
+- macOS xcodebuild Debug **BUILD SUCCEEDED**
+- web `npx tsc --noEmit` 통과 + MD 렌더 스니펫: `[img:https://example.com/a.png alt="맥북 화면과 커피잔" width=600]` → `<img src="…" width="600" alt="…" loading="lazy"/>`
+
+### 5. 다음 에이전트 전달 (v2.13 추가)
+- T-73(이야기 마법사 개편 — StorySeed 하드코딩 → 주제 기반 자동 기획)은 다음 단계. 체인 엔진(runTextChain) 재사용 가능
+- NVIDIA 이미지 호스트: `https://ai.api.nvidia.com/v1/images/generations` — build.nvidia.com 카탈로그 slug가 다르면 커스텀 모델로 보완 (PLAN 각주 참조)
+- 기본 체인 = 기존 하드코딩과 동일하므로 회귀 없음. 체인 설정은 UserDefaults `aiChains` — 삭제 시 기본값 복원
+
+### 6. 문서
+- docs/TODO.md (T-74~79 ✅), docs/plans/PLAN_v2.13_common.md (체크 완료), docs/CHANGELOG.md (v2.13), error_message_ko.json (E-MAC-SET-1001), 세션 로그
+
+---
 
 ## v2.12 오후 작업 (T-71~T-72 완료, T-73 대기)
 
