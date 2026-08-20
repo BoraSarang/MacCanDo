@@ -6,6 +6,8 @@ import AppKit
 import WebKit
 
 struct AssistantView: View {
+    let seedQuery: String? // T-72: 맥 소식에서 넘어온 초기 쿼리 (자동 조회)
+
     @State private var query = ""
     @State private var compareWith = ""
     @State private var result = ""
@@ -16,6 +18,35 @@ struct AssistantView: View {
     // T-57 수정: 맥 소식은 사이드바 독립 탭(T-46)으로 분리 — 도우미 창의 segmented 제거
     @State private var savedEntries: [ReferenceEntry] = [] // T-26: 로컬 저장 리스트
     @State private var selectedID: String?
+    // T-71: 커버 이미지 (AI 생성 / 업로드 이미지에서 수동 선택)
+    @State private var showCoverGen = false
+    @State private var coverImagePromptText = ""
+    @State private var generatingCover = false
+    @State private var generatedCoverData: Data?
+    @State private var coverError: String?
+    @State private var coverURL: String?
+    @State private var showCoverPicker = false
+    // T-71: 본문 이미지 (AI 생성 / 업로드 이미지에서 수동 선택)
+    @State private var showBodyGen = false
+    @State private var generatingBodyImage = false
+    @State private var generatedBodyImageData: Data?
+    @State private var bodyImageError: String?
+    @State private var bodyImagePromptText = ""
+    @State private var showBodyPicker = false
+    // T-71: 게시글 초안(DRAFT) 등록
+    @State private var registeringDraft = false
+    @State private var draftError: String?
+    @State private var registeredPostID: String?
+    @State private var registeredTitle = ""
+
+    init(seedQuery: String? = nil) {
+        self.seedQuery = seedQuery
+    }
+
+    // 관리자 토큰 (UserDefaults "apiToken" — AuthStore 저장 값)
+    private var token: String? {
+        UserDefaults.standard.string(forKey: "apiToken")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -36,6 +67,44 @@ struct AssistantView: View {
             ReferenceStore.open()
             savedEntries = ReferenceStore.loadAll()
             DebugLogger.info("Feature", "AI 도우미 창 표시됨 (저장된 참고 자료 \(savedEntries.count)건)")
+            // T-72: 맥 소식 경유 시 시드 쿼리 자동 조회
+            if let seedQuery, !seedQuery.isEmpty, query.isEmpty {
+                query = seedQuery
+                Task { await search() }
+            }
+        }
+        // T-71: AI 커버/본문 이미지 생성 + 수동 선택 (업로드 이미지)
+        .sheet(isPresented: $showCoverGen) { coverGenSheet }
+        .sheet(isPresented: $showBodyGen) { bodyGenSheet }
+        .sheet(isPresented: $showCoverPicker) {
+            ImagePickerSheet(
+                token: token,
+                mode: .cover,
+                onInsert: { _ in },
+                onUploaded: { _ in },
+                onSelect: { url in
+                    coverURL = url
+                    showCoverPicker = false
+                    DebugLogger.info("Assistant", "[FEATURE] 커버 이미지 수동 지정 (\(url))")
+                }
+            )
+        }
+        .sheet(isPresented: $showBodyPicker) {
+            ImagePickerSheet(
+                token: token,
+                mode: .insert,
+                onInsert: { markdown in
+                    result += "\n\n" + markdown
+                    showBodyPicker = false
+                    DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 수동 삽입 (링크)")
+                },
+                onUploaded: { url in
+                    result += "\n\n[img:\(url)]"
+                    showBodyPicker = false
+                    DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 수동 삽입 url=\(url)")
+                },
+                onSelect: nil
+            )
         }
     }
 
@@ -50,18 +119,24 @@ struct AssistantView: View {
 
     private var rightPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                TextField("프로그램 이름 또는 웹사이트 URL", text: $query)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { Task { await search() } }
-                Button("조회") { Task { await search() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isLoading || query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            // T-71: 입력 textbox (프로그램 이름 / 웹사이트 URL / 설명 여러 줄)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("프로그램 이름 / 웹사이트 URL / 설명")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                TextEditor(text: $query)
+                    .font(.body)
+                    .frame(minHeight: 52, maxHeight: 96)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.dsSurfaceHover))
+                    .disabled(isLoading)
             }
             HStack(spacing: 8) {
                 TextField("비교 대상 (선택 — 비우면 AI가 유사 프로그램 선정)", text: $compareWith)
                     .textFieldStyle(.roundedBorder)
                     .disabled(isLoading)
+                Button("조회") { Task { await search() } }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isLoading || query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 if cacheHit {
                     Label("캐시 표시됨", systemImage: "checkmark.circle.fill")
                         .font(.caption)
@@ -99,6 +174,45 @@ struct AssistantView: View {
                         DebugLogger.info("Assistant", "도우미 결과 복사됨")
                     }
                 }
+                // T-71: 글 작성 액션 바 (커버/본문 이미지 + 게시글 초안 등록)
+                HStack(spacing: 8) {
+                    Button {
+                        showCoverGen = true
+                    } label: {
+                        Label(coverURL == nil ? "커버 이미지" : "커버 변경", systemImage: coverURL == nil ? "photo.badge.plus" : "photo.fill")
+                    }
+                    .controlSize(.small)
+                    .disabled(registeringDraft)
+                    if coverURL != nil {
+                        Text("커버 지정됨").font(.caption2).foregroundStyle(Color.dsSuccess)
+                    }
+                    Button { showBodyGen = true } label: {
+                        Label("본문 이미지", systemImage: "photo.on.rectangle.angled")
+                    }
+                    .controlSize(.small)
+                    .disabled(registeringDraft)
+                    Spacer()
+                    if registeredPostID != nil {
+                        Text("초안 등록 완료").font(.caption2).foregroundStyle(Color.dsSuccess)
+                        Button("편집기에서 열기") { openInEditor() }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                    } else {
+                        Button {
+                            Task { await registerDraft() }
+                        } label: {
+                            Label(registeringDraft ? "등록 중…" : "게시글 초안으로 등록", systemImage: "tray.and.arrow.down")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(registeringDraft)
+                    }
+                }
+                if let draftError {
+                    Label(draftError, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(Color.dsDanger)
+                }
                 Group {
                     if viewMode == "원문" {
                         ScrollView {
@@ -119,7 +233,7 @@ struct AssistantView: View {
                     Image(systemName: "wand.and.stars")
                         .font(.system(size: 36))
                         .foregroundStyle(.secondary)
-                    Text("프로그램 이름이나 웹사이트 주소를 입력하면\n소개·비교·장점·특이사항·추천 이유를 생성합니다.\n조회 결과는 자동 저장되어 왼쪽 목록에서 다시 볼 수 있습니다.")
+                    Text("프로그램 이름이나 웹사이트 주소를 입력하면\n소개·비교·장점·특이사항·추천 이유를 생성합니다.\n조회 결과는 자동 저장되어 왼쪽 목록에서 다시 볼 수 있고,\n게시글 초안으로 등록해 편집기에서 이어서 수정할 수 있습니다.")
                         .font(.dsBody)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -228,6 +342,11 @@ struct AssistantView: View {
         isLoading = true
         errorMessage = nil
         cacheHit = false
+        // T-71: 새 조회 시 이전 커버/초안 상태 초기화
+        coverURL = nil
+        registeredPostID = nil
+        registeredTitle = ""
+        draftError = nil
         do {
             // URL이면 페이지 fetch (실패 시 이름 기반 폴백)
             var urlContent: String?
@@ -260,6 +379,316 @@ struct AssistantView: View {
             DebugLogger.error("Assistant", "도우미 실패: \(e?.code ?? "unknown")")
         }
         isLoading = false
+    }
+
+    // ---------- T-71: AI 커버 이미지 시트 (EditorView imageGenSheet 패턴 재사용) ----------
+    private var coverGenSheet: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("AI 커버 이미지 생성").font(.title3.bold())
+                Spacer()
+                Text(GeminiService.imageGenProvider.label).font(.caption2).foregroundStyle(.secondary)
+            }
+            Text("글의 커버(대표) 이미지를 만듭니다. [커버로 사용]을 누르면 업로드되어 게시글 초안 등록에 반영됩니다. 업로드된 이미지에서 직접 고를 수도 있습니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextEditor(text: $coverImagePromptText)
+                .font(.body)
+                .frame(minHeight: 70)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.dsSurfaceHover))
+            HStack {
+                Button("초기화") { coverImagePromptText = coverPrompt() }
+                    .buttonStyle(.link)
+                    .controlSize(.small)
+                Spacer()
+                if let data = generatedCoverData, let ns = NSImage(data: data) {
+                    Text("\(Int(ns.size.width))×\(Int(ns.size.height))").font(.caption2).foregroundStyle(.secondary)
+                }
+                Button("다시 생성") {
+                    Task { await generateCover(prompt: coverImagePromptText) }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(generatingCover || generatedCoverData == nil || coverImagePromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Group {
+                if generatingCover {
+                    VStack(spacing: 8) {
+                        ProgressView()
+                        Text("이미지 생성 중… (보통 10~30초)").font(.caption).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                } else if let data = generatedCoverData, let ns = NSImage(data: data) {
+                    Image(nsImage: ns)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.dsSurfaceHover))
+                } else {
+                    Rectangle()
+                        .fill(Color.dsSurface)
+                        .frame(maxWidth: .infinity, minHeight: 180)
+                        .overlay(Text("생성 결과가 여기에 표시됩니다").font(.caption).foregroundStyle(.secondary))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            if let err = coverError {
+                Text(err).font(.caption).foregroundStyle(Color.dsDanger)
+            }
+            HStack {
+                Button("업로드 이미지에서 선택") {
+                    showCoverGen = false
+                    showCoverPicker = true
+                }
+                .controlSize(.small)
+                Spacer()
+                Button("취소") { showCoverGen = false }.keyboardShortcut(.cancelAction)
+                Button("이 프롬프트로 생성") {
+                    Task { await generateCover(prompt: coverImagePromptText) }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(generatingCover || coverImagePromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button("커버로 사용") {
+                    Task { await applyCover() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(generatingCover || generatedCoverData == nil)
+            }
+        }
+        .padding(20)
+        .frame(width: 500, height: 520)
+    }
+
+    // ---------- T-71: AI 본문 이미지 시트 (EditorView bodyImageGenSheet 패턴 재사용) ----------
+    private var bodyGenSheet: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("AI 본문 이미지 생성").font(.title3.bold())
+                Spacer()
+                Text(GeminiService.imageGenProvider.label).font(.caption2).foregroundStyle(.secondary)
+            }
+            Text("본문에 넣을 이미지를 만듭니다. [본문에 삽입]을 누르면 업로드되어 [img:URL]이 결과 끝에 추가됩니다.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextEditor(text: $bodyImagePromptText)
+                .font(.body)
+                .frame(minHeight: 70)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.dsSurfaceHover))
+            HStack {
+                Button("초기화") { bodyImagePromptText = bodyPrompt() }
+                    .buttonStyle(.link)
+                    .controlSize(.small)
+                Spacer()
+                if let data = generatedBodyImageData, let ns = NSImage(data: data) {
+                    Text("\(Int(ns.size.width))×\(Int(ns.size.height))").font(.caption2).foregroundStyle(.secondary)
+                }
+                Button("다시 생성") {
+                    Task { await generateBodyImage(prompt: bodyImagePromptText) }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(generatingBodyImage || generatedBodyImageData == nil || bodyImagePromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Group {
+                if generatingBodyImage {
+                    VStack(spacing: 8) {
+                        ProgressView()
+                        Text("이미지 생성 중… (보통 10~30초)").font(.caption).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                } else if let data = generatedBodyImageData, let ns = NSImage(data: data) {
+                    Image(nsImage: ns)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.dsSurfaceHover))
+                } else {
+                    Rectangle()
+                        .fill(Color.dsSurface)
+                        .frame(maxWidth: .infinity, minHeight: 180)
+                        .overlay(Text("생성 결과가 여기에 표시됩니다").font(.caption).foregroundStyle(.secondary))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            if let err = bodyImageError {
+                Text(err).font(.caption).foregroundStyle(Color.dsDanger)
+            }
+            HStack {
+                Button("업로드 이미지에서 선택") {
+                    showBodyGen = false
+                    showBodyPicker = true
+                }
+                .controlSize(.small)
+                Spacer()
+                Button("취소") { showBodyGen = false }.keyboardShortcut(.cancelAction)
+                Button("이 프롬프트로 생성") {
+                    Task { await generateBodyImage(prompt: bodyImagePromptText) }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(generatingBodyImage || bodyImagePromptText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button("본문에 삽입") {
+                    Task { await applyBodyImage() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(generatingBodyImage || generatedBodyImageData == nil)
+            }
+        }
+        .padding(20)
+        .frame(width: 500, height: 520)
+    }
+
+    // T-71: 초안 제목 — 입력 첫 줄 (프로그램 이름)
+    private func titleForDraft() -> String {
+        let first = query.split(separator: "\n").first.map(String.init) ?? query
+        return first.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    // T-71: 커버 프롬프트 자동 구성 (제목+결과 요약 기반)
+    private func coverPrompt() -> String {
+        let bodyExcerpt = String(result.replacingOccurrences(of: #"[\[\]]"#, with: " ", options: .regularExpression).prefix(300))
+        return """
+        다음 글의 커버(대표) 이미지를 만들어 주세요: \(titleForDraft())
+        본문 요약: \(bodyExcerpt)
+        macOS 앱 큐레이션 블로그 썸네일, 깔끔하고 미니멀한 스타일, 텍스트 없이, 16:9 와이드 비율.
+        """
+    }
+
+    // T-71: 본문 이미지 프롬프트 자동 구성
+    private func bodyPrompt() -> String {
+        let bodyExcerpt = String(result.replacingOccurrences(of: #"[\[\]]"#, with: " ", options: .regularExpression).prefix(200))
+        return """
+        다음 글의 본문에 어울리는 삽화를 만들어 주세요: \(titleForDraft())
+        본문 요약: \(bodyExcerpt)
+        macOS 앱 큐레이션 블로그 본문 이미지, 깔끔하고 미니멀한 스타일, 텍스트 없이.
+        """
+    }
+
+    // T-71: AI 커버 이미지 생성 (업로드 없이 Data 유지 — "커버로 사용" 시 업로드)
+    private func generateCover(prompt: String) async {
+        generatingCover = true
+        coverError = nil
+        do {
+            DebugLogger.info("Assistant", "[FEATURE] 커버 이미지 생성 시작 provider=\(GeminiService.imageGenProvider.rawValue) prompt=\(String(prompt.prefix(60)))…")
+            let (imageData, provider) = try await GeminiService.generateImage(prompt: prompt)
+            generatedCoverData = imageData
+            DebugLogger.info("Assistant", "[FEATURE] 커버 이미지 생성 완료 provider=\(provider) bytes=\(imageData.count)")
+        } catch {
+            let e = error as? APIError
+            coverError = e?.message ?? error.localizedDescription
+            DebugLogger.error("Assistant", "커버 이미지 생성 실패: \(e?.code ?? "unknown")")
+        }
+        generatingCover = false
+    }
+
+    // T-71: 생성된 커버 업로드 → coverURL 지정 → 시트 닫기
+    private func applyCover() async {
+        guard let data = generatedCoverData else { return }
+        do {
+            let dir = FileManager.default.temporaryDirectory
+            let fileURL = dir.appendingPathComponent("assist-cover-\(UUID().uuidString.prefix(8)).\(GeminiService.imageExtension(for: data))")
+            try data.write(to: fileURL)
+            let url = try await APIClient.uploadImage(token: token, fileURL: fileURL)
+            try? FileManager.default.removeItem(at: fileURL)
+            coverURL = url
+            generatedCoverData = nil
+            showCoverGen = false
+            DebugLogger.info("Assistant", "[FEATURE] 커버 이미지 지정 완료 url=\(url)")
+        } catch {
+            let e = error as? APIError
+            coverError = e?.message ?? error.localizedDescription
+            DebugLogger.error("Assistant", "커버 업로드 실패: \(e?.code ?? "unknown")")
+        }
+    }
+
+    // T-71: AI 본문 이미지 생성 (Data 유지 — "본문에 삽입" 시 업로드)
+    private func generateBodyImage(prompt: String) async {
+        generatingBodyImage = true
+        bodyImageError = nil
+        do {
+            DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 생성 시작 provider=\(GeminiService.imageGenProvider.rawValue) prompt=\(String(prompt.prefix(60)))…")
+            let (imageData, provider) = try await GeminiService.generateImage(prompt: prompt)
+            generatedBodyImageData = imageData
+            DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 생성 완료 provider=\(provider) bytes=\(imageData.count)")
+        } catch {
+            let e = error as? APIError
+            bodyImageError = e?.message ?? error.localizedDescription
+            DebugLogger.error("Assistant", "[ERROR] E-MAC-AI-1005 \(bodyImageError ?? "")")
+        }
+        generatingBodyImage = false
+    }
+
+    // T-71: 생성된 본문 이미지 업로드 → [img:URL] 결과 끝에 추가 → 시트 닫기
+    private func applyBodyImage() async {
+        guard let data = generatedBodyImageData else { return }
+        do {
+            let dir = FileManager.default.temporaryDirectory
+            let fileURL = dir.appendingPathComponent("assist-body-\(UUID().uuidString.prefix(8)).\(GeminiService.imageExtension(for: data))")
+            try data.write(to: fileURL)
+            let url = try await APIClient.uploadImage(token: token, fileURL: fileURL)
+            try? FileManager.default.removeItem(at: fileURL)
+            generatedBodyImageData = nil
+            showBodyGen = false
+            result += "\n\n[img:\(url)]"
+            DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 삽입 완료 url=\(url)")
+        } catch {
+            let e = error as? APIError
+            bodyImageError = e?.message ?? error.localizedDescription
+            DebugLogger.error("Assistant", "[ERROR] E-MAC-AI-1005 \(bodyImageError ?? "")")
+        }
+    }
+
+    // T-71: 게시글 초안(DRAFT) 등록 — ReferenceStore 저장은 search()에서 이미 유지됨
+    private func registerDraft() async {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty, !result.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            draftError = ErrorMessages.message("E-MAC-EDIT-1005")
+            DebugLogger.warn("Assistant", "초안 등록 차단: 제목/본문 비어 있음")
+            return
+        }
+        registeringDraft = true
+        draftError = nil
+        let title = titleForDraft()
+        let input = PostInput(
+            title: title,
+            slug: nil,
+            categoryIds: nil,
+            tags: nil,
+            contentType: "ARTICLE",
+            bodyFormat: "MD",
+            body: result,
+            excerpt: nil,
+            status: "DRAFT",
+            seoMeta: nil,
+            seriesId: nil,
+            apps: nil,
+            thumbnailUrl: coverURL
+        )
+        do {
+            let saved: Post = try await APIClient.request("api/admin/posts", method: "POST", token: token, body: input)
+            registeredPostID = saved.id
+            registeredTitle = title
+            draftError = nil
+            DebugLogger.info("Assistant", "[FEATURE] 게시글 초안 등록 완료 postId=\(saved.id) title=\(title) thumbnail=\(coverURL ?? "없음")")
+        } catch {
+            let e = error as? APIError
+            draftError = e?.message ?? error.localizedDescription
+            DebugLogger.error("Assistant", "초안 등록 실패: \(e?.code ?? "unknown")")
+        }
+        registeringDraft = false
+    }
+
+    // T-71: 등록된 초안을 편집기에서 이어서 수정
+    private func openInEditor() {
+        guard let id = registeredPostID else { return }
+        let title = registeredTitle.isEmpty ? "AI 도우미 초안" : registeredTitle
+        WindowManager.openEditor(
+            key: id,
+            title: "글 수정 — \(title)",
+            rootView: EditorView(postId: id)
+        )
+        DebugLogger.info("Assistant", "[FEATURE] 편집기 열림 postId=\(id)")
     }
 }
 

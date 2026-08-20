@@ -224,7 +224,7 @@ struct MacNewsView: View {
                     .help("원문 페이지 열기")
                 }
                 Button {
-                    openEditor(with: item)
+                    openAssistant(with: item)
                 } label: {
                     Text("글 작성에 사용")
                         .lineLimit(1)
@@ -232,7 +232,7 @@ struct MacNewsView: View {
                 }
                 .controlSize(.small)
                 .buttonStyle(.borderedProminent)
-                .help("새 글 에디터를 열어 제목·본문을 미리 채웁니다")
+                .help("AI 도우미에서 뉴스 내용으로 조회해 게시글 초안을 만듭니다")
             }
             .frame(width: 150)
         }
@@ -241,32 +241,24 @@ struct MacNewsView: View {
             if let url = URL(string: item.url) {
                 Button("원문 열기") { NSWorkspace.shared.open(url) }
             }
-            Button("글 작성에 사용") { openEditor(with: item) }
+            Button("글 작성에 사용") { openAssistant(with: item) }
         }
     }
 
-    // "글 작성에 사용" — 에디터 새 창 (제목 + 요약/링크 시드) — T-25: 소식당 1개 창만
-    private func openEditor(with item: NewsItem) {
-        let body = """
-        > 원문: \(item.url)
-        > 소스: \(item.source) (\(item.published))
-        > 소재 평가: \(item.rating == "추천" ? "⭐ 추천" : "보통")
+    // T-72: "글 작성에 사용" — AI 도우미에서 뉴스 내용으로 조회 → 초안 등록 → 편집기 이어서 수정
+    private func openAssistant(with item: NewsItem) {
+        let seed = """
+        \(item.title)
+
+        원문: \(item.url)
+        소스: \(item.source) (\(item.published))
+        소재 평가: \(item.rating == "추천" ? "⭐ 추천" : "보통")
 
         \(item.summary)
 
-        이 글에서 다룰 내용을 작성해 주세요.
+        위 뉴스를 바탕으로 블로그 게시글 소재와 본문 초안을 만들어 주세요.
         """
-        let editor = EditorView(postId: nil, seedTitle: item.title, seedBody: body) {
-            // T-48: 저장 성공 알림(.postSaved)은 EditorView 내부에서 표준 발행 — 여기서는 불필요
-        } onClose: {}
-            .environmentObject(auth)
-        WindowManager.openEditor(
-            key: "seed:\(item.url)",
-            title: "새 글 — \(item.title)",
-            rootView: editor,
-            width: 1000,
-            height: 640
-        )
-        DebugLogger.info("News", "글 작성에 사용 — 에디터 창 요청 (제목: \(item.title))")
+        WindowManager.showAssistant(seedQuery: seed)
+        DebugLogger.info("News", "글 작성에 사용 — AI 도우미 경유 (제목: \(item.title))")
     }
 }

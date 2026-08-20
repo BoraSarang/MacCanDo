@@ -14,10 +14,15 @@ enum WindowManager {
     static var assistantWindow: NSWindow?
 
     // AI 도우미 창 — 중복 없이 하나만 (에디터 툴바/사이드바 공용)
-    static func showAssistant() {
+    // T-72: seedQuery를 받으면 해당 내용으로 자동 조회 (맥 소식 "글 작성에 사용" 경유)
+    static func showAssistant(seedQuery: String? = nil) {
+        let root = AnyView(AssistantView(seedQuery: seedQuery))
         if let win = assistantWindow, win.isVisible {
+            if seedQuery != nil {
+                win.contentView = NSHostingView(rootView: root)
+            }
             win.makeKeyAndOrderFront(nil)
-            DebugLogger.info("Window", "AI 도우미 창 재사용 (이미 열림)")
+            DebugLogger.info("Window", "AI 도우미 창 재사용 (시드 쿼리 \(seedQuery != nil))")
             return
         }
         let win = NSWindow(
@@ -28,7 +33,7 @@ enum WindowManager {
         )
         win.title = "AI 도우미"
         win.isReleasedWhenClosed = false
-        win.contentView = NSHostingView(rootView: AssistantView())
+        win.contentView = NSHostingView(rootView: root)
         win.center()
         win.setFrameAutosaveName("MacCanDo-Assistant") // T-33: 크기/위치 복원
         win.makeKeyAndOrderFront(nil)
