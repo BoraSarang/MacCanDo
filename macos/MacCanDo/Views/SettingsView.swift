@@ -98,7 +98,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("AI SEO (Gemini)") {
+            Section("AI 설정 (동작별 모델 체인)") {
                 VStack(alignment: .leading, spacing: 8) {
                     SecureField("Gemini API 키", text: $inputGeminiKey)
                         .font(.dsMono)
@@ -112,7 +112,6 @@ struct SettingsView: View {
                                 return
                             }
                             UserDefaults.standard.set(k, forKey: "geminiKey")
-                            // T-54: 저장 후 필드 유지
                             geminiMessage = "키가 저장되었습니다."
                             DebugLogger.info("Settings", "Gemini 키 저장됨")
                         }
@@ -130,74 +129,140 @@ struct SettingsView: View {
                     if !geminiMessage.isEmpty {
                         Text(geminiMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
                     }
-                    Text("에디터의 'AI SEO' 버튼이 제목·설명·키워드·슬러그를 자동 생성합니다. 키는 https://aistudio.google.com/apikey 에서 발급 (무료).")
+                    Text("텍스트·이미지 생성의 기본 공급자입니다. 키는 https://aistudio.google.com/apikey 에서 발급 (무료).")
                         .font(.dsCaption)
                         .foregroundStyle(.secondary)
-                    // T-19: 이미지 생성 공급자 선택
                     Divider()
-                    Picker("이미지 생성 공급자", selection: Binding(
-                        get: { GeminiService.imageGenProvider },
-                        set: { newValue in
-                            UserDefaults.standard.set(newValue.rawValue, forKey: "imageGenProvider")
-                            imageGenMessage = "이미지 생성 공급자: \(newValue.label)"
-                            DebugLogger.info("Settings", "이미지 생성 공급자 변경: \(newValue.rawValue)")
+
+                    SecureField("OpenRouter API 키", text: $inputOpenRouterKey)
+                        .font(.dsMono)
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.none)
+                    HStack {
+                        Button("저장") {
+                            let k = inputOpenRouterKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !k.isEmpty else {
+                                openRouterMessage = "OpenRouter API 키를 입력해 주세요."
+                                return
+                            }
+                            UserDefaults.standard.set(k, forKey: "openrouterKey")
+                            openRouterMessage = "키가 저장되었습니다."
+                            DebugLogger.info("Settings", "OpenRouter 키 저장됨")
                         }
-                    )) {
-                        ForEach(GeminiService.ImageGenProvider.allCases) { p in
-                            Text(p.label).tag(p)
-                        }
-                    }
-                    // T-66: v2.11 — 이미지 생성 모델 선택 (선택 모델 우선 + 폴백)
-                    Picker("이미지 생성 모델", selection: Binding(
-                        get: { GeminiService.imageModel },
-                        set: { newValue in
-                            UserDefaults.standard.set(newValue, forKey: "imageGenModel")
-                            imageGenMessage = "이미지 모델: \(newValue)"
-                            DebugLogger.info("Settings", "이미지 모델 변경: \(newValue)")
-                        }
-                    )) {
-                        ForEach(GeminiService.imageModelOptions, id: \.self) { m in
-                            Text(m).tag(m)
+                        .keyboardShortcut(.defaultAction)
+                        if !(UserDefaults.standard.string(forKey: "openrouterKey") ?? "").isEmpty {
+                            Label("저장됨", systemImage: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(Color.dsSuccess)
                         }
                     }
-                    if !imageGenMessage.isEmpty {
-                        Text(imageGenMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
+                    if !openRouterMessage.isEmpty {
+                        Text(openRouterMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
                     }
-                    Text("이미지 생성 공급자/모델을 고릅니다. 선택한 모델이 실패하면 다른 모델로 자동 폴백합니다.")
+                    Text("체인 폴백용 무료 모델(Gemma/GPT-OSS) 및 이미지 모델에 사용합니다. https://openrouter.ai/keys 에서 발급 (무료 모델은 크레딧 불필요).")
                         .font(.dsCaption)
                         .foregroundStyle(.secondary)
-                    // T-22: OpenRouter (Flux) 키 — 이미지 생성 공급자 선택과 연결
-                    if GeminiService.imageGenProvider == .openrouter {
-                        Divider()
-                        TextField("OpenRouter API 키 (이미지 생성)", text: $inputOpenRouterKey)
+                    Divider()
+
+                    SecureField("NVIDIA NIM API 키", text: $inputNVIDIAKey)
+                        .font(.dsMono)
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.none)
+                    HStack {
+                        Button("저장") {
+                            let k = inputNVIDIAKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !k.isEmpty else {
+                                nvidiaMessage = "NVIDIA API 키를 입력해 주세요."
+                                return
+                            }
+                            UserDefaults.standard.set(k, forKey: "nvidiaKey")
+                            nvidiaMessage = "키가 저장되었습니다."
+                            DebugLogger.info("Settings", "NVIDIA 키 저장됨")
+                        }
+                        .keyboardShortcut(.defaultAction)
+                        if !(UserDefaults.standard.string(forKey: "nvidiaKey") ?? "").isEmpty {
+                            Label("저장됨", systemImage: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(Color.dsSuccess)
+                        }
+                    }
+                    if !nvidiaMessage.isEmpty {
+                        Text(nvidiaMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
+                    }
+                    Text("NVIDIA NIM (build.nvidia.com) — 개발/프로토타입 무료, 모델별 약 40 RPM. 텍스트·이미지·이미지 설명(alt)에 사용합니다.")
+                        .font(.dsCaption)
+                        .foregroundStyle(.secondary)
+                    Divider()
+
+                    // T-74: v2.13 — 동작별 모델 체인 편집기
+                    Text("동작별 모델 체인 — 앞에서부터 순서대로 시도하고, 실패하면 다음 모델로 자동 폴백합니다.")
+                        .font(.dsCaption.bold())
+                        .foregroundStyle(.secondary)
+                    ForEach(GeminiService.AIAction.allCases) { action in
+                        HStack(spacing: 8) {
+                            Text(action.label).frame(width: 110, alignment: .leading).font(.caption)
+                            Text(GeminiService.chainLabel(for: action))
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Spacer()
+                            Button("편집") { editingAction = action }
+                                .controlSize(.small)
+                        }
+                    }
+                    Divider()
+
+                    // T-74: 커스텀 모델 추가 (카탈로그에 없는 slug)
+                    Text("커스텀 모델 (카탈로그에 없는 모델 slug를 체인에 추가)")
+                        .font(.dsCaption.bold())
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Picker("", selection: $customModelProvider) {
+                            ForEach(GeminiService.AIProvider.allCases) { p in
+                                Text(p.label).tag(p)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 130)
+                        TextField("모델 slug (예: deepseek-ai/deepseek-r1)", text: $customModelName)
                             .font(.dsMono)
                             .textFieldStyle(.roundedBorder)
-                        HStack {
-                            Button("저장") {
-                                let k = inputOpenRouterKey.trimmingCharacters(in: .whitespacesAndNewlines)
-                                guard !k.isEmpty else {
-                                    openRouterMessage = "OpenRouter API 키를 입력해 주세요."
-                                    return
-                                }
-                                UserDefaults.standard.set(k, forKey: "openrouterKey")
-                                // T-54: 저장 후 필드 유지
-                                openRouterMessage = "키가 저장되었습니다."
-                                DebugLogger.info("Settings", "OpenRouter 키 저장됨")
-                            }
-                            .keyboardShortcut(.defaultAction)
-                            if !(UserDefaults.standard.string(forKey: "openrouterKey") ?? "").isEmpty {
-                                Label("저장됨", systemImage: "checkmark.circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(Color.dsSuccess)
-                            }
+                        Button("추가") {
+                            GeminiService.addCustomModel(provider: customModelProvider, model: customModelName)
+                            customModelName = ""
+                            customModelMessage = "커스텀 모델이 추가되었습니다."
+                            DebugLogger.info("Settings", "[FEATURE] 커스텀 모델 추가 provider=\(customModelProvider.rawValue)")
                         }
-                        if !openRouterMessage.isEmpty {
-                            Text(openRouterMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
-                        }
-                        Text("OpenRouter 이미지 생성(Gemini 3.1 Image)에 사용합니다. 키는 https://openrouter.ai/keys 에서 발급 후 크레딧 충전 필요 (402 시 충전 안내).")
-                            .font(.dsCaption)
-                            .foregroundStyle(.secondary)
+                        .disabled(customModelName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
+                    let customs = GeminiService.loadChains().customModels
+                    if !customs.isEmpty {
+                        ForEach(customs) { ref in
+                            HStack {
+                                Text(ref.label).font(.caption2.monospaced())
+                                Spacer()
+                                Button("삭제", role: .destructive) {
+                                    GeminiService.removeCustomModel(ref)
+                                    customModelMessage = "커스텀 모델이 삭제되었습니다."
+                                    DebugLogger.info("Settings", "커스텀 모델 삭제 \(ref.id)")
+                                }.controlSize(.small)
+                            }
+                        }
+                    }
+                    if !customModelMessage.isEmpty {
+                        Text(customModelMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
+                    }
+                    Button("모든 체인 기본값으로 복원") {
+                        GeminiService.resetChains()
+                        chainResetMessage = "모든 동작의 모델 체인이 기본값으로 복원되었습니다."
+                        DebugLogger.info("Settings", "[FEATURE] AI 모델 체인 기본값 복원")
+                    }
+                    .controlSize(.small)
+                    if !chainResetMessage.isEmpty {
+                        Text(chainResetMessage).font(.dsCaption).foregroundStyle(Color.dsTextSecondary)
+                    }
+                    Divider()
+
                     let stats = GeminiService.cacheStats
                     let total = stats.hits + stats.misses
                     if total > 0 {
@@ -228,6 +293,9 @@ struct SettingsView: View {
                     Text("SEO 자동 생성 결과를 저장한 캐시입니다. 캐시를 비우면 다음 요청에서 새로 생성합니다 (AI 비용 발생).")
                         .font(.dsCaption)
                         .foregroundStyle(.secondary)
+                }
+                .popover(item: $editingAction) { action in
+                    ChainEditorView(action: action)
                 }
             }
 
@@ -343,9 +411,15 @@ struct SettingsView: View {
 
     @State private var inputGeminiKey = ""
     @State private var geminiMessage = ""
-    @State private var inputOpenRouterKey = "" // T-22: Flux (OpenRouter) 키
+    @State private var inputOpenRouterKey = "" // T-22: OpenRouter 키 (체인 폴백/이미지)
     @State private var openRouterMessage = ""
-    @State private var imageGenMessage = ""
+    @State private var inputNVIDIAKey = "" // T-77: v2.13 — NVIDIA NIM 키
+    @State private var nvidiaMessage = ""
+    @State private var editingAction: GeminiService.AIAction? // T-77: 체인 편집 팝오버
+    @State private var customModelProvider = GeminiService.AIProvider.gemini
+    @State private var customModelName = ""
+    @State private var customModelMessage = ""
+    @State private var chainResetMessage = ""
     @State private var inputWebURL = ""
     @State private var webMessage = ""
     @State private var backupBusy = false
@@ -384,6 +458,7 @@ struct SettingsView: View {
     private func importKeysFromKeychain() {
         geminiMessage = ""
         openRouterMessage = ""
+        nvidiaMessage = ""
         Task {
             var imported: [String] = []
             if let k = await keychainValue(service: "GOOGLE_AI_API_KEY") {
@@ -396,8 +471,13 @@ struct SettingsView: View {
                 inputOpenRouterKey = k
                 imported.append("OpenRouter")
             }
+            if let k = await keychainValue(service: "NVIDIA_API_KEY") {
+                UserDefaults.standard.set(k, forKey: "nvidiaKey")
+                inputNVIDIAKey = k
+                imported.append("NVIDIA NIM")
+            }
             if imported.isEmpty {
-                geminiMessage = "키체인에서 찾지 못했습니다. (GOOGLE_AI_API_KEY / OPENROUTER_API_KEY — 없으면 무시)"
+                geminiMessage = "키체인에서 찾지 못했습니다. (GOOGLE_AI_API_KEY / OPENROUTER_API_KEY / NVIDIA_API_KEY — 없으면 무시)"
             } else {
                 geminiMessage = "키체인에서 가져옴: \(imported.joined(separator: ", "))"
             }
@@ -578,5 +658,86 @@ struct SettingsView: View {
                 backupBusy = false
             }
         }
+    }
+}
+
+// T-77: v2.13 — 동작별 모델 체인 편집 팝오버
+private struct ChainEditorView: View {
+    let action: GeminiService.AIAction
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedNew: GeminiService.AIModelRef?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("\(action.label) 체인").font(.headline)
+            Text("모델 생성 실패 시 위에서 아래 순서로 폴백합니다.").font(.caption).foregroundStyle(.secondary)
+
+            let chain = GeminiService.chain(for: action)
+            ScrollView {
+                VStack(spacing: 6) {
+                    ForEach(Array(chain.enumerated()), id: \.element.id) { idx, ref in
+                        HStack(spacing: 8) {
+                            Text("\(idx + 1)").font(.caption.monospaced()).foregroundStyle(.secondary).frame(width: 20)
+                            Text(ref.label).font(.caption.monospaced()).lineLimit(1)
+                            Spacer()
+                            if chain.count > 1 {
+                                Button { move(idx, -1) } label: { Image(systemName: "arrow.up") }
+                                    .disabled(idx == 0).controlSize(.small).buttonStyle(.borderless)
+                                Button { move(idx, 1) } label: { Image(systemName: "arrow.down") }
+                                    .disabled(idx == chain.count - 1).controlSize(.small).buttonStyle(.borderless)
+                            }
+                            Button(role: .destructive) { remove(ref) } label: { Image(systemName: "minus.circle") }
+                                .controlSize(.small).buttonStyle(.borderless)
+                        }
+                    }
+                }
+                .padding(4)
+            }
+            .frame(width: 340, height: 180)
+
+            Divider()
+            HStack(spacing: 8) {
+                Picker("", selection: $selectedNew) {
+                    Text("모델 선택…").tag(GeminiService.AIModelRef?.none)
+                    ForEach(availableModels) { m in
+                        Text(m.label).tag(GeminiService.AIModelRef?.some(m))
+                    }
+                }
+                .labelsHidden()
+                Button("추가") {
+                    if let m = selectedNew {
+                        GeminiService.setChain(GeminiService.chain(for: action) + [m], for: action)
+                        selectedNew = nil
+                    }
+                }
+                .disabled(selectedNew == nil)
+            }
+            HStack {
+                Button("기본값으로") { GeminiService.setChain(GeminiService.defaultChain(for: action), for: action) }
+                    .controlSize(.small)
+                Spacer()
+                Button("닫기") { dismiss() }.controlSize(.small)
+            }
+        }
+        .padding(14)
+        .frame(width: 360)
+    }
+
+    // capability별 카탈로그+커스텀 중 체인에 없는 모델
+    private var availableModels: [GeminiService.AIModelRef] {
+        let current = GeminiService.chain(for: action)
+        return GeminiService.catalogModels(for: action.capability).filter { !current.contains($0) }
+    }
+
+    private func move(_ idx: Int, _ d: Int) {
+        var chain = GeminiService.chain(for: action)
+        let target = idx + d
+        guard chain.indices.contains(idx), chain.indices.contains(target) else { return }
+        chain.swapAt(idx, target)
+        GeminiService.setChain(chain, for: action)
+    }
+
+    private func remove(_ ref: GeminiService.AIModelRef) {
+        GeminiService.setChain(GeminiService.chain(for: action).filter { $0 != ref }, for: action)
     }
 }

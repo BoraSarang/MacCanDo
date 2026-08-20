@@ -27,6 +27,369 @@ enum GeminiService {
         !(UserDefaults.standard.string(forKey: "geminiKey") ?? "").isEmpty
     }
 
+    // ---------- T-74: 동작별 AI 모델 체인 설정 (v2.13) ----------
+    enum AIProvider: String, Codable, CaseIterable, Identifiable {
+        case gemini, nvidia, openrouter
+
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .gemini: return "Gemini"
+            case .nvidia: return "NVIDIA NIM"
+            case .openrouter: return "OpenRouter"
+            }
+        }
+        var hasKey: Bool {
+            switch self {
+            case .gemini: return GeminiService.hasKey
+            case .nvidia: return !(UserDefaults.standard.string(forKey: "nvidiaKey") ?? "").isEmpty
+            case .openrouter: return !(UserDefaults.standard.string(forKey: "openrouterKey") ?? "").isEmpty
+            }
+        }
+    }
+
+    struct AIModelRef: Codable, Identifiable, Hashable {
+        let provider: AIProvider
+        let model: String
+        var id: String { "\(provider.rawValue)|\(model)" }
+        var label: String { "\(provider.label) · \(model)" }
+    }
+
+    enum AICapability: String, Codable { case text, image, vision }
+
+    // AI 동작(기능) — 각각 모델 사용 순서를 설정으로 관리
+    enum AIAction: String, CaseIterable, Codable, Identifiable {
+        case assistant, seo, spelling, wizard, newsSummary, coverImage, bodyImage, vision
+
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .assistant: return "AI 도우미"
+            case .seo: return "AI SEO"
+            case .spelling: return "맞춤법 검사"
+            case .wizard: return "이야기 마법사"
+            case .newsSummary: return "맥 소식 요약"
+            case .coverImage: return "커버 이미지"
+            case .bodyImage: return "본문 이미지"
+            case .vision: return "이미지 설명(alt)"
+            }
+        }
+        var capability: AICapability {
+            switch self {
+            case .assistant, .seo, .spelling, .wizard, .newsSummary: return .text
+            case .coverImage, .bodyImage: return .image
+            case .vision: return .vision
+            }
+        }
+    }
+
+    struct AIChainConfig: Codable {
+        var chains: [AIAction: [AIModelRef]] = [:]
+        var customModels: [AIModelRef] = []
+    }
+
+    // 모델 카탈로그 (설정 UI 선택지 — 커스텀 모델로 확장)
+    static let modelCatalog: [AIProvider: [String]] = [
+        .gemini: ["gemini-3.7-flash", "gemini-3.1-flash", "gemini-2.5-flash",
+                  "gemini-3.1-flash-image", "gemini-2.5-flash-image"],
+        .nvidia: ["deepseek-ai/deepseek-v4-flash", "nvidianemotron-3-ultra-550b-a55b",
+                  "flux.1-schnell", "qwen-image", "stable-diffusion-3.5-large",
+                  "meta/llama-3.2-90b-vision-instruct", "meta/llama-3.2-11b-vision-instruct"],
+        .openrouter: ["google/gemma-4-31b-it:free", "openai/gpt-oss-20b:free",
+                      "google/gemini-3.1-flash-image", "google/gemini-2.5-flash-image"]
+    ]
+
+    // 기본 체인 (마이그레이션 — 기존 하드코딩과 동일 동작 보존)
+    private static let defaultTextChain: [AIModelRef] = [
+        AIModelRef(provider: .gemini, model: "gemini-3.7-flash"),
+        AIModelRef(provider: .nvidia, model: "deepseek-ai/deepseek-v4-flash"),
+        AIModelRef(provider: .openrouter, model: "google/gemma-4-31b-it:free"),
+        AIModelRef(provider: .openrouter, model: "openai/gpt-oss-20b:free")
+    ]
+    private static let defaultImageChain: [AIModelRef] = [
+        AIModelRef(provider: .gemini, model: "gemini-3.1-flash-image"),
+        AIModelRef(provider: .gemini, model: "gemini-2.5-flash-image"),
+        AIModelRef(provider: .nvidia, model: "flux.1-schnell")
+    ]
+    private static let defaultVisionChain: [AIModelRef] = [
+        AIModelRef(provider: .nvidia, model: "meta/llama-3.2-90b-vision-instruct")
+    ]
+
+    private static let chainsKey = "aiChains"
+
+    static func defaultChain(for action: AIAction) -> [AIModelRef] {
+        switch action.capability {
+        case .text: return defaultTextChain
+        case .image: return defaultImageChain
+        case .vision: return defaultVisionChain
+        }
+    }
+
+    // 설정된 체인 (없으면 기본)
+    static func chain(for action: AIAction) -> [AIModelRef] {
+        if let c = loadChains().chains[action], !c.isEmpty { return c }
+        return defaultChain(for: action)
+    }
+
+    static func loadChains() -> AIChainConfig {
+        guard let data = UserDefaults.standard.data(forKey: chainsKey),
+              let config = try? JSONDecoder().decode(AIChainConfig.self, from: data) else {
+            return AIChainConfig()
+        }
+        return config
+    }
+
+    static func saveChains(_ config: AIChainConfig) {
+        if let data = try? JSONEncoder().encode(config) {
+            UserDefaults.standard.set(data, forKey: chainsKey)
+        }
+    }
+
+    static func setChain(_ chain: [AIModelRef], for action: AIAction) {
+        var config = loadChains()
+        config.chains[action] = chain
+        saveChains(config)
+    }
+
+    static func resetChains() {
+        UserDefaults.standard.removeObject(forKey: chainsKey)
+    }
+
+    // 카탈로그 + 커스텀 모델 → capability별 선택지
+    static func catalogModels(for capability: AICapability) -> [AIModelRef] {
+        var models: [AIModelRef] = []
+        for (provider, ids) in modelCatalog {
+            for id in ids where modelCapability(provider: provider, model: id) == capability {
+                models.append(AIModelRef(provider: provider, model: id))
+            }
+        }
+        models.append(contentsOf: loadChains().customModels.filter { modelCapability(provider: $0.provider, model: $0.model) == capability })
+        return models
+    }
+
+    private static func modelCapability(provider: AIProvider, model: String) -> AICapability {
+        if model.contains("-image") || model.contains("flux") || model.contains("qwen-image") || model.contains("stable-diffusion") { return .image }
+        if model.contains("vision") { return .vision }
+        return .text
+    }
+
+    static func addCustomModel(provider: AIProvider, model: String) {
+        let clean = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        var config = loadChains()
+        let ref = AIModelRef(provider: provider, model: clean)
+        if !config.customModels.contains(ref) {
+            config.customModels.append(ref)
+            saveChains(config)
+        }
+    }
+
+    static func removeCustomModel(_ ref: AIModelRef) {
+        var config = loadChains()
+        config.customModels.removeAll { $0 == ref }
+        saveChains(config)
+    }
+
+    // 체인 요약 (설정 UI/이미지 시트 헤더 표시)
+    static func chainLabel(for action: AIAction) -> String {
+        chain(for: action).map { $0.provider.label }.joined(separator: " → ")
+    }
+
+    // ---------- T-75: 체인 실행 엔진 (v2.13) ----------
+    // 각 모델 순서대로 시도 — 실패/404/429/키 없음은 다음으로 폴백
+    static func runTextChain(_ chain: [AIModelRef], prompt: String) async throws -> String {
+        guard !chain.isEmpty else {
+            throw APIError(code: "E-MAC-AI-1007", message: "AI 체인이 비어 있습니다. 설정에서 모델을 추가해 주세요.", status: -1)
+        }
+        var lastError: APIError?
+        for ref in chain {
+            guard ref.provider.hasKey else {
+                DebugLogger.debug("Gemini", "체인 스킵 (키 없음) \(ref.label)")
+                continue
+            }
+            do {
+                let text: String
+                switch ref.provider {
+                case .gemini: text = try await fetchGeminiText(prompt: prompt, model: ref.model)
+                case .nvidia: text = try await fetchNVIDIAText(prompt: prompt, model: ref.model)
+                case .openrouter: text = try await fetchOpenRouterText(prompt: prompt, model: ref.model)
+                }
+                DebugLogger.info("Gemini", "텍스트 생성 완료 provider=\(ref.provider.rawValue) model=\(ref.model)")
+                return text
+            } catch let e as APIError {
+                lastError = e
+                DebugLogger.warn("Gemini", "체인 폴백 (\(ref.label)): \(e.code)")
+            }
+        }
+        throw lastError ?? APIError(code: "E-MAC-AI-1007", message: "AI 호출에 실패했습니다. 잠시 후 다시 시도해 주세요.", status: -1)
+    }
+
+    static func runImageChain(_ chain: [AIModelRef], prompt: String) async throws -> (data: Data, provider: String) {
+        guard !chain.isEmpty else {
+            throw APIError(code: "E-MAC-AI-1005", message: "이미지 AI 체인이 비어 있습니다. 설정에서 모델을 추가해 주세요.", status: -1)
+        }
+        var lastError: APIError?
+        for ref in chain {
+            guard ref.provider.hasKey else {
+                DebugLogger.debug("Gemini", "이미지 체인 스킵 (키 없음) \(ref.label)")
+                continue
+            }
+            do {
+                let data: Data
+                switch ref.provider {
+                case .gemini: data = try await callImageGen(model: ref.model, prompt: prompt)
+                case .nvidia: data = try await callNVIDIAImage(model: ref.model, prompt: prompt)
+                case .openrouter: data = try await callFlux(model: ref.model, prompt: prompt)
+                }
+                DebugLogger.info("Gemini", "[FEATURE] 이미지 생성 완료 provider=\(ref.provider.rawValue) model=\(ref.model) bytes=\(data.count)")
+                return (data, ref.provider.rawValue)
+            } catch let e as APIError {
+                lastError = e
+                DebugLogger.warn("Gemini", "이미지 체인 폴백 (\(ref.label)): \(e.code)")
+            }
+        }
+        throw lastError ?? APIError(code: "E-MAC-AI-1005", message: "이미지 생성에 실패했습니다.", status: -1)
+    }
+
+    // 비전: 이미지 → 한국어 alt 설명 (체인은 .vision)
+    static func generateImageDescription(imageData: Data) async throws -> String {
+        let prompt = "이 이미지를 한국어로 1~2문장으로 설명해 주세요. 접근성 alt 텍스트로 적합하게, 감정적인 수식 없이 사실적으로."
+        var lastError: APIError?
+        for ref in chain(for: .vision) {
+            guard ref.provider.hasKey else { continue }
+            switch ref.provider {
+            case .nvidia:
+                do {
+                    let text = try await fetchNVision(model: ref.model, imageData: imageData, prompt: prompt)
+                    DebugLogger.info("Gemini", "[FEATURE] 이미지 설명 생성 완료 provider=\(ref.provider.rawValue) model=\(ref.model)")
+                    return text
+                } catch let e as APIError {
+                    lastError = e
+                    DebugLogger.warn("Gemini", "비전 폴백 (\(ref.label)): \(e.code)")
+                }
+            default:
+                continue // 비전은 NVIDIA만 지원
+            }
+        }
+        throw lastError ?? APIError(code: "E-MAC-AI-1007", message: "이미지 분석에 실패했습니다.", status: -1)
+    }
+
+    // ---------- T-76: NVIDIA NIM (build.nvidia.com, OpenAI 호환) ----------
+    private static func nvidiaKey() -> String {
+        UserDefaults.standard.string(forKey: "nvidiaKey") ?? ""
+    }
+
+    private static func fetchNVIDIAText(prompt: String, model: String) async throws -> String {
+        let key = nvidiaKey()
+        guard !key.isEmpty else {
+            throw APIError(code: "E-MAC-SET-1001", message: "NVIDIA API 키가 설정되지 않았습니다. 설정에서 입력하세요.", status: -1)
+        }
+        guard let url = URL(string: "https://integrate.api.nvidia.com/v1/chat/completions") else {
+            throw APIError(code: "E-MAC-NET-1001", message: "잘못된 URL", status: -1)
+        }
+        let payload: [String: Any] = [
+            "model": model,
+            "messages": [["role": "user", "content": prompt]]
+        ]
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 60
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            throw APIError(code: "E-MAC-AI-1007", message: "NVIDIA 호출 실패 (HTTP \(code))", status: code)
+        }
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let message = (json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any]
+        if let text = message?["content"] as? String, !text.isEmpty {
+            return text
+        }
+        if let parts = message?["content"] as? [[String: Any]] {
+            for p in parts where p["type"] as? String == "text" {
+                if let t = p["text"] as? String, !t.isEmpty { return t }
+            }
+        }
+        throw APIError(code: "E-MAC-AI-1003", message: "AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
+    }
+
+    // NVIDIA 이미지 생성 — OpenAI 호환 /v1/images/generations (b64_json)
+    private static func callNVIDIAImage(model: String, prompt: String) async throws -> Data {
+        let key = nvidiaKey()
+        guard !key.isEmpty else {
+            throw APIError(code: "E-MAC-SET-1001", message: "NVIDIA API 키가 설정되지 않았습니다. 설정에서 입력하세요.", status: -1)
+        }
+        guard let url = URL(string: "https://ai.api.nvidia.com/v1/images/generations") else {
+            throw APIError(code: "E-MAC-NET-1001", message: "잘못된 URL", status: -1)
+        }
+        let payload: [String: Any] = [
+            "model": model,
+            "prompt": prompt,
+            "n": 1,
+            "size": "1024x1024",
+            "response_format": "b64_json"
+        ]
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 120
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            throw APIError(code: "E-MAC-AI-1005", message: "NVIDIA 이미지 생성 실패 (HTTP \(code))", status: code)
+        }
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let items = (json?["data"] as? [[String: Any]]) ?? []
+        if let b64 = items.first?["b64_json"] as? String, let imageData = Data(base64Encoded: b64) {
+            return imageData
+        }
+        throw APIError(code: "E-MAC-AI-1006", message: "AI 이미지 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
+    }
+
+    // NVIDIA 비전 — image_url(base64 data URI) + 텍스트
+    private static func fetchNVision(model: String, imageData: Data, prompt: String) async throws -> String {
+        let key = nvidiaKey()
+        guard !key.isEmpty else {
+            throw APIError(code: "E-MAC-SET-1001", message: "NVIDIA API 키가 설정되지 않았습니다. 설정에서 입력하세요.", status: -1)
+        }
+        guard let url = URL(string: "https://integrate.api.nvidia.com/v1/chat/completions") else {
+            throw APIError(code: "E-MAC-NET-1001", message: "잘못된 URL", status: -1)
+        }
+        let mime = imageExtension(for: imageData) == "jpg" ? "image/jpeg" : "image/\(imageExtension(for: imageData))"
+        let dataURI = "data:\(mime);base64,\(imageData.base64EncodedString())"
+        let payload: [String: Any] = [
+            "model": model,
+            "messages": [["role": "user", "content": [
+                ["type": "text", "text": prompt],
+                ["type": "image_url", "image_url": ["url": dataURI]]
+            ]]]
+        ]
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 60
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            throw APIError(code: "E-MAC-AI-1007", message: "이미지 분석 실패 (HTTP \(code))", status: code)
+        }
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let message = (json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any]
+        if let text = message?["content"] as? String, !text.isEmpty {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        throw APIError(code: "E-MAC-AI-1003", message: "AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
+    }
+
     struct GeminiRequest: Encodable {
         struct Content: Encodable {
             struct Part: Encodable { let text: String }
@@ -135,7 +498,7 @@ enum GeminiService {
     }
 
     private static func callGemini(prompt: String) async throws -> SEOSuggestion {
-        let text = try await fetchText(prompt: prompt)
+        let text = try await fetchText(prompt: prompt, action: .seo)
         guard let jsonData = extractJSON(from: text),
               let suggestion = try? JSONDecoder().decode(SEOSuggestion.self, from: jsonData) else {
             throw APIError(code: "E-MAC-AI-1003", message: "AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
@@ -160,7 +523,7 @@ enum GeminiService {
         문서:
         \(text)
         """
-        let raw = try await withRetry { try await callGeminiText(prompt: prompt) }
+        let raw = try await withRetry { try await callGeminiText(prompt: prompt, action: .spelling) }
         guard let data = extractJSONArray(from: raw) else {
             throw APIError(code: "E-MAC-AI-1003", message: "AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
         }
@@ -168,27 +531,7 @@ enum GeminiService {
     }
 
     // ---------- AI 이미지 생성 (시리즈 커버/썸네일, T-19) ----------
-
-    // 이미지 생성 공급자 설정 (UserDefaults "imageGenProvider")
-    // auto: Gemini(최신) / gemini: Gemini만 / openrouter: Flux (OpenRouter 키, 품질 우수)
-    enum ImageGenProvider: String, CaseIterable, Identifiable {
-        case auto = "auto"
-        case gemini = "gemini"
-        case openrouter = "openrouter"
-
-        var id: String { rawValue }
-        var label: String {
-            switch self {
-            case .auto: return "자동 (Gemini)"
-            case .gemini: return "Gemini (유료/무료 쿼터)"
-            case .openrouter: return "OpenRouter 이미지 (키 필요)"
-            }
-        }
-    }
-
-    static var imageGenProvider: ImageGenProvider {
-        ImageGenProvider(rawValue: UserDefaults.standard.string(forKey: "imageGenProvider") ?? "") ?? .auto
-    }
+    // 공급자/모델 선택은 동작별 체인 설정으로 통합 (T-74, .coverImage/.bodyImage)
 
     struct ImageGenResponse: Decodable {
         struct Candidate: Decodable {
@@ -208,98 +551,47 @@ enum GeminiService {
         let candidates: [Candidate]?
     }
 
-    // v2.11 T-66: 선택 가능한 이미지 모델 (설정 → 이미지 모델 선택, 선택 모델 우선 + 폴백)
-    static let imageModelOptions: [String] = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"]
-
-    // 설정에서 선택한 모델 (없으면 첫 번째)
-    static var imageModel: String {
-        let stored = UserDefaults.standard.string(forKey: "imageGenModel") ?? ""
-        return imageModelOptions.contains(stored) ? stored : imageModelOptions[0]
-    }
-
-    // 선택 모델 우선 정렬 목록 (폴백 순서)
-    static var imageModels: [String] {
-        var list = imageModelOptions
-        if let idx = list.firstIndex(of: imageModel) {
-            list.remove(at: idx)
-            list.insert(imageModel, at: 0)
-        }
-        return list
-    }
-
-    // 프롬프트 → 16:9 이미지 생성 (base64 inlineData 디코드)
-    // 공급자 체인: 설정값에 따라 Gemini(3.1 → 2.5 폴백) 또는 Flux(OpenRouter)
-    // 반환: (이미지 Data, 사용 공급자 "gemini"|"flux")
-    static func generateImage(prompt: String) async throws -> (data: Data, provider: String) {
-        let mode = imageGenProvider
-        if mode == .openrouter {
-            return try await callFlux(prompt: prompt)
-        }
-        do {
-            for model in imageModels {
-                do {
-                    let data = try await callImageGen(model: model, prompt: prompt)
-                    DebugLogger.info("Gemini", "[FEATURE] AI 이미지 생성 완료 model=\(model) bytes=\(data.count)")
-                    return (data, "gemini")
-                } catch let e as APIError where e.status == 404 {
-                    DebugLogger.warn("Gemini", "이미지 모델 없음 (\(model)) — 폴백 시도")
-                    continue
-                }
-            }
-            throw APIError(code: "E-MAC-AI-1005", message: "이미지 생성 모델을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.", status: 404)
-        }
+    // 프롬프트 → 이미지 생성 — 동작별 체인 경유 (T-75)
+    // 반환: (이미지 Data, 사용 공급자 "gemini"|"nvidia"|"openrouter")
+    static func generateImage(prompt: String, action: AIAction) async throws -> (data: Data, provider: String) {
+        try await runImageChain(chain(for: action), prompt: prompt)
     }
 
     // OpenRouter 이미지 생성 — Gemini 이미지 모델 (2026 기준 Flux는 OpenRouter에서 제거됨)
     // OpenAI 호환 /chat/completions + response_format image → images 배열 (data URI)
-    private static func callFlux(prompt: String) async throws -> (data: Data, provider: String) {
+    private static func callFlux(model: String, prompt: String) async throws -> Data {
         guard let key = UserDefaults.standard.string(forKey: "openrouterKey"), !key.isEmpty else {
-            throw APIError(code: "E-MAC-SET-1001", message: "OpenRouter API 키가 설정되지 않았습니다. 설정 → 이미지 생성에서 입력하세요.", status: -1)
+            throw APIError(code: "E-MAC-SET-1001", message: "OpenRouter API 키가 설정되지 않았습니다. 설정 → AI 설정에서 입력하세요.", status: -1)
         }
-        let models = imageModels.map { "google/\($0)" }
-        var lastError: Error?
-        for model in models {
-            do {
-                guard let url = URL(string: "https://openrouter.ai/api/v1/chat/completions") else {
-                    throw APIError(code: "E-MAC-NET-1001", message: "잘못된 URL", status: -1)
-                }
-                let payload: [String: Any] = [
-                    "model": model,
-                    "messages": [["role": "user", "content": prompt]],
-                    "response_format": ["type": "image"],
-                    "aspect_ratio": "16:9"
-                ]
-                var req = URLRequest(url: url)
-                req.httpMethod = "POST"
-                req.timeoutInterval = 120
-                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-                req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        guard let url = URL(string: "https://openrouter.ai/api/v1/chat/completions") else {
+            throw APIError(code: "E-MAC-NET-1001", message: "잘못된 URL", status: -1)
+        }
+        let payload: [String: Any] = [
+            "model": model,
+            "messages": [["role": "user", "content": prompt]],
+            "response_format": ["type": "image"],
+            "aspect_ratio": "16:9"
+        ]
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 120
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
-                let (data, resp) = try await URLSession.shared.data(for: req)
-                guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                    let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
-                    throw APIError(code: "E-MAC-AI-1005", message: "이미지 생성 실패 (HTTP \(code)). 잠시 후 다시 시도해 주세요.", status: code)
-                }
-                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                let images = (json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any] ?? [:]
-                if let uri = (images["images"] as? [String])?.first ?? imageDataURI(in: images["content"]) {
-                    if let imageData = decodeDataURI(uri) {
-                        DebugLogger.info("Gemini", "[FEATURE] AI 이미지 생성 완료 provider=Flux model=\(model) bytes=\(imageData.count)")
-                        return (imageData, "flux")
-                    }
-                }
-                throw APIError(code: "E-MAC-AI-1006", message: "AI 이미지 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
-            } catch {
-                lastError = error
-                if let e = error as? APIError, e.status != 404 && e.status != 400 && e.status != -1 {
-                    throw error // 모델 부재가 아닌 실패는 즉시 전파
-                }
-                DebugLogger.warn("Gemini", "Flux 모델 실패 (\(model)) — 폴백 시도")
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            throw APIError(code: "E-MAC-AI-1005", message: "이미지 생성 실패 (HTTP \(code)). 잠시 후 다시 시도해 주세요.", status: code)
+        }
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let images = (json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any] ?? [:]
+        if let uri = (images["images"] as? [String])?.first ?? imageDataURI(in: images["content"]) {
+            if let imageData = decodeDataURI(uri) {
+                return imageData
             }
         }
-        if let lastError { throw lastError }
-        throw APIError(code: "E-MAC-AI-1005", message: "이미지 생성 실패", status: -1)
+        throw APIError(code: "E-MAC-AI-1006", message: "AI 이미지 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
     }
 
     // content 배열에서 image_url 타입 data URI 추출 (모델별 응답 형식 대응)
@@ -369,9 +661,9 @@ enum GeminiService {
         return "png"
     }
 
-    // AI 텍스트 응답 (JSON 아님, MD 등) — Gemini → OpenRouter(무료) 체인
-    private static func callGeminiText(prompt: String) async throws -> String {
-        let text = try await fetchText(prompt: prompt)
+    // AI 텍스트 응답 (JSON 아님, MD 등) — 동작별 체인 경유 (T-75)
+    private static func callGeminiText(prompt: String, action: AIAction) async throws -> String {
+        let text = try await fetchText(prompt: prompt, action: action)
         guard !text.isEmpty else {
             throw APIError(code: "E-MAC-AI-1003", message: "AI 응답이 비어 있습니다. 다시 시도해 주세요.", status: -1)
         }
@@ -396,11 +688,11 @@ enum GeminiService {
         - 확실하지 않은 수치는 '추정'으로 표기하고, 사실은 추측과 명확히 구분
         - 글 제목은 출력하지 말고 본문 내용만 출력
         """
-        return try await callGeminiText(prompt: prompt)
+        return try await callGeminiText(prompt: prompt, action: .wizard)
     }
 
     // 공통 fetch (Gemini 호출 → 텍스트 추출)
-    private static func fetchGeminiText(prompt: String) async throws -> String {
+    private static func fetchGeminiText(prompt: String, model: String) async throws -> String {
         let payload = GeminiRequest(
             contents: [.init(parts: [.init(text: prompt)])],
             generationConfig: .init(temperature: 0.3, maxOutputTokens: 4096)
@@ -435,83 +727,49 @@ enum GeminiService {
         return text
     }
 
-    // ---------- AI 텍스트 체인: Gemini → OpenRouter(무료 모델) 폴백 (T-23) ----------
-    // Gemini 키 없음/쿼터(429)/오류 시 OpenRouter 무료 모델로 자동 전환
-    // 폴백 모델: gemma-4-31b-it:free → gpt-oss-20b:free (크레딧 불필요)
-
-    private static let openRouterTextModels = ["google/gemma-4-31b-it:free", "openai/gpt-oss-20b:free"]
-
-    private static func fetchText(prompt: String) async throws -> String {
-        var lastError: APIError?
-        if hasKey {
-            do {
-                return try await fetchGeminiText(prompt: prompt)
-            } catch let e as APIError {
-                lastError = e
-                DebugLogger.warn("Gemini", "Gemini 텍스트 실패 (\(e.code)) — OpenRouter(무료) 폴백")
-            } catch {
-                lastError = APIError(code: "E-MAC-AI-1001", message: error.localizedDescription, status: -1)
-                DebugLogger.warn("Gemini", "Gemini 텍스트 실패 — OpenRouter(무료) 폴백")
-            }
-        } else {
-            DebugLogger.warn("Gemini", "Gemini 키 없음 — OpenRouter(무료) 사용")
-        }
-        do {
-            return try await fetchOpenRouterText(prompt: prompt)
-        } catch {
-            if let e = lastError { throw e }
-            throw error
-        }
+    // ---------- AI 텍스트 호출 — 동작별 체인 (T-75) ----------
+    // 각 동작 함수는 fetchText(prompt:action:)을 통해 설정된 모델 체인을 순서대로 시도
+    private static func fetchText(prompt: String, action: AIAction) async throws -> String {
+        try await runTextChain(chain(for: action), prompt: prompt)
     }
 
-    // OpenRouter 무료 모델 호출 — OpenAI 호환 /chat/completions
-    private static func fetchOpenRouterText(prompt: String) async throws -> String {
+    // OpenRouter 호출 — OpenAI 호환 /chat/completions
+    private static func fetchOpenRouterText(prompt: String, model: String) async throws -> String {
         guard let key = UserDefaults.standard.string(forKey: "openrouterKey"), !key.isEmpty else {
-            throw APIError(code: "E-MAC-SET-1001", message: "AI API 키가 설정되지 않았습니다. 설정에서 입력하세요.", status: -1)
+            throw APIError(code: "E-MAC-SET-1001", message: "OpenRouter API 키가 설정되지 않았습니다. 설정에서 입력하세요.", status: -1)
         }
-        var lastError: APIError?
-        for model in openRouterTextModels {
-            do {
-                guard let url = URL(string: "https://openrouter.ai/api/v1/chat/completions") else {
-                    throw APIError(code: "E-MAC-NET-1001", message: "잘못된 URL", status: -1)
-                }
-                let payload: [String: Any] = [
-                    "model": model,
-                    "messages": [["role": "user", "content": prompt]]
-                ]
-                var req = URLRequest(url: url)
-                req.httpMethod = "POST"
-                req.timeoutInterval = 60
-                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-                req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        guard let url = URL(string: "https://openrouter.ai/api/v1/chat/completions") else {
+            throw APIError(code: "E-MAC-NET-1001", message: "잘못된 URL", status: -1)
+        }
+        let payload: [String: Any] = [
+            "model": model,
+            "messages": [["role": "user", "content": prompt]]
+        ]
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 60
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
-                let (data, resp) = try await URLSession.shared.data(for: req)
-                guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                    let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
-                    throw APIError(code: "E-MAC-AI-1007", message: "AI 호출 실패 (HTTP \(code))", status: code)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            throw APIError(code: "E-MAC-AI-1007", message: "AI 호출 실패 (HTTP \(code))", status: code)
+        }
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let message = (json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any]
+        if let text = message?["content"] as? String, !text.isEmpty {
+            return text
+        }
+        if let parts = message?["content"] as? [[String: Any]] {
+            for p in parts where p["type"] as? String == "text" {
+                if let t = p["text"] as? String, !t.isEmpty {
+                    return t
                 }
-                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                let message = (json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any]
-                if let text = message?["content"] as? String, !text.isEmpty {
-                    DebugLogger.info("Gemini", "OpenRouter 텍스트 성공 model=\(model)")
-                    return text
-                }
-                if let parts = message?["content"] as? [[String: Any]] {
-                    for p in parts where p["type"] as? String == "text" {
-                        if let t = p["text"] as? String, !t.isEmpty {
-                            DebugLogger.info("Gemini", "OpenRouter 텍스트 성공 model=\(model)")
-                            return t
-                        }
-                    }
-                }
-                throw APIError(code: "E-MAC-AI-1003", message: "AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
-            } catch let e as APIError {
-                lastError = e
-                DebugLogger.warn("Gemini", "OpenRouter 모델 실패 (\(model)) — 폴백 시도")
             }
         }
-        throw lastError ?? APIError(code: "E-MAC-AI-1007", message: "AI 호출에 실패했습니다. 잠시 후 다시 시도해 주세요.", status: -1)
+        throw APIError(code: "E-MAC-AI-1003", message: "AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
     }
 
     // ---------- AI 도우미 (글쓰기 도우미) ----------
@@ -544,7 +802,7 @@ enum GeminiService {
             return (cached, true)
         }
         recordCacheMiss()
-        let text = try await withRetry { try await callGeminiText(prompt: prompt) }
+        let text = try await withRetry { try await callGeminiText(prompt: prompt, action: .assistant) }
         DraftStore.saveSEOCache(key: key, suggestionJSON: text)
         DebugLogger.info("Gemini", "[CACHE] Guide hit=false 저장 (캐시 \(DraftStore.seoCacheCount())건)")
         return (text, false)
@@ -611,7 +869,7 @@ enum GeminiService {
         목록:
         \(list)
         """
-        let text = try await callGeminiText(prompt: prompt)
+        let text = try await callGeminiText(prompt: prompt, action: .newsSummary)
         guard let data = extractJSONArray(from: text) else {
             throw APIError(code: "E-MAC-AI-1003", message: "AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
         }

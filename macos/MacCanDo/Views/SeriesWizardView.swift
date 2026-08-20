@@ -552,7 +552,7 @@ struct SeriesWizardView: View {
     }
 
     private func generateAndUpload(prompt: String) async throws -> String {
-        let (data, provider) = try await GeminiService.generateImage(prompt: prompt)
+        let (data, provider) = try await GeminiService.generateImage(prompt: prompt, action: .coverImage)
         let ext = GeminiService.imageExtension(for: data)
         let dir = FileManager.default.temporaryDirectory
         let fileURL = dir.appendingPathComponent("wizard-\(UUID().uuidString).\(ext)")

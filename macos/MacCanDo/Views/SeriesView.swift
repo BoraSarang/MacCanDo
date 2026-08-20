@@ -335,7 +335,7 @@ struct SeriesView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text("AI 요청 프롬프트 (수정 가능)").font(.caption.bold()).foregroundStyle(.secondary)
-                        Text(GeminiService.imageGenProvider.label).font(.caption2).foregroundStyle(.tertiary)
+                        Text(GeminiService.chainLabel(for: .coverImage)).font(.caption2).foregroundStyle(.tertiary)
                         Spacer()
                         Button("초기화") { promptText = coverPrompt() }.buttonStyle(.link).controlSize(.small)
                     }
@@ -438,8 +438,8 @@ struct SeriesView: View {
         generatingImage = true
         errorMessage = nil
         do {
-            DebugLogger.info("Series", "[FEATURE] AI 커버 생성 시작 provider=\(GeminiService.imageGenProvider.rawValue) prompt=\(String(prompt.prefix(60)))…")
-            let (imageData, _) = try await GeminiService.generateImage(prompt: prompt)
+            DebugLogger.info("Series", "[FEATURE] AI 커버 생성 시작 provider=\(GeminiService.chainLabel(for: .coverImage)) prompt=\(String(prompt.prefix(60)))…")
+            let (imageData, _) = try await GeminiService.generateImage(prompt: prompt, action: .coverImage)
 
             // 임시 파일 저장 후 기존 업로드 파이프라인 재사용 (확장자는 실제 포맷 기준)
             let dir = FileManager.default.temporaryDirectory

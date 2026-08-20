@@ -25,12 +25,18 @@ struct AssistantView: View {
     @State private var generatedCoverData: Data?
     @State private var coverError: String?
     @State private var coverURL: String?
+    @State private var coverAltText = "" // T-78: v2.13 — 커버 alt 설명 (클립보드 복사)
+    @State private var generatingCoverAlt = false
+    @State private var coverAltError: String?
     @State private var showCoverPicker = false
     // T-71: 본문 이미지 (AI 생성 / 업로드 이미지에서 수동 선택)
     @State private var showBodyGen = false
     @State private var generatingBodyImage = false
     @State private var generatedBodyImageData: Data?
     @State private var bodyImageError: String?
+    @State private var bodyImageAltText = "" // T-78: v2.13 — 본문 이미지 alt 설명 (비전 AI)
+    @State private var generatingBodyImageAlt = false
+    @State private var bodyImageAltError: String?
     @State private var bodyImagePromptText = ""
     @State private var showBodyPicker = false
     // T-71: 게시글 초안(DRAFT) 등록
@@ -387,7 +393,7 @@ struct AssistantView: View {
             HStack {
                 Text("AI 커버 이미지 생성").font(.title3.bold())
                 Spacer()
-                Text(GeminiService.imageGenProvider.label).font(.caption2).foregroundStyle(.secondary)
+                Text(GeminiService.chainLabel(for: .coverImage)).font(.caption2).foregroundStyle(.secondary)
             }
             Text("글의 커버(대표) 이미지를 만듭니다. [커버로 사용]을 누르면 업로드되어 게시글 초안 등록에 반영됩니다. 업로드된 이미지에서 직접 고를 수도 있습니다.")
                 .font(.caption)
@@ -436,6 +442,24 @@ struct AssistantView: View {
             if let err = coverError {
                 Text(err).font(.caption).foregroundStyle(Color.dsDanger)
             }
+            // T-78: v2.13 — 커버 alt 설명 → 클립보드
+            if generatedCoverData != nil {
+                Divider()
+                HStack(alignment: .top, spacing: 8) {
+                    Button(generatingCoverAlt ? "설명 생성 중…" : "alt 설명 생성 → 클립보드") {
+                        Task { await generateCoverAlt() }
+                    }
+                    .controlSize(.small)
+                    .disabled(generatingCoverAlt)
+                    if !coverAltText.isEmpty {
+                        Text(coverAltText).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                        Button("지우기") { coverAltText = "" }.controlSize(.small).buttonStyle(.link)
+                    }
+                }
+                if let coverAltError {
+                    Text(coverAltError).font(.caption).foregroundStyle(Color.dsDanger)
+                }
+            }
             HStack {
                 Button("업로드 이미지에서 선택") {
                     showCoverGen = false
@@ -466,7 +490,7 @@ struct AssistantView: View {
             HStack {
                 Text("AI 본문 이미지 생성").font(.title3.bold())
                 Spacer()
-                Text(GeminiService.imageGenProvider.label).font(.caption2).foregroundStyle(.secondary)
+                Text(GeminiService.chainLabel(for: .bodyImage)).font(.caption2).foregroundStyle(.secondary)
             }
             Text("본문에 넣을 이미지를 만듭니다. [본문에 삽입]을 누르면 업로드되어 [img:URL]이 결과 끝에 추가됩니다.")
                 .font(.caption)
@@ -514,6 +538,24 @@ struct AssistantView: View {
             }
             if let err = bodyImageError {
                 Text(err).font(.caption).foregroundStyle(Color.dsDanger)
+            }
+            // T-78: v2.13 — 본문 이미지 alt 설명 생성 (NVIDIA 비전 AI, [img:URL alt="…"] 연동)
+            if generatedBodyImageData != nil {
+                Divider()
+                HStack(alignment: .top, spacing: 8) {
+                    Button(generatingBodyImageAlt ? "설명 생성 중…" : "alt 설명 생성 (비전 AI)") {
+                        Task { await generateBodyImageAlt() }
+                    }
+                    .controlSize(.small)
+                    .disabled(generatingBodyImageAlt)
+                    if !bodyImageAltText.isEmpty {
+                        Text(bodyImageAltText).font(.caption2).foregroundStyle(.secondary).lineLimit(3)
+                        Button("지우기") { bodyImageAltText = "" }.controlSize(.small).buttonStyle(.link)
+                    }
+                }
+                if let bodyImageAltError {
+                    Text(bodyImageAltError).font(.caption).foregroundStyle(Color.dsDanger)
+                }
             }
             HStack {
                 Button("업로드 이미지에서 선택") {
@@ -570,8 +612,8 @@ struct AssistantView: View {
         generatingCover = true
         coverError = nil
         do {
-            DebugLogger.info("Assistant", "[FEATURE] 커버 이미지 생성 시작 provider=\(GeminiService.imageGenProvider.rawValue) prompt=\(String(prompt.prefix(60)))…")
-            let (imageData, provider) = try await GeminiService.generateImage(prompt: prompt)
+            DebugLogger.info("Assistant", "[FEATURE] 커버 이미지 생성 시작 provider=\(GeminiService.chainLabel(for: .coverImage)) prompt=\(String(prompt.prefix(60)))…")
+            let (imageData, provider) = try await GeminiService.generateImage(prompt: prompt, action: .coverImage)
             generatedCoverData = imageData
             DebugLogger.info("Assistant", "[FEATURE] 커버 이미지 생성 완료 provider=\(provider) bytes=\(imageData.count)")
         } catch {
@@ -607,8 +649,8 @@ struct AssistantView: View {
         generatingBodyImage = true
         bodyImageError = nil
         do {
-            DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 생성 시작 provider=\(GeminiService.imageGenProvider.rawValue) prompt=\(String(prompt.prefix(60)))…")
-            let (imageData, provider) = try await GeminiService.generateImage(prompt: prompt)
+            DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 생성 시작 provider=\(GeminiService.chainLabel(for: .bodyImage)) prompt=\(String(prompt.prefix(60)))…")
+            let (imageData, provider) = try await GeminiService.generateImage(prompt: prompt, action: .bodyImage)
             generatedBodyImageData = imageData
             DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 생성 완료 provider=\(provider) bytes=\(imageData.count)")
         } catch {
@@ -617,6 +659,41 @@ struct AssistantView: View {
             DebugLogger.error("Assistant", "[ERROR] E-MAC-AI-1005 \(bodyImageError ?? "")")
         }
         generatingBodyImage = false
+    }
+
+    // T-78: v2.13 — 생성된 이미지 alt 설명 (본문: 텍스트 저장, 커버: 클립보드)
+    private func generateBodyImageAlt() async {
+        guard let data = generatedBodyImageData else { return }
+        generatingBodyImageAlt = true
+        bodyImageAltError = nil
+        do {
+            let alt = try await GeminiService.generateImageDescription(imageData: data)
+            bodyImageAltText = alt
+            DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 alt 설명 생성 완료")
+        } catch {
+            let e = error as? APIError
+            bodyImageAltError = e?.message ?? error.localizedDescription
+            DebugLogger.error("Assistant", "[ERROR] E-MAC-AI-1007 \(bodyImageAltError ?? "")")
+        }
+        generatingBodyImageAlt = false
+    }
+
+    private func generateCoverAlt() async {
+        guard let data = generatedCoverData else { return }
+        generatingCoverAlt = true
+        coverAltError = nil
+        do {
+            let alt = try await GeminiService.generateImageDescription(imageData: data)
+            coverAltText = alt
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(alt, forType: .string)
+            DebugLogger.info("Assistant", "[FEATURE] 커버 이미지 alt 설명 생성 완료 (클립보드 복사)")
+        } catch {
+            let e = error as? APIError
+            coverAltError = e?.message ?? error.localizedDescription
+            DebugLogger.error("Assistant", "[ERROR] E-MAC-AI-1007 \(coverAltError ?? "")")
+        }
+        generatingCoverAlt = false
     }
 
     // T-71: 생성된 본문 이미지 업로드 → [img:URL] 결과 끝에 추가 → 시트 닫기
@@ -630,8 +707,11 @@ struct AssistantView: View {
             try? FileManager.default.removeItem(at: fileURL)
             generatedBodyImageData = nil
             showBodyGen = false
-            result += "\n\n[img:\(url)]"
-            DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 삽입 완료 url=\(url)")
+            let alt = bodyImageAltText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let altClean = alt.replacingOccurrences(of: "\"", with: "")
+            result += altClean.isEmpty ? "\n\n[img:\(url)]" : "\n\n[img:\(url) alt=\"\(altClean)\"]"
+            bodyImageAltText = ""
+            DebugLogger.info("Assistant", "[FEATURE] 본문 이미지 삽입 완료 url=\(url) alt=\(altClean.isEmpty ? "없음" : String(altClean.prefix(40)))")
         } catch {
             let e = error as? APIError
             bodyImageError = e?.message ?? error.localizedDescription

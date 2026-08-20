@@ -8,9 +8,10 @@ function escapeHtml(s: string): string {
 
 function parseParams(s: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const pair of s.split(" ")) {
-    const [k, ...v] = pair.split("=");
-    if (k && v.length >= 1 && /^[A-Za-z0-9_]+$/.test(k)) out[k] = v.join("=");
+  const re = /([A-Za-z0-9_]+)=(?:"([^"]*)"|(\S*))/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    out[m[1]] = m[2] ?? m[3] ?? "";
   }
   return out;
 }
@@ -81,16 +82,17 @@ function inline(text: string): string {
   // 1) 이스케이프
   s = escapeHtml(s);
 
-  // [img:URL width=600 caption=캡션]
+  // [img:URL width=600 caption=캡션 alt="설명"]
   s = replaceAll(s, /\[img:([^\s\]]+)([^\]]*)\]/, (full, caps) => {
     const url = caps[0];
     if (!url) return "";
     const params = parseParams(caps[1] ?? "");
     const width = params.width ? ` width="${params.width}"` : "";
     const caption = params.caption ? `<figcaption>${escapeHtml(params.caption)}</figcaption>` : "";
+    const alt = params.alt ? ` alt="${escapeHtml(params.alt)}"` : "";
     // T-26: align=center → 가운데 정렬 (prose에서 img/figure가 block이라 class + CSS로 처리)
     const align = params.align === "center" ? ' class="mac-center"' : "";
-    return `<figure${align}><img src="${escapeHtml(url)}"${width} loading="lazy"/>${caption}</figure>`;
+    return `<figure${align}><img src="${escapeHtml(url)}"${width}${alt} loading="lazy"/>${caption}</figure>`;
   });
 
   // 표준 이미지 ![alt](url)
