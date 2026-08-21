@@ -43,11 +43,17 @@ test.describe("SEO/메타 검증", () => {
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /.+/);
   });
 
-  test("JSON-LD 구조화 데이터 포함 확인 (구현 시 활성화)", async ({ page }) => {
-    // TODO: JSON-LD 구현 후 활성화
-    test.skip(true, "JSON-LD 미구현");
+  test("JSON-LD 구조화 데이터 포함 확인 (BlogPosting)", async ({ page }) => {
     await page.goto("/post/notepad-exe");
-    await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(1);
+    const ld = page.locator('script[type="application/ld+json"]');
+    await expect(ld).toHaveCount(1);
+    // BlogPosting 타입 + 필수 필드 검증
+    const raw = await ld.textContent();
+    expect(raw).toBeTruthy();
+    const parsed = JSON.parse(raw!);
+    expect(parsed["@type"]).toBe("BlogPosting");
+    expect(parsed.headline).toBeTruthy();
+    expect(parsed.datePublished).toBeTruthy();
   });
 });
 

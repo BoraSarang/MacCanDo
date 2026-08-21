@@ -58,6 +58,53 @@ function formatDate(d: Date | null) {
   return new Intl.DateTimeFormat("ko-KR", { dateStyle: "long" }).format(d);
 }
 
+// JSON-LD 구조화 데이터 (BlogPosting) — SEO 향상
+function JsonLd({ post, slug }: { post: NonNullable<Awaited<ReturnType<typeof getPostBySlug>>>; slug: string }) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const url = `${siteUrl}/post/${slug}`;
+  const image = post.thumbnailUrl ? `${siteUrl}${post.thumbnailUrl}` : undefined;
+  const authorName = "MacCanDo";
+  const publisherName = "MacCanDo";
+  const publisherLogo = `${siteUrl}/icon.png`;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.excerpt || undefined,
+    image: image ? [image] : undefined,
+    datePublished: post.publishedAt?.toISOString() || undefined,
+    dateModified: post.updatedAt?.toISOString() || undefined,
+    author: {
+      "@type": "Person",
+      name: authorName,
+      url: `${siteUrl}/author/maccando`,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: publisherName,
+      logo: {
+        "@type": "ImageObject",
+        url: publisherLogo,
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": url,
+    },
+    keywords: post.tags.map((t) => t.tag.name).join(", ") || undefined,
+    articleSection: post.categories.map((c) => c.category.name).join(", ") || undefined,
+    ...(post.excerpt && { abstract: post.excerpt }),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  );
+}
+
 export default async function PostPage({ params }: Props) {
   const { slug } = await params;
   // T-60: SSG 정적화 — 조회수/게이트는 클라이언트에서 기록·판정
@@ -89,6 +136,7 @@ export default async function PostPage({ params }: Props) {
 
   return (
     <article className="max-w-3xl mx-auto">
+      <JsonLd post={post} slug={slug} />
       {/* T-18: 비로그인 환영 배너 — 댓글 게이트 참여 유도 (정적 페이지 제외) */}
       {!isPage && <WelcomeBanner />}
       <header className="mb-8">
