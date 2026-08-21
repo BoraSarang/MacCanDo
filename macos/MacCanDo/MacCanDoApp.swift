@@ -39,6 +39,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+// 전역 함수로 알림 발송 (이름 충돌 방지)
+@inline(__always)
+private func _postNotification(_ name: NSNotification.Name) {
+    Foundation.NotificationCenter.default.post(name: name, object: nil)
+}
+
 @main
 struct MacCanDoApp: App {
     @StateObject private var authStore = AuthStore()
@@ -65,10 +71,14 @@ struct MacCanDoApp: App {
         .commands {
             // T-34: File — ⌘N 새 글 (표준 단축키)
             CommandGroup(replacing: .newItem) {
-                Button("새 글") { newPost() }
+                Button("새 글") {
+                    _postNotification(.newPostRequested)
+                }
                     .keyboardShortcut("n", modifiers: .command)
                 // T-67: 이야기 시리즈 마법사 (⌥⌘N — 시리즈 생성)
-                Button("새 이야기 시리즈…") { newStoryWizard() }
+                Button("새 이야기 시리즈…") {
+                    _postNotification(.newStoryWizardRequested)
+                }
                     .keyboardShortcut("n", modifiers: [.command, .option])
             }
             // T-34: View — DebugPanel (⌘⇧D)
@@ -85,15 +95,5 @@ struct MacCanDoApp: App {
                 }
             }
         }
-    }
-
-    // T-34: ⌘N — 새 글 에디터 창 (ContentView 경유 알림 → 동일 동작 보장)
-    private func newPost() {
-        NotificationCenter.default.post(name: .newPostRequested, object: nil)
-    }
-
-    // T-67: ⌥⌘N — 이야기 시리즈 마법사 시트 (ContentView 경유 알림)
-    private func newStoryWizard() {
-        NotificationCenter.default.post(name: .newStoryWizardRequested, object: nil)
     }
 }

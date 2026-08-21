@@ -39,6 +39,11 @@ struct AssistantView: View {
     @State private var bodyImageAltError: String?
     @State private var bodyImagePromptText = ""
     @State private var showBodyPicker = false
+    // T-83: v2.14 — 이미지 프롬프트 생성 (복사 전용)
+    @State private var showImagePromptGen = false
+    @State private var imagePromptItems: [GeminiService.ImagePromptItem] = []
+    @State private var generatingImagePrompts = false
+    @State private var imagePromptError: String?
     // T-71: 게시글 초안(DRAFT) 등록
     @State private var registeringDraft = false
     @State private var draftError: String?
@@ -82,6 +87,7 @@ struct AssistantView: View {
         // T-71: AI 커버/본문 이미지 생성 + 수동 선택 (업로드 이미지)
         .sheet(isPresented: $showCoverGen) { coverGenSheet }
         .sheet(isPresented: $showBodyGen) { bodyGenSheet }
+        .sheet(isPresented: $showImagePromptGen) { imagePromptSheet }
         .sheet(isPresented: $showCoverPicker) {
             ImagePickerSheet(
                 token: token,
@@ -194,6 +200,11 @@ struct AssistantView: View {
                     }
                     Button { showBodyGen = true } label: {
                         Label("본문 이미지", systemImage: "photo.on.rectangle.angled")
+                    }
+                    .controlSize(.small)
+                    .disabled(registeringDraft)
+                    Button { showImagePromptGen = true } label: {
+                        Label("이미지 프롬프트", systemImage: "text.below.photo")
                     }
                     .controlSize(.small)
                     .disabled(registeringDraft)
@@ -757,6 +768,109 @@ struct AssistantView: View {
             DebugLogger.error("Assistant", "초안 등록 실패: \(e?.code ?? "unknown")")
         }
         registeringDraft = false
+    }
+
+    // T-83: v2.14 — 이미지 프롬프트 생성 시트 (복사 전용)
+    private var imagePromptSheet: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("이미지 프롬프트 생성").font(.title3.bold())
+                Spacer()
+                Text(GeminiService.chainLabel(for: .imagePrompts)).font(.caption2).foregroundStyle(.secondary)
+            }
+            Text("입력한 내용을 분석해 타 AI 이미지 생성기에 붙여넣을 영어 프롬프트 세트를 만듭니다. 각 항목을 복사해 ChatGPT·Midjourney 등에서 이미지를 생성하세요.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack {
+                Button(generatingImagePrompts ? "생성 중…" : "프롬프트 생성") {
+                    Task { await generateImagePrompts() }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(generatingImagePrompts || query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Spacer()
+            }
+            if generatingImagePrompts {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("내용을 분석해 프롬프트를 만드는 중… (보통 5~15초)").font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 200)
+            } else if !imagePromptItems.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(imagePromptItems) { item in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text(item.label).font(.subheadline.bold())
+                                    Text(item.aspectRatio).font(.caption2)
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(Color.dsSurfaceHover)
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    Spacer()
+                                    Button {
+                                        NSPasteboard.general.clearContents()
+                                        NSPasteboard.general.setString(item.prompt, forType: .string)
+                                    } label: {
+                                        Image(systemName: "doc.on.doc")
+                                    }
+                                    .buttonStyle(.link)
+                                    .controlSize(.small)
+                                    .help("프롬프트 복사")
+                                }
+                                Text(item.prompt)
+                                    .font(.caption)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(8)
+                                    .background(Color.dsSurface)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                        }
+                    }
+                    .padding(4)
+                }
+                .frame(maxWidth: .infinity)
+                if let err = imagePromptError {
+                    Text(err).font(.caption).foregroundStyle(Color.dsDanger)
+                }
+                HStack {
+                    Button("전체 복사") {
+                        let text = imagePromptItems.map { "\($0.label) (\($0.aspectRatio))\n\($0.prompt)" }.joined(separator: "\n\n")
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(text, forType: .string)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    Spacer()
+                    Button("닫기") { showImagePromptGen = false }.keyboardShortcut(.cancelAction)
+                }
+            } else if let err = imagePromptError {
+                Text(err).font(.caption).foregroundStyle(Color.dsDanger)
+                    .frame(maxWidth: .infinity, minHeight: 120, alignment: .center)
+            } else {
+                Rectangle()
+                    .fill(Color.dsSurface)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+                    .overlay(Text("'프롬프트 생성'을 누르면 결과가 여기에 표시됩니다").font(.caption).foregroundStyle(.secondary))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .padding(20)
+        .frame(width: 520, height: 560)
+    }
+
+    private func generateImagePrompts() async {
+        generatingImagePrompts = true
+        imagePromptError = nil
+        imagePromptItems = []
+        defer { generatingImagePrompts = false }
+        do {
+            let items = try await GeminiService.generateImagePrompts(title: titleForDraft(), body: result)
+            imagePromptItems = items
+        } catch {
+            imagePromptError = (error as? APIError)?.message ?? error.localizedDescription
+        }
     }
 
     // T-71: 등록된 초안을 편집기에서 이어서 수정

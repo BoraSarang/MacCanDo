@@ -59,7 +59,7 @@ enum GeminiService {
 
     // AI 동작(기능) — 각각 모델 사용 순서를 설정으로 관리
     enum AIAction: String, CaseIterable, Codable, Identifiable {
-        case assistant, seo, spelling, wizard, newsSummary, coverImage, bodyImage, vision
+        case assistant, seo, spelling, wizard, newsSummary, coverImage, bodyImage, vision, imagePrompts
 
         var id: String { rawValue }
         var label: String {
@@ -72,6 +72,7 @@ enum GeminiService {
             case .coverImage: return "커버 이미지"
             case .bodyImage: return "본문 이미지"
             case .vision: return "이미지 설명(alt)"
+            case .imagePrompts: return "이미지 프롬프트"
             }
         }
         var capability: AICapability {
@@ -79,6 +80,7 @@ enum GeminiService {
             case .assistant, .seo, .spelling, .wizard, .newsSummary: return .text
             case .coverImage, .bodyImage: return .image
             case .vision: return .vision
+            case .imagePrompts: return .text
             }
         }
     }
@@ -734,6 +736,51 @@ enum GeminiService {
         }
         DebugLogger.info("Gemini", "[FEATURE] 시리즈 편 목록 기획 완료 count=\(plans.count) topic=\(String(topic.prefix(40)))")
         return plans
+    }
+
+    // T-83: v2.14 — 게시글 본문 → 이미지 생성용 영어 프롬프트 세트 (타 AI 생성기에 붙여넣기 목적)
+    struct ImagePromptItem: Codable, Identifiable {
+        var id = UUID()
+        let label: String
+        let aspectRatio: String
+        let prompt: String
+
+        enum CodingKeys: String, CodingKey { case label, aspectRatio, prompt }
+    }
+
+    // 제목 + 본문(마크다운/HTML 텍스트) → 커버(16:9) + 본문 이미지(2~5장) 프롬프트 배열
+    static func generateImagePrompts(title: String, body: String) async throws -> [ImagePromptItem] {
+        let cleanBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prompt = """
+        다음 블로그 게시글의 제목과 본문을 분석하여, 게시글을 시각적으로 표현할 이미지 생성용 프롬프트 목록을 만들어 주세요. 결과는 JSON 배열로만 출력하세요 (마크다운 코드블록·설명 없이).
+
+        제목: \(title)
+
+        본문:
+        \(cleanBody.prefix(4000))
+
+        각 항목 형식 (키 이름 그대로):
+        {
+          "label": "커버 이미지" 또는 "본문 1 — <화면 설명>",
+          "aspectRatio": "16:9" 또는 "4:3" 등,
+          "prompt": "영어 이미지 생성 프롬프트 — 구체적인 시각 묘사, 미니멀/클린 톤, 워터마크 없음"
+        }
+
+        요구사항:
+        - 첫 항목은 반드시 커버 이미지(aspectRatio "16:9")
+        - 이후 본문에 등장하는 화면/장면을 나타내는 본문 이미지 2~5장 (적절한 비율 자동 판단)
+        - prompt는 영어로 작성 (다른 AI 이미지 생성기에 붙여넣기 용도)
+        - JSON 외 어떤 텍스트도 출력 금지
+        """
+        let raw = try await fetchText(prompt: prompt, action: .imagePrompts)
+        guard let data = extractJSONArray(from: raw) else {
+            throw APIError(code: "E-MAC-AI-1003", message: "이미지 프롬프트를 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
+        }
+        guard let items = try? JSONDecoder().decode([ImagePromptItem].self, from: data), !items.isEmpty else {
+            throw APIError(code: "E-MAC-AI-1003", message: "이미지 프롬프트를 해석하지 못했습니다. 다시 시도해 주세요.", status: -1)
+        }
+        DebugLogger.info("Gemini", "[FEATURE] 이미지 프롬프트 생성 완료 count=\(items.count) title=\(String(title.prefix(40)))")
+        return items
     }
 
     // 공통 fetch (Gemini 호출 → 텍스트 추출)

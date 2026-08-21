@@ -97,3 +97,6 @@ struct StatusBadge: View {
         .background(color.opacity(0.15), in: Capsule())
     }
 }
+
+
+// Notification 이름 확장 — 공통 알림 이름

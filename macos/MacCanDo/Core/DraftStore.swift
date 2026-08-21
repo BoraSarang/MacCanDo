@@ -139,6 +139,21 @@ enum DraftStore {
         }
         return result
     }
+    
+    // T-24: 단일 초안 로드 (키로 조회) — 에디터 자동저장/이어쓰기용
+    static func loadDraft(key: String) -> (title: String, content: String)? {
+        open()
+        guard let db else { return nil }
+        let stmt = "SELECT title, body FROM drafts WHERE post_id = ?;"
+        var p: OpaquePointer?
+        guard sqlite3_prepare_v2(db, stmt, -1, &p, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(p) }
+        sqlite3_bind_text(p, 1, key, -1, SQLITE_TRANSIENT)
+        guard sqlite3_step(p) == SQLITE_ROW else { return nil }
+        let title = String(cString: sqlite3_column_text(p, 0))
+        let content = String(cString: sqlite3_column_text(p, 1))
+        return (title, content)
+    }
 
     // T-26: NULL 안전 — title/body/status도 NULL이면 기본값 (크래시 방지, 2026-08-17 크래시 리포트)
     private static func draftRecord(from p: OpaquePointer?, key: String) -> DraftRecord {

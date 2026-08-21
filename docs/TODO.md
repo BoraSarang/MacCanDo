@@ -9,6 +9,8 @@
 
 | 번호 | 작업 | 플랫폼 | 상태 | 비고 |
 |------|------|--------|------|------|
+| T-95 | 문서/커밋 정리 + 빌드 검증 | common | 🔄 | v2.15 |
+| T-83 | 이미지 프롬프트 생성 (본문 분석 → 영어 프롬프트 세트, 커버+본문, 복사 전용 — v2.14) | macos | ✅ | v2.14 (EditorView+AssistantView 진입, GeminiService.imagePrompts 체인) |
 | T-64 | 카테고리 관리 (web admin API + macOS Settings 섹션 — v2.11) | web+macos | ✅ | v2.11 |
 | T-65 | 시리즈 홈 배너 순서(featuredOrder) 편집 (SeriesView — v2.11) | macos | ✅ | v2.11 |
 | T-66 | AI 설정 관리 (모델 선택 + 키 자동 가져오기 — v2.11) | macos | ✅ | v2.11 |
@@ -49,6 +51,18 @@
 
 | 번호 | 작업 | 플랫폼 | 상태 |
 |------|------|--------|------|
+| T-94 | E2E 시나리오 확장 (워크스페이스 전체 플로우 Playwright) | web | ✅ 2026-08-21 (10 passed, 1 skipped — workspace-flow.spec.ts 추가) |
+| T-93 | 웹 렌더링 파이프라인 동기화 검증 (macOS↔웹 100% 일치) | common | ✅ 2026-08-21 (마크다운 확장 호환 검증) |
+| T-92 | 발행 전 체크리스트 (SEO/슬러그/카테고리/태그/썸네일/alt/앱카드 자동 검증) | macos | ✅ 2026-08-21 (Views/Inspector/PublishChecklist.swift) |
+| T-91 | 이미지 프롬프트 라이브러리 연동 (T-83 + 템플릿 선택/편집/히스토리) | macos | ✅ 2026-08-21 (ImagePromptPanel 내장) |
+| T-90 | ActionBar (6단계 원클릭: 리서치→기획→초안→이미지→발행준비→발행) | macos | ✅ 2026-08-21 (Views/Editor/ActionBar.swift 인라인) |
+| T-89 | 인스펙터 패널 5종 (Research/Assistant/ImagePrompt/SEO/Publish) | macos | ✅ 2026-08-21 (Views/Inspector/*.swift) |
+| T-88 | EditorView 모듈화 (Core/Toolbar/Sheets/Autosave/SEO + ActionBar 인라인) | macos | ✅ 2026-08-21 (EditorView.swift 전면 재작성) |
+| T-87 | WorkspaceView (NavigationSplitView 3열 — ContentView 완전 대체) | macos | ✅ 2026-08-21 (Views/WorkspaceView.swift) |
+| T-86 | ResearchBundle/CollectedItem 정규화 모델 | macos | ✅ 2026-08-21 (Core/CollectedItem.swift) |
+| T-85 | PromptLibrary 시스템 (템플릿 CRUD + 내장 5종 + JSON 내보내기/가져오기) | macos | ✅ 2026-08-21 (Core/PromptLibrary.swift + Resources/PromptTemplates.json) |
+| T-84 | WritingPipeline 엔진 (5단계: 수집→기획→초안→주입→발행준비) | macos | ✅ 2026-08-21 (Core/WritingPipeline.swift) |
+| T-83 | 이미지 프롬프트 생성 (본문 분석 → 영어 프롬프트 세트, 커버+본문, 복사 전용 — v2.14) | macos | ✅ 2026-08-21 (EditorView+AssistantView 진입, GeminiService.imagePrompts 체인) |
 | T-63 | 소스 리팩토링 (web+macos — P1안전성→P5토큰, PLAN_v2.10_refactor) | web+macos | ✅ 2026-08-18 (P1~P5 완료, bd MacCanDo-27c close) |
 | T-62 | Playwright E2E 스모크 + CI 등록 (bd MacCanDo-hx2 ②) | web | ✅ 2026-08-18 (4/4 통과, CI 워크플로 — 시크릿 등록 필요) |
 | T-61 | macOS PERF/CACHE 점검 (bd MacCanDo-hx2 ③) — [PERF] 레벨 + Cold start 측정 + API 지연 로그 | macos | ✅ 2026-08-18 (Cold start 346ms) |

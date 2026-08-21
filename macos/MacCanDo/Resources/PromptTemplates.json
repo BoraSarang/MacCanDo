@@ -1,0 +1,157 @@
+[
+  {
+    "id": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+    "name": "앱 소개형 (기본)",
+    "category": "appIntro",
+    "systemPrompt": "당신은 Mac 사용자를 위한 기술 블로그 작가입니다.\n새로운 Mac 앱/도구를 소개하는 글을 작성합니다.\n독자는 Mac을 잘 쓰는 파워 유저부터 초보자까지 다양합니다.",
+    "userPromptTemplate": "주제: {topic}\n\n다음 섹션 구조로 글을 작성해 주세요 ({language}로, {tone} 톤으로, {length}):\n\n{sections}\n\n각 섹션은 구체적인 예시, 스크린샷 설명(이미지 마커 포함), 실사용 팁을 포함하세요.",
+    "imagePromptTemplates": [
+      {
+        "id": "B1C2D3E4-F5A6-7890-BCDE-F12345678901",
+        "position": "cover",
+        "aspectRatio": "16:9",
+        "promptTemplate": "{appName} macOS 앱 메인 화면, {style}, 16:9 와이드"
+      },
+      {
+        "id": "C2D3E4F5-A6B7-8901-CDEF-123456789012",
+        "position": "body1",
+        "aspectRatio": "4:3",
+        "promptTemplate": "{appName}의 {feature} 기능 실행 화면, {style}, 4:3"
+      },
+      {
+        "id": "D3E4F5A6-B7C8-9012-DEF1-234567890123",
+        "position": "body2",
+        "aspectRatio": "4:3",
+        "promptTemplate": "{appName} 설정/옵션 화면, {style}, 4:3"
+      }
+    ],
+    "isBuiltIn": true,
+    "createdAt": "2026-08-21T00:00:00Z",
+    "updatedAt": "2026-08-21T00:00:00Z",
+    "version": 1
+  },
+  {
+    "id": "E4F5A6B7-C8D9-0123-EF12-345678901234",
+    "name": "비교 리뷰형 (기본)",
+    "category": "comparison",
+    "systemPrompt": "당신은 객관적인 기술 리뷰어입니다.\n여러 앱/서비스를 공정하게 비교 분석하는 글을 작성합니다.\n장단점을 명확히 하고, 독자의 선택을 돕는 결론을 내립니다.",
+    "userPromptTemplate": "비교 주제: {topic}\n\n다음 구조로 비교 글을 작성하세요 ({language}, {tone}, {length}):\n\n{sections}\n\n각 항목별로 표/리스트로 비교하고, 마지막에 '이런 분께 추천' 결론을 넣으세요.",
+    "imagePromptTemplates": [
+      {
+        "id": "F5A6B7C8-D9E0-1234-F123-456789012345",
+        "position": "cover",
+        "aspectRatio": "16:9",
+        "promptTemplate": "{appName} vs {appName2} 비교 인포그래픽 스타일, {style}, 16:9"
+      },
+      {
+        "id": "A6B7C8D9-E0F1-2345-1234-567890123456",
+        "position": "body1",
+        "aspectRatio": "4:3",
+        "promptTemplate": "{appName}와 {appName2} 기능 비교표 시각화, {style}, 4:3"
+      },
+      {
+        "id": "B7C8D9E0-F1A2-3456-2345-678901234567",
+        "position": "body2",
+        "aspectRatio": "4:3",
+        "promptTemplate": "{appName} 장점 화면 예시, {style}, 4:3"
+      },
+      {
+        "id": "C8D9E0F1-A2B3-4567-3456-789012345678",
+        "position": "body3",
+        "aspectRatio": "4:3",
+        "promptTemplate": "{appName2} 장점 화면 예시, {style}, 4:3"
+      }
+    ],
+    "isBuiltIn": true,
+    "createdAt": "2026-08-21T00:00:00Z",
+    "updatedAt": "2026-08-21T00:00:00Z",
+    "version": 1
+  },
+  {
+    "id": "D9E0F1A2-B3C4-5678-4567-890123456789",
+    "name": "튜토리얼형 (기본)",
+    "category": "tutorial",
+    "systemPrompt": "당신은 친절한 기술 튜토리얼 작가입니다.\n단계별로 따라하기 쉬운 가이드를 작성합니다.\n초보자도 막힘없이 완료할 수 있도록 세세하게 설명합니다.",
+    "userPromptTemplate": "튜토리얼 주제: {topic}\n\n다음 구조로 단계별 가이드를 작성하세요 ({language}, {tone}, {length}):\n\n{sections}\n\n각 단계는 스크린샷 포인트(이미지 마커)와 예상 결과, 문제 발생 시 해결책을 포함하세요.",
+    "imagePromptTemplates": [
+      {
+        "id": "E0F1A2B3-C4D5-6789-5678-901234567890",
+        "position": "cover",
+        "aspectRatio": "16:9",
+        "promptTemplate": "{topic} 튜토리얼 커버 - 완성 화면 미리보기, {style}, 16:9"
+      },
+      {
+        "id": "F1A2B3C4-D5E6-7890-6789-012345678901",
+        "position": "body1",
+        "aspectRatio": "4:3",
+        "promptTemplate": "1단계: {feature} 설정 화면, {style}, 4:3"
+      },
+      {
+        "id": "A2B3C4D5-E6F7-8901-7890-123456789012",
+        "position": "body2",
+        "aspectRatio": "4:3",
+        "promptTemplate": "2단계: {feature} 실행 중간 화면, {style}, 4:3"
+      },
+      {
+        "id": "B3C4D5E6-F7A8-9012-8901-234567890123",
+        "position": "body3",
+        "aspectRatio": "4:3",
+        "promptTemplate": "3단계: 완료된 결과 화면, {style}, 4:3"
+      }
+    ],
+    "isBuiltIn": true,
+    "createdAt": "2026-08-21T00:00:00Z",
+    "updatedAt": "2026-08-21T00:00:00Z",
+    "version": 1
+  },
+  {
+    "id": "C4D5E6F7-A8B9-0123-6789-012345678901",
+    "name": "뉴스 요약형 (기본)",
+    "category": "newsSummary",
+    "systemPrompt": "당신은 기술 뉴스 큐레이터입니다.\n최신 발표/소식을 맥락과 함께 요약해 독자가 바로 이해할 수 있게 씁니다.\n사실과 추측을 구분하고, 출처를 명시합니다.",
+    "userPromptTemplate": "뉴스 주제: {topic}\n\n다음 구조로 요약 글을 작성하세요 ({language}, {tone}, {length}):\n\n{sections}\n\n사실(공식 발표)과 분석(해석/전망)을 명확히 구분하세요. 출처 링크는 본문 하단에 모아두세요.",
+    "imagePromptTemplates": [
+      {
+        "id": "D5E6F7A8-B9C0-1234-7890-123456789012",
+        "position": "cover",
+        "aspectRatio": "16:9",
+        "promptTemplate": "{topic} 뉴스 커버 - 핵심 키워드 시각화, {style}, 16:9"
+      },
+      {
+        "id": "E6F7A8B9-C0D1-2345-8901-234567890123",
+        "position": "body1",
+        "aspectRatio": "4:3",
+        "promptTemplate": "{topic} 관련 발표/로고/화면 캡처, {style}, 4:3"
+      }
+    ],
+    "isBuiltIn": true,
+    "createdAt": "2026-08-21T00:00:00Z",
+    "updatedAt": "2026-08-21T00:00:00Z",
+    "version": 1
+  },
+  {
+    "id": "F7A8B9C0-D1E2-3456-9012-345678901234",
+    "name": "빈 템플릿 (직접 작성)",
+    "category": "custom",
+    "systemPrompt": "자유롭게 프롬프트를 작성하세요.",
+    "userPromptTemplate": "{topic}\n\n{sections}",
+    "imagePromptTemplates": [
+      {
+        "id": "A8B9C0D1-E2F3-4567-0123-456789012345",
+        "position": "cover",
+        "aspectRatio": "16:9",
+        "promptTemplate": "{topic} 커버 이미지, {style}, 16:9"
+      },
+      {
+        "id": "B9C0D1E2-F3A4-5678-1234-567890123456",
+        "position": "body1",
+        "aspectRatio": "4:3",
+        "promptTemplate": "{topic} 본문 이미지 1, {style}, 4:3"
+      }
+    ],
+    "isBuiltIn": true,
+    "createdAt": "2026-08-21T00:00:00Z",
+    "updatedAt": "2026-08-21T00:00:00Z",
+    "version": 1
+  }
+]
