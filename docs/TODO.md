@@ -9,6 +9,7 @@
 
 | 번호 | 작업 | 플랫폼 | 상태 | 비고 |
 |------|------|--------|------|------|
+| T-96 | 웹 검색 소스 확대 — WritingPipeline 1단계 실구현 (RSS 수집 + DuckDuckGo 검색 + AI 요약) | macos | ✅ 2026-08-21 (WebSearchService 신규, collectFromSource 실구현, AI 일괄 요약 8건, E-MAC-NET-1002 추가 — BUILD SUCCEEDED, 배포 pid 45500) | v2.16 |
 | T-95 | 문서/커밋 정리 + 빌드 검증 | common | ✅ 2026-08-21 (v2.15 커밋 bbd4ea0 push + JSON-LD BlogPosting 구현으로 E2E skip 해제 — web build 통과, workspace-flow 7/7 passed) | v2.15 |
 | T-83 | 이미지 프롬프트 생성 (본문 분석 → 영어 프롬프트 세트, 커버+본문, 복사 전용 — v2.14) | macos | ✅ | v2.14 (EditorView+AssistantView 진입, GeminiService.imagePrompts 체인) |
 | T-64 | 카테고리 관리 (web admin API + macOS Settings 섹션 — v2.11) | web+macos | ✅ | v2.11 |

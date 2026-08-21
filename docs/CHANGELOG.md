@@ -1,3 +1,24 @@
+## v2.16 (2026-08-21) — [macos] 웹 검색 소스 확대 — WritingPipeline 1단계 실구현 (T-96)
+
+### macOS
+
+- **T-96**: WritingPipeline 1단계 수집 엔진 실구현 + DuckDuckGo 웹 검색 추가
+  - `Core/WebSearchService.swift` 신규: DDG HTML 검색 (`html.duckduckgo.com/html/?q=`), API 키 불필요
+    - `result__a`(제목/링크) + `result__snippet`(a/div 양쪽) 정규식 파싱, uddg 리다이렉트 URL 복원
+    - 봇 탐지(anomaly-modal) 감지 → `E-MAC-NET-1002` 발생 후 RSS 폴백
+  - `WritingPipeline.collectFromSource` 스텁 제거: `NewsCollector.fetchRaw` 재사용 → 토픽 키워드 관련성 필터 → CollectedItem 변환
+  - 웹 검색 보강 단계 추가: RSS 수집 후 DDG 결과 8건 병합 (실패 시 warn 로그 후 계속)
+  - AI 일괄 요약: 상위 8건을 `.wizard` 체인 1회 호출로 요약/평가/키워드 생성 (JSON 파싱, 실패 시 스니펫 유지)
+  - RFC822/ISO8601 pubDate 파서 (`WritingPipeline.parseDate`)
+  - 에러코드 `E-MAC-NET-1002` 추가 (error_message_ko.json)
+
+### 검증
+
+- `xcodebuild BUILD SUCCEEDED`, 앱 배포/실행 확인 (`~/Applications/MacCanDo.app` pid 45500)
+- 실측: DDG 첫 요청 정상 응답 확인 (`result__a` 직접 URL 형태) — 반복 요청 시 봇 탐지 차단 존재, 폴백 설계로 파이프라인 중단 없음
+
+---
+
 ## v2.15 (2026-08-21) — [macos+web] 글쓰기 워크스페이스 통합 + 70% 자동화 파이프라인 (T-83~T-95)
 
 ### macOS

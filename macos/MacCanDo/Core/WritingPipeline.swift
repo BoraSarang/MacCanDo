@@ -22,7 +22,7 @@ final class WritingPipeline {
         // 소스별 수집 (병렬)
         var allItems: [CollectedItem] = []
         var allApps: [AppCandidate] = []
-        
+
         await withTaskGroup(of: (String, [CollectedItem], [AppCandidate]).self) { group in
             for source in sources {
                 group.addTask {
@@ -30,19 +30,43 @@ final class WritingPipeline {
                     return (source.name, items, apps)
                 }
             }
-            
+
             for await (sourceName, items, apps) in group {
                 DebugLogger.info("Pipeline", "소스 '\(sourceName)' 수집 완료: \(items.count)개 아이템, \(apps.count)개 앱")
                 allItems.append(contentsOf: items)
                 allApps.append(contentsOf: apps)
             }
         }
-        
+
+        // T-96: DuckDuckGo 웹 검색 보강 — RSS 결과 부족 시 또는 항상 병행
+        do {
+            let webResults = try await WebSearchService.search(topic, limit: 8)
+            let webItems = webResults.map { r in
+                CollectedItem(
+                    sourceName: "웹 검색",
+                    sourceURL: r.url,
+                    title: r.title,
+                    summary: r.snippet,
+                    evaluation: "",
+                    keywords: [],
+                    publishedAt: Date()
+                )
+            }
+            DebugLogger.info("Pipeline", "[FEATURE] 웹 검색 수집 완료: \(webItems.count)건")
+            allItems.append(contentsOf: webItems)
+        } catch {
+            DebugLogger.warn("Pipeline", "웹 검색 실패 (RSS 결과로 계속): \(error)")
+        }
+
+        // 중복 제거 후 상위 8개 AI 요약/키워드/평가 생성
+        let dedupedForSummary = deduplicateByURL(allItems)
+        let summarized = await summarizeItems(dedupedForSummary, topic: topic)
+
         // 키워드 추출 (빈도순)
-        let keywords = extractKeywords(from: allItems, topK: 10)
-        
+        let keywords = extractKeywords(from: summarized, topK: 10)
+
         // 중복 제거 (URL 기준)
-        let uniqueItems = deduplicateByURL(allItems)
+        let uniqueItems = deduplicateByURL(summarized)
         let uniqueApps = deduplicateApps(allApps)
         
         let bundle = ResearchBundle(
@@ -203,11 +227,119 @@ final class WritingPipeline {
     }
     
     // MARK: - Private Helpers
-    
+
+    /// T-96: 상위 8개 아이템 AI 일괄 요약 — API 1회 호출로 비용 절감
+    /// 실패 시 원본(스니펫만) 유지로 파이프라인 중단 없음
+    private func summarizeItems(_ items: [CollectedItem], topic: String) async -> [CollectedItem] {
+        let targets = Array(items.prefix(8))
+        guard !targets.isEmpty else { return items }
+
+        let list = targets.enumerated().map { idx, item in
+            "\(idx + 1). [\(item.sourceName)] \(item.title)\n   URL: \(item.sourceURL)\n   내용: \(item.summary.isEmpty ? "(제목만)" : String(item.summary.prefix(300)))"
+        }.joined(separator: "\n")
+
+        let prompt = """
+        주제: \(topic)
+
+        수집한 자료 목록:
+        \(list)
+
+        각 자료를 한국어로 분석해 JSON 배열로 출력하세요:
+        [
+          {"index": 1, "summary": "3~5줄 요약", "evaluation": "신뢰도/중요도 한 줄 평가", "keywords": ["키워드", ...]},
+          ...
+        ]
+        JSON 외 텍스트 출력 금지.
+        """
+
+        do {
+            let raw = try await GeminiService.fetchText(prompt: prompt, action: .wizard)
+            guard let data = extractJSON(from: raw),
+                  let parsed = try? JSONDecoder().decode([SummaryEntry].self, from: data) else {
+                DebugLogger.warn("Pipeline", "요약 JSON 파싱 실패 — 스니펫으로 유지")
+                return items
+            }
+            var result = items
+            for entry in parsed where entry.index >= 1 && entry.index <= targets.count {
+                let target = targets[entry.index - 1]
+                if let pos = result.firstIndex(where: { $0.id == target.id }) {
+                    result[pos] = CollectedItem(
+                        sourceName: target.sourceName,
+                        sourceURL: target.sourceURL,
+                        title: target.title,
+                        summary: entry.summary,
+                        evaluation: entry.evaluation,
+                        keywords: entry.keywords,
+                        publishedAt: target.publishedAt,
+                        rawContent: target.rawContent
+                    )
+                }
+            }
+            DebugLogger.info("Pipeline", "[FEATURE] AI 요약 완료: \(parsed.count)/\(targets.count)건")
+            return result
+        } catch {
+            DebugLogger.warn("Pipeline", "AI 요약 실패 — 스니펫으로 유지: \(error)")
+            return items
+        }
+    }
+
+    private struct SummaryEntry: Codable {
+        let index: Int
+        let summary: String
+        let evaluation: String
+        let keywords: [String]
+    }
+
     private func collectFromSource(_ source: NewsSource, topic: String) async -> ([CollectedItem], [AppCandidate]) {
-        // RSS 수집 → AI 요약/키워드 추출 → CollectedItem 변환
-        // 실제 구현: MacNewsStore.collect() 확장
-        return ([], [])
+        // T-96: RSS fetch → 관련성 필터 → CollectedItem 변환 (AI 요약은 일괄 단계에서)
+        do {
+            let raws = try await NewsCollector.fetchRaw(source: source, limit: 10)
+            let filtered = filterRelevant(raws, topic: topic)
+            let items = filtered.map { raw in
+                CollectedItem(
+                    sourceName: raw.source,
+                    sourceURL: raw.url,
+                    title: raw.title,
+                    summary: "",           // AI 요약은 summarizeItems에서 일괄 처리
+                    evaluation: "",
+                    keywords: [],
+                    publishedAt: Self.parseDate(raw.published) ?? Date()
+                )
+            }
+            return (items, [])
+        } catch {
+            DebugLogger.warn("Pipeline", "소스 '\(source.name)' 수집 실패: \(error)")
+            return ([], [])
+        }
+    }
+
+    /// 제목/스니펫에 토픽 키워드 포함 여부로 관련성 필터 (토픽이 짧으면 전체 통과)
+    private func filterRelevant(_ items: [RawNewsItem], topic: String) -> [RawNewsItem] {
+        let tokens = topic.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { $0.count >= 2 }
+        guard !tokens.isEmpty else { return items }
+
+        func isRelevant(_ text: String) -> Bool {
+            let lower = text.lowercased()
+            return tokens.contains { lower.contains($0) }
+        }
+        let matched = items.filter { isRelevant($0.title) }
+        // 매칭 부족 시 원본 유지 (빈 결과 방지)
+        return matched.isEmpty ? items : matched
+    }
+
+    /// RSS pubDate 다양한 형식 파싱 (RFC822/ISO8601)
+    static func parseDate(_ s: String) -> Date? {
+        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let rfc822 = DateFormatter()
+        rfc822.locale = Locale(identifier: "en_US_POSIX")
+        rfc822.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        if let d = rfc822.date(from: trimmed) { return d }
+        let iso = ISO8601DateFormatter()
+        if let d = iso.date(from: trimmed) { return d }
+        return nil
     }
     
     private func extractKeywords(from items: [CollectedItem], topK: Int) -> [String] {
